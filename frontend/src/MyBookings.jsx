@@ -50,7 +50,7 @@ function MyBookings() {
       if (!confirmed) return;
 
       setCancelingId(bookingId);
-      await axios.delete(`${import.meta.env.VITE_API_URL}/api/bookings/${bookingId}/cancel`, {
+      await axios.delete(`${import.meta.env.VITE_API_URL}/api/bookings/user-cancel/${bookingId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 

@@ -40,11 +40,7 @@ const getAllBookingActivities = async (req, res) => {
     const activities = await BookingActivity.find()
       .populate({
         path: 'booking',
-        select: 'specialId customerName bookingStatus',
-        populate: {
-          path: 'room',
-          select: 'roomNumber'
-        }
+        select: 'roomNumber customerName bookingStatus'
       })
       .sort({ timestamp: -1 })
       .limit(100);

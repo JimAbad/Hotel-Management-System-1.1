@@ -261,9 +261,9 @@
   left: 25px;
   top: 50%;
   transform: translateY(-50%);
-  background: #f0f0f0;
+  background: #B8860B;
   border: 1px solid #ccc;
-  color: #333;
+  color: white;
   padding: 6px 12px;
   border-radius: 4px;
   font-size: 14px;
@@ -276,7 +276,7 @@
 }
 
 .modal-back:hover {
-  background: #e0e0e0; /* Darker grey on hover */
+  background: #B8860B; /* Darker grey on hover */
   color: #000;
 }
 
@@ -638,6 +638,7 @@
   display: flex;
   justify-content: center;
   margin-top: 24px;
+  color:#B8860B;  
 }
 
 .modal-actions .book-room-btn {

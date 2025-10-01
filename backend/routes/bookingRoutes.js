@@ -10,6 +10,7 @@ router.use(protect);
 // Public routes
 router.post('/', createBooking);
 router.get('/my-bookings', getMyBookings);
+router.delete('/user-cancel/:id', cancelBooking);
 
 // Admin routes
 router.get('/', authorize(['admin']), getAllBookings);

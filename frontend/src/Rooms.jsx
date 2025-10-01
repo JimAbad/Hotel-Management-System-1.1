@@ -89,7 +89,7 @@ function Rooms() {
         return;
       }
       const bookingData = {
-        roomId: room._id,
+        roomNumber: room.roomNumber,
         customerName: user.name,
         customerEmail: user.email,
         checkInDate: '2025-09-17',
@@ -105,7 +105,7 @@ function Rooms() {
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      navigate('/payment-status', { state: { success: true, booking: bookingResponse.data.newBooking, customerAccountId: bookingResponse.data.customerAccountId } });
+      navigate('/payment-status', { state: { success: true, booking: bookingResponse.data, customerAccountId: bookingResponse.data.customerAccountId } });
     } catch (err) {
       console.error(err);
       navigate('/payment-status', { state: { success: false, error: err.message } });
@@ -178,12 +178,16 @@ function Rooms() {
     }
     try {
       const bookingData = {
-        roomId: modalRoom.specialId,
+        roomNumber: modalRoom.roomNumber,
         customerName: user.name,
         customerEmail: user.email,
-        checkInDate: checkInDate,
-        checkOutDate: checkOutDate,
-        type: modalRoom.roomType || modalRoom.type
+        checkIn: checkInDate,
+        checkOut: checkOutDate,
+        adults: adults,
+        children: children,
+        guestName: guestName,
+        contactNumber: contactNumber,
+        specialRequests: '',
       };
       const bookingResponse = await axios.post(`${import.meta.env.VITE_API_URL}/api/bookings`, bookingData, {
         headers: { Authorization: `Bearer ${token}` }
@@ -219,23 +223,22 @@ function Rooms() {
     }
     try {
       const bookingData = {
-        roomId: modalRoom._id,
+        roomNumber: modalRoom.roomNumber,
         customerName: user.name,
         customerEmail: user.email,
-        checkInDate: checkInDate,
-        checkOutDate: checkOutDate,
-        type: modalRoom.roomType || modalRoom.type,
+        checkIn: checkInDate,
+        checkOut: checkOutDate,
         adults: adults,
         children: children,
         guestName: guestName,
         contactNumber: contactNumber,
-        email: email,
+        specialRequests: '',
       };
       const bookingResponse = await axios.post(`${import.meta.env.VITE_API_URL}/api/bookings`, bookingData, {
         headers: { Authorization: `Bearer ${token}` }
       });
       await axios.post(`${import.meta.env.VITE_API_URL}/api/payment/confirm`, {
-        bookingId: bookingResponse.data.newBooking._id,
+        bookingId: bookingResponse.data._id,
         paymentDetails: { amount: (total * 0.1).toFixed(2) } // Sending 10% of total as down payment
       }, {
         headers: { Authorization: `Bearer ${token}` }
@@ -286,6 +289,7 @@ function Rooms() {
             <div className="room-card-body">
               {renderStars(4)}
               <p>Room Type: {type}</p>
+              <p>Floor: {summary.find(item => item.type === type)?.floor || 'N/A'}</p>
               <p>Total Rooms: {total}</p>
               <p>Available: {available}</p>
             </div>

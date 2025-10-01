@@ -6,6 +6,11 @@ exports.registerUser = async (req, res) => {
   const { fullName, email, username, password, role, jobTitle, contactNumber } = req.body;
 
   try {
+    // Validate required fields
+    if (!fullName || !email || !username || !password) {
+      return res.status(400).json({ msg: 'Please provide all required fields: fullName, email, username, password' });
+    }
+
     let user = await User.findOne({ username });
     if (user) {
       return res.status(400).json({ msg: 'Username already exists' });
@@ -22,8 +27,8 @@ exports.registerUser = async (req, res) => {
       username,
       password,
       role: role || 'user',
-      jobTitle,
-      contactNumber,
+      jobTitle: jobTitle || '',
+      contactNumber: contactNumber || '',
     });
 
     const salt = await bcrypt.genSalt(10);
@@ -44,11 +49,19 @@ exports.registerUser = async (req, res) => {
     });
   } catch (error) {
     console.error('Error in registerUser:', error);
+    
     if (error.code === 11000) {
       // Duplicate key error (e.g., unique email constraint)
-      return res.status(400).json({ msg: 'Duplicate field value entered' });
+      const field = Object.keys(error.keyPattern)[0];
+      return res.status(400).json({ msg: `${field} already exists` });
     }
-    res.status(500).send('Internal Server Error');
+    
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map(val => val.message);
+      return res.status(400).json({ msg: messages.join(', ') });
+    }
+    
+    res.status(500).json({ msg: 'Internal Server Error', error: error.message });
   }
 };
 

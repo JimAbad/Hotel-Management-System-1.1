@@ -5,19 +5,22 @@ const Booking = require('../models/bookingModel');
 // @route   GET /api/customer-bills/:bookingId
 // @access  Private/Admin
 const getCustomerBill = asyncHandler(async (req, res) => {
-  const booking = await Booking.findById(req.params.bookingId).populate('room');
+  const booking = await Booking.findById(req.params.bookingId);
 
   if (booking) {
     res.json({
       _id: booking._id,
       customerName: booking.customerName,
       customerEmail: booking.customerEmail,
-      room: booking.room ? booking.room.roomNumber : 'N/A',
-      checkInDate: booking.checkInDate,
-      checkOutDate: booking.checkOutDate,
+      contactNumber: booking.contactNumber,
+      guestName: booking.guestName,
+      roomNumber: booking.roomNumber,
+      checkInDate: booking.checkIn,
+      checkOutDate: booking.checkOut,
+      adults: booking.adults,
+      children: booking.children,
       totalAmount: booking.totalAmount,
       paymentStatus: booking.paymentStatus,
-      specialId: booking.specialId,
       // Add more bill-related details as needed
     });
   } else {

@@ -11,9 +11,8 @@ const reviewSchema = new mongoose.Schema({
     ref: 'User',
     required: true,
   },
-  room: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Room',
+  roomNumber: {
+    type: String,
     required: true,
   },
   overallRating: {

@@ -5,6 +5,8 @@ import './Signup.css';
 import FormGroup from './FormGroup'; // Import the new FormGroup component
 
 const Signup = () => {
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -17,8 +19,8 @@ const Signup = () => {
       alert('Passwords do not match');
       return;
     }
-    // Assuming register function now takes username, password, confirmPassword
-    const success = await register(username, password, confirmPassword);
+    // Register with all required fields
+    const success = await register(fullName, email, username, password);
     if (success) {
       navigate('/login');
     }
@@ -34,6 +36,22 @@ const Signup = () => {
         <div className="signup-form-card">
           <h2>Sign up Now</h2>
           <form className="signup-form" onSubmit={onSubmit}>
+            <FormGroup
+              label="Full Name"
+              type="text"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              required
+              icon="fa-solid fa-user"
+            />
+            <FormGroup
+              label="Email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              icon="fa-solid fa-envelope"
+            />
             <FormGroup
               label="Username"
               type="text"
