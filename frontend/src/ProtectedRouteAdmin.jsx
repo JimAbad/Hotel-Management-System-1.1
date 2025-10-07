@@ -9,8 +9,8 @@ const ProtectedRouteAdmin = ({ allowedRoles }) => {
   console.log('ProtectedRouteAdmin: Allowed roles:', allowedRoles);
 
   if (!user) {
-    console.log('ProtectedRouteAdmin: User not found, redirecting to /admin/login');
-    return <Navigate to="/admin/login" replace />;
+    console.log('ProtectedRouteAdmin: User not found, redirecting to /login');
+    return <Navigate to="/login" replace />;
   }
 
   if (allowedRoles && !allowedRoles.includes(user.role)) {

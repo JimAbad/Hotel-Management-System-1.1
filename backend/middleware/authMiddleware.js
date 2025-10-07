@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const ErrorResponse = require('../utils/errorResponse');
 
 const protect = async (req, res, next) => {
   let token;
@@ -31,11 +32,29 @@ const protect = async (req, res, next) => {
   }
 };
 
-const authorize = (roles) => (req, res, next) => {
-  if (!roles.includes(req.user.role)) {
-    return res.status(403).json({ message: `User role ${req.user.role} is not authorized to access this route` });
+const authorize = (roles = []) => {
+  // roles param can be a single role string (e.g. 'admin') or an array of roles (e.g. ['admin', 'publisher'])
+  if (typeof roles === 'string') {
+    roles = [roles];
   }
-  next();
+
+  return (req, res, next) => {
+    console.log("Authorize middleware called.");
+    console.log("Request user role:", req.user ? req.user.role : 'No user role found');
+    console.log("Allowed roles for this route:", roles);
+
+    if (!req.user || !req.user.role) {
+      console.log("Authorization failed: No user or user role found.");
+      return next(new ErrorResponse('Not authorized to access this route', 401));
+    }
+
+    if (!roles.includes(req.user.role)) {
+      console.log(`Authorization failed: User role ${req.user.role} is not in allowed roles ${roles}`);
+      return next(new ErrorResponse(`User role ${req.user.role} is not authorized to access this route`, 403));
+    }
+    console.log("Authorization successful.");
+    next();
+  };
 };
 
 module.exports = { protect, authorize };

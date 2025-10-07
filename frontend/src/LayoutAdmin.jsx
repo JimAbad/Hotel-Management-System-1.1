@@ -1,23 +1,24 @@
 import React, { useContext } from 'react';
-import { Link, Outlet, useLocation } from 'react-router-dom';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import AuthContextAdmin from './AuthContextAdmin';
 import './LayoutAdmin.css';
 import { FaTachometerAlt, FaBook, FaFileInvoiceDollar, FaStar, FaSignOutAlt } from 'react-icons/fa';
 
-
 const LayoutAdmin = () => {
   const { logout } = useContext(AuthContextAdmin);
   const location = useLocation();
+  const navigate = useNavigate();
 
   const handleLogout = () => {
     logout();
+    navigate('/'); // Redirect to landing page
   };
 
   return (
     <div className="admin-layout">
       <div className="sidebar">
         <div className="sidebar-header">
-          <h2><span style={{ color: '#ffcc00' }}>&#9889;</span> Lumine</h2>
+          <h2> Lumine</h2>
           <p>Admin</p>
         </div>
         <nav className="sidebar-nav">
@@ -39,7 +40,7 @@ const LayoutAdmin = () => {
             </li>
             <li>
               <Link to="/admin/customer-bill" className={location.pathname === '/admin/customer-bill' ? 'active' : ''}>
-                <FaFileInvoiceDollar className="icon" /> View Customer Bill
+                <FaFileInvoiceDollar className="icon" />  Customers Bills
               </Link>
             </li>
             <li>
