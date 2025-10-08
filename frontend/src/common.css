@@ -1,0 +1,125 @@
+:root {
+  --dark-background: #1a1a1a;
+  --dark-surface: #2a2a2a;
+  --text-color: #ffffff;
+  --light-text-color: #ccc;
+  --golden-accent: #f0d78a;
+  --border-color: #333;
+  --error-color: #ff4d4d;
+}
+
+/* Common container padding */
+.container-padding {
+  padding: 20px;
+}
+
+/* Common list styles for grid layouts */
+.grid-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+/* Common card styles */
+.common-card {
+  background-color: var(--dark-surface);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  transition: transform 0.2s;
+  padding: 15px;
+}
+
+.common-card:hover {
+  transform: translateY(-5px);
+}
+
+.common-card-title {
+  color: var(--golden-accent);
+  margin-top: 0;
+  margin-bottom: 10px;
+}
+
+.common-card-text {
+  color: var(--light-text-color);
+  font-size: 0.9em;
+  line-height: 1.5;
+  margin-bottom: 5px;
+}
+
+/* Common button styles */
+.btn-primary {
+  background-color: var(--golden-accent);
+  color: var(--dark-background);
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background-color 0.3s ease;
+}
+
+.btn-primary:hover {
+  background-color: #e0c67a;
+}
+
+.btn-secondary {
+  background-color: var(--dark-surface);
+  color: var(--golden-accent);
+  border: 1px solid var(--golden-accent);
+  padding: 8px 15px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.btn-secondary:hover {
+  background-color: var(--golden-accent);
+  color: var(--dark-background);
+}
+
+/* Form group styles */
+.form-group {
+  margin-bottom: 1.5rem;
+  text-align: left;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: var(--light-text-color);
+  font-size: 1rem;
+}
+
+.form-group input[type="text"],
+.form-group input[type="email"],
+.form-group input[type="password"],
+.form-group input[type="date"],
+.form-group select {
+  width: 100%;
+  padding: 0.8rem 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  background-color: #3a3a3a;
+  color: var(--text-color);
+  font-size: 1rem;
+}
+
+/* Text alignment */
+.text-center {
+  text-align: center;
+}
+
+/* Headings */
+.heading-primary {
+  color: var(--golden-accent);
+  margin-bottom: 30px;
+}
+
+.heading-secondary {
+  color: var(--text-color);
+  margin-top: 20px;
+  margin-bottom: 15px;
+  font-size: 1.5em;
+}

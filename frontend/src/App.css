@@ -1,0 +1,525 @@
+@import './common.css';
+/* General Styles */
+:root {
+  --transparent: #ffffff; /* Solid white background */
+  --transparent-surface: #f0f0f0; /* Lighter surface for cards, etc. */
+  --dark-background: #ffffff; /* Light background */
+  --dark-surface: #f0f0f0; /* Lighter surface for cards, etc. */
+  --golden-accent: #e0b100; /* Original golden accent */
+  --text-color: #000000; /* Changed to black for light theme */
+  --light-text-color: #555555; /* Slightly lighter dark text */
+  --border-color: rgba(0, 0, 0, 0.1); /* Dark border for light theme */
+}
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow-x: hidden; /* prevent horizontal scroll */
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: var(--transparent);
+  color: #000000;
+  line-height: 1.6;
+  min-height: 100vh; /* Ensure body takes full viewport height */
+}
+
+.App {
+  text-align: center;
+  background-color: var(--transparent);
+  color: var(--text-color);
+  min-height: 100vh;
+}
+
+.App-logo {
+  height: 40vmin;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .App-logo {
+    animation: App-logo-spin infinite 20s linear;
+  }
+}
+
+.App-header {
+  background-color: var(--dark-surface);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(10px + 2vmin);
+  color: var(--text-color);
+}
+
+.App-link {
+  color: var(--golden-accent);
+}
+
+@keyframes App-logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.App {
+  height: 100%; /* Ensure App takes full height */
+  width: 100%; /* Ensure App takes full width */
+  overflow-x: hidden; /* Prevent horizontal scrolling */
+  /* text-align: center; */ /* Remove center alignment to allow content to expand */
+}
+
+/* Navigation Bar */
+nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 20px;
+  background-color: rgba(255, 255, 255, 0.9);
+  color: var(--text-color);
+  position: static;
+  background-color: transparent;
+  padding: 1rem 0;
+  position: fixed;
+  width: 100%;
+  top: 0;
+  z-index: 1000;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border-bottom: 1px solid #1f151525;
+   /* Add a subtle borderline */
+}
+
+nav .logo {
+  font-size: 1.8rem;
+  font-weight: bold;
+  color: var(--golden-accent);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+nav .logo img {
+  height: 30px;
+  vertical-align: middle;
+  margin-left: 20px;
+}
+
+
+nav ul {
+  list-style: none;
+  margin: 0;
+  padding: 0; /* Remove padding from ul */
+  display: flex;
+  align-items: center;
+  background: transparent;
+  /* Remove width: 100%; */
+  /* Remove justify-content: flex-end; */
+  /* Remove flex-grow: 1; */
+}
+
+nav ul li {
+  margin-left: 1.5rem;
+}
+
+nav ul li a,
+nav ul li button,
+.auth-controls a {
+  color: #000000; /* Explicitly set to black */
+  text-decoration: none;
+  padding: 0.5rem 1rem;
+  border-radius: 5px;
+  transition: background-color 0.3s ease;
+}
+
+nav ul li button {
+  background: #B8860B; /* Solid background for button */
+  -webkit-background-clip: unset; /* Clip background to text */
+  background-clip: unset;
+  -webkit-text-fill-color: unset; /* Make text transparent to show gradient */
+  font-weight: bold;
+  color: var(--dark-background);
+}
+
+nav ul li a:hover,
+nav ul li button:hover,
+.auth-controls a:hover {
+  background-color: rgba(255, 255, 255, 0.1); /* Light background on hover */
+  color: var(--golden-accent); /* Solid color on hover */
+  -webkit-background-clip: initial; /* Reset for hover */
+  background-clip: initial;
+  -webkit-text-fill-color: var(--golden-accent); /* Reset for hover */
+}
+
+nav ul li button {
+  background-color: var(--golden-accent);
+  color: var(--dark-background);
+  font-weight: bold;
+}
+
+nav ul li button:hover {
+  opacity: 0.9;
+}
+
+/* Home Hero Section */
+.home-hero {
+  position: relative;
+  height: 100vh; /* Make hero section full viewport height */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-color);
+  overflow: hidden;
+  background-image: url('./img/room4main.jpg'); /* Bring back the background image */
+  background-color: transparent; /* Remove light background color */
+  background-size: cover;
+  background-position: center;
+  /* Removed filter: brightness(0.4); */
+  padding-top: 0; /* Remove padding as navbar is no longer fixed */
+}
+
+.hero-image {
+  /* This class is no longer needed as the background is handled by .home-hero */
+  display: none;
+}
+
+.hero-content {
+  text-align: center; /* Center align content within the hero section */
+}
+
+.hero-content h1 {
+  font-size: 3.5rem;
+  margin-bottom: 1.5rem;
+  color: #614901; /* Darker golden for visibility */
+  line-height: 1.2;
+  background: none; /* Remove gradient for text */
+  -webkit-background-clip: unset;
+  background-clip: unset;
+  -webkit-text-fill-color: unset;
+}
+
+.reserve-now-btn {
+  background-color: #B8860B;
+  color: var(--dark-background);
+  padding: 1rem 2.5rem;
+  font-size: 1.2rem;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  font-weight: bold;
+  margin-top: 1rem;
+  background: #B8860B; /* Solid background for button */
+  color: var(--dark-background); /* Adjust text color for solid background */
+}
+
+.feature-item {
+  background-color: rgba(44, 44, 44, 0.7);
+  padding: 1rem 1.5rem;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1rem;
+  color: var(--light-text-color);
+  border: 1px solid var(--golden-accent);
+}
+
+.feature-item .star-rating {
+  color: var(--golden-accent);
+  background: none; /* Remove gradient for star rating */
+  -webkit-background-clip: unset;
+  background-clip: unset;
+  -webkit-text-fill-color: unset;
+}
+
+.reserve-now-btn:hover {
+  background-color: #B8860B;
+}
+
+.hero-features {
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+  margin-top: 3rem;
+  flex-wrap: wrap;
+}
+
+.feature-item {
+  background-color: rgba(44, 44, 44, 0.7);
+  padding: 1rem 1.5rem;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1rem;
+  color: var(--light-text-color);
+  border: 1px solid var(--golden-accent);
+}
+
+.feature-item .star-rating {
+  color: var(--golden-accent);
+}
+
+/* About Us Section */
+.about-us-section {
+  background-color: var(--dark-background);
+  padding: 4rem 2rem;
+  color: var(--text-color);
+}
+
+.about-us-content {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3rem;
+  justify-content: center;
+  align-items: center;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.about-us-image {
+  width: 100%;
+  max-width: 500px;
+  height: auto;
+  border-radius: 8px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+.about-us-text {
+  flex: 1;
+  min-width: 300px;
+  text-align: left;
+}
+
+.about-us-text h2 {
+  font-size: 2.5rem;
+  color: var(--golden-accent);
+  margin-bottom: 1rem;
+}
+
+.about-us-text h3 {
+  font-size: 1.8rem;
+  color: var(--text-color);
+  margin-bottom: 1rem;
+}
+
+.about-us-text p {
+  font-size: 1.1rem;
+  color: var(--light-text-color);
+  margin-bottom: 1.5rem;
+}
+
+.learn-more-link {
+  color: var(--golden-accent);
+  text-decoration: none;
+  font-weight: bold;
+  transition: color 0.3s ease;
+}
+
+.learn-more-link:hover {
+  color: #e0c26b;
+}
+
+.about-us-features {
+  display: flex;
+  justify-content: center;
+  gap: 3rem;
+  margin-top: 4rem;
+  flex-wrap: wrap;
+}
+
+.about-us-features .feature-item {
+  flex-direction: column;
+  background-color: transparent; /* Changed to transparent */
+  padding: 2rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  box-shadow: none; /* Removed box-shadow */
+  width: 200px;
+  height: 150px;
+  justify-content: center;
+}
+
+.about-us-features .feature-item img {
+  width: 60px;
+  height: 60px;
+  margin-bottom: 1rem;
+}
+
+.about-us-features .feature-item span {
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: var(--text-color); /* Changed to text-color */
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+  nav {
+    flex-direction: column;
+    padding: 1rem;
+  }
+
+  nav ul {
+    margin-top: 1rem;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  nav ul li {
+    margin: 0.5rem 1rem;
+  }
+
+  .hero-content h1 {
+    font-size: 2.5rem;
+  }
+
+  .hero-features {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .about-us-content {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .about-us-text {
+    min-width: unset;
+  }
+
+  .about-us-text h2 {
+    font-size: 2rem;
+  }
+
+  .about-us-text h3 {
+    font-size: 1.5rem;
+  }
+
+  .about-us-features .feature-item {
+    width: 150px;
+    height: 120px;
+    padding: 1.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .hero-content h1 {
+    font-size: 2rem;
+  }
+
+  .reserve-now-btn {
+    padding: 0.8rem 2rem;
+    font-size: 1rem;
+  }
+
+  .feature-item {
+    padding: 0.8rem 1rem;
+    font-size: 0.9rem;
+  }
+
+  .about-us-text h2 {
+    font-size: 1.8rem;
+  }
+
+  .about-us-text h3 {
+    font-size: 1.3rem;
+  }
+}
+
+.nav-links li a.active,
+.auth-controls a.active {
+  background: #B8860B; /* Darker golden background */
+  color: #ffffff !important; /* White text for active state */
+  font-weight: bold;
+}
+
+.logout-btn {
+  background-color: transparent;
+  color: var black;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background-color 0.3s ease;
+  padding: 0.5rem 1rem;
+  border-radius: 5px;
+}
+
+.logout-btn:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.logout-btn {
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.logout-btn:hover {
+  opacity: 0.9;
+}
+
+.auth-controls a {
+  color: #000000 !important; /* Force black color */
+  text-decoration: none;
+  padding: 0.5rem 1rem;
+  border-radius: 5px;
+  transition: background-color 0.3s ease;
+}
+
+.auth-controls a:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: var(--golden-accent) !important; /* Gold color on hover */
+}
+
+.auth-controls a.active {
+  background: #B8860B; /* Darker golden background */
+  color: #ffffff !important; /* White text for active state */
+  font-weight: bold;
+}
+
+/* The following rules are duplicates and will be removed */
+
+.logout-btn {
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.logout-btn:hover {
+  opacity: 0.9;
+}
+
+.auth-controls {
+  margin-right: 20px; /* Move login and signup buttons inward */
+}
+
+.auth-controls a {
+  color: #000000 !important; /* Force black color */
+  text-decoration: none;
+  padding: 0.5rem 1rem;
+  border-radius: 5px;
+  transition: background-color 0.3s ease;
+}
+
+.auth-controls a:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: var(--golden-accent) !important; /* Gold color on hover */
+}
+
+.auth-controls a.active {
+  color: var(--golden-accent); /* Gold color for active link */
+  font-weight: bold;
+}

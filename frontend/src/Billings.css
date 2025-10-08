@@ -1,0 +1,52 @@
+.billings-container {
+  padding: 20px;
+}
+
+.billings-container h1 {
+  text-align: center;
+  color: var(--golden-accent);
+  margin-bottom: 30px;
+}
+
+.billings-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.billing-container {
+  padding: 50px;
+  max-width: 1200px;
+  margin: 20px auto;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  color: black;
+  
+}
+
+.billing-card {
+  background-color: var(--dark-surface);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  transition: transform 0.2s;
+  padding: 15px;
+}
+
+.billing-card:hover {
+  transform: translateY(-5px);
+}
+
+.billing-card h2 {
+  color: var(--golden-accent);
+  margin-top: 0;
+  margin-bottom: 10px;
+}
+
+.billing-card p {
+  color: var(--light-text-color);
+  font-size: 0.9em;
+  line-height: 1.5;
+  margin-bottom: 5px;
+}

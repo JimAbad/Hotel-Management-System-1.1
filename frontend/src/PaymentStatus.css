@@ -1,0 +1,176 @@
+.payment-status-container {
+  padding: var(--container-padding);
+  text-align: center;
+  background-color: var(--dark-background);
+  min-height: 70vh;
+  color: var(--text-color);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.payment-success {
+  background-color: var(--dark-surface);
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  padding: 40px;
+  max-width: 500px;
+  width: 100%;
+  margin: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  position: relative; /* For positioning the back button */
+}
+
+.back-button-container {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+}
+
+.back-button {
+  background-color: #555; /* Darker shade for the button */
+  color: white;
+  padding: 10px 15px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 1em;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.back-button:hover {
+  background-color: #777;
+}
+
+.confirmation-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.check-icon {
+  font-size: 2em;
+  color: var(--success-color); /* Green checkmark */
+}
+
+.payment-success h1 {
+  color: var(--golden-accent);
+  margin: 0;
+}
+
+.check-in-message {
+  font-size: 1.1em;
+  color: var(--light-text-color);
+  margin-bottom: 20px;
+}
+
+.booking-reference-section {
+  text-align: left;
+  margin-bottom: 20px;
+}
+
+.booking-reference-section p {
+  font-weight: bold;
+  color: var(--text-color);
+  margin-bottom: 10px;
+}
+
+.booking-reference-box {
+  background-color: #333; /* Darker background for the box */
+  border: 1px solid var(--golden-accent);
+  border-radius: 5px;
+  padding: 15px;
+  font-size: 1.2em;
+  color: var(--golden-accent);
+  text-align: center;
+  word-break: break-all; /* To handle long booking IDs */
+}
+
+.check-in-info {
+  text-align: left;
+  margin-bottom: 30px;
+}
+
+.check-in-info h2 {
+  color: var(--golden-accent);
+  margin-bottom: 10px;
+}
+
+.check-in-info ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.check-in-info li {
+  color: var(--light-text-color);
+  margin-bottom: 5px;
+  font-size: 0.95em;
+}
+
+.done-button {
+  background-color: var(--golden-accent);
+  color: var(--dark-background);
+  padding: 12px 25px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 1em;
+  font-weight: bold;
+  transition: background-color 0.3s ease;
+  text-decoration: none;
+  align-self: center;
+}
+
+.done-button:hover {
+  background-color: #ffd700;
+}
+
+/* Existing styles for payment failure */
+.payment-failure {
+  background-color: var(--dark-surface);
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  padding: 40px;
+  max-width: 500px;
+  margin: 50px auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.payment-failure h1 {
+  color: var(--error-color);
+  margin-bottom: 10px;
+}
+
+.payment-failure p {
+  color: var(--light-text-color);
+  font-size: 1.1em;
+  line-height: 1.6;
+}
+
+.payment-failure .btn-primary {
+  background-color: var(--golden-accent);
+  color: var(--dark-background);
+  padding: 12px 25px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 1em;
+  font-weight: bold;
+  transition: background-color 0.3s ease;
+  text-decoration: none;
+  margin-top: 20px;
+}
+
+.payment-failure .btn-primary:hover {
+  background-color: #ffd700;
+}

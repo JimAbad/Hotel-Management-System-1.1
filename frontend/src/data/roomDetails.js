@@ -1,0 +1,48 @@
+const roomDetails = {
+  Presidential: {
+    roomSize: '50 m²',
+    bedType: '1 King Bed',
+    capacity: '4 Adults',
+    view: 'Ocean View',
+    floor: 'Top Floor',
+    accessibility: 'Wheelchair accessible',
+    smoking: 'Non-smoking',
+    pets: 'Not allowed',
+    quietHours: '10 PM - 7 AM',
+  },
+  Deluxe: {
+    roomSize: '30 m²',
+    bedType: '1 Queen Bed or 2 Twin Beds',
+    capacity: '3 Adults',
+    view: 'City View',
+    floor: '4-7',
+    accessibility: 'Limited accessibility',
+    smoking: 'Non-smoking',
+    pets: 'Allowed (extra charge)',
+    quietHours: '11 PM - 6 AM',
+  },
+  Suite: {
+    roomSize: '40 m²',
+    bedType: '1 King Bed',
+    capacity: '3 Adults',
+    view: 'Garden View',
+    floor: '2-5',
+    accessibility: 'Wheelchair accessible',
+    smoking: 'Non-smoking',
+    pets: 'Not allowed',
+    quietHours: '10 PM - 7 AM',
+  },
+  Economy: {
+    roomSize: '20 m²',
+    bedType: '1 Double Bed',
+    capacity: '2 Adults',
+    view: 'City View',
+    floor: '1-3',
+    accessibility: 'Wheelchair accessible (on request)',
+    smoking: 'Non-smoking',
+    pets: 'Not allowed',
+    quietHours: '10 PM - 7 AM',
+  },
+};
+
+export default roomDetails;
