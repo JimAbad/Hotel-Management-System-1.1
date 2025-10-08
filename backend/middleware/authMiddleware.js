@@ -16,19 +16,24 @@ const protect = async (req, res, next) => {
       console.log('Auth Middleware: Decoded token:', decoded);
 
       // Get user from the token
+      console.log('Auth Middleware: Looking up user with ID:', decoded.id);
       req.user = await User.findById(decoded.id).select('-password');
-      console.log('Auth Middleware: User attached to request:', req.user);
+      console.log('Auth Middleware: User lookup result:', req.user);
+      
+      if (!req.user) {
+        console.log('Auth Middleware: User not found in database, but continuing with null user');
+        // Don't return error, just set req.user to null and let the route handle it
+        req.user = null;
+      }
 
       next();
     } catch (error) {
       console.error('Auth Middleware: Token verification failed:', error);
-      res.status(401).json({ message: 'Not authorized, token failed' });
+      return res.status(401).json({ message: 'Not authorized, token failed' });
     }
-  }
-
-  if (!token) {
+  } else {
     console.log('Auth Middleware: No token found');
-    res.status(401).json({ message: 'Not authorized, no token' });
+    return res.status(401).json({ message: 'Not authorized, no token' });
   }
 };
 

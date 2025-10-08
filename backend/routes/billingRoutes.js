@@ -6,7 +6,9 @@ const {
   updateBilling,
   deleteBilling,
   getBookingBillings,
-  getAdminBillings
+  getAdminBillings,
+  getRoomBillings,
+  getUserBillingSummary
 } = require('../controllers/billingController');
 
 const router = express.Router();
@@ -20,6 +22,12 @@ router.use(protect);
 router.route('/')
   .get(getBillings)
   .post(createBilling);
+
+router.route('/summary')
+  .get(getUserBillingSummary);
+
+router.route('/room/:roomNumber')
+  .get(getRoomBillings);
 
 router.route('/booking/:bookingId')
   .get(getBookingBillings);

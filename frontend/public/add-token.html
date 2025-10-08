@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Add Token to LocalStorage</title>
+</head>
+<body>
+    <h1>Add Token to LocalStorage</h1>
+    <p>Click the button below to add the authentication token to localStorage:</p>
+    <button onclick="addToken()">Add Token</button>
+    <p id="status"></p>
+    
+    <script>
+        function addToken() {
+            const token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4ZTY1MWQyYmE2MjRkY2MyYjJjZGRmNiIsImlhdCI6MTc1OTkyNDg1NywiZXhwIjoxNzU5OTI4NDU3fQ.0t1N5eSOZ8adR5iYKFqNufjYeWPiQgz-frBZV5CSdEo';
+            localStorage.setItem('token', token);
+            document.getElementById('status').textContent = 'Token added successfully! You can now visit the billing page.';
+            
+            // Redirect to billing page after 2 seconds
+            setTimeout(() => {
+                window.location.href = '/billings';
+            }, 2000);
+        }
+    </script>
+</body>
+</html>
