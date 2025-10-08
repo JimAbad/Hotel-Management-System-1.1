@@ -37,6 +37,7 @@ console.log('Loading payment routes...');
 app.use('/api/payment', require('./routes/paymentRoutes'));
 console.log('Payment routes loaded');
 app.use('/api/billings', require('./routes/billingRoutes'));
+app.use('/api/test', require('./routes/testRoutes'));
 
 app.use('/api/reviews', require('./routes/reviewRoutes'));
 

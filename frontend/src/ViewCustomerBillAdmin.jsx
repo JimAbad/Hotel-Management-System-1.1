@@ -38,15 +38,51 @@ const ViewCustomerBill = () => {
 
   return (
     <div className="view-customer-bill-container">
-      <h1>Customer Bill</h1>
       <div className="bill-details">
-        <p><strong>Booking ID:</strong> {billData.specialId}</p>
-        <p><strong>Customer Name:</strong> {billData.customerName}</p>
-        <p><strong>Customer Email:</strong> {billData.customerEmail}</p>
-        <p><strong>Room Number:</strong> {billData.room}</p>
-        <p><strong>Check-in Date:</strong> {new Date(billData.checkInDate).toLocaleDateString()}</p>
-        <p><strong>Check-out Date:</strong> {new Date(billData.checkOutDate).toLocaleDateString()}</p>
-        <p>Total Amount: ₱{billData.totalAmount?.toFixed(2) || 'N/A'}</p>
+        <h1>Customer Bill</h1>
+        <div className="bill-info">
+          <p><strong>Booking ID:</strong> {billData.specialId}</p>
+          <p><strong>Customer Name:</strong> {billData.customerName}</p>
+          <p><strong>Customer Email:</strong> {billData.customerEmail}</p>
+          <p><strong>Room Number:</strong> {billData.room}</p>
+          <p><strong>Check-in Date:</strong> {new Date(billData.checkInDate).toLocaleDateString()}</p>
+          <p><strong>Check-out Date:</strong> {new Date(billData.checkOutDate).toLocaleDateString()}</p>
+        </div>
+
+        <h2>Bill Items</h2>
+        <table className="bill-items-table">
+          <thead>
+            <tr>
+              <th>Description</th>
+              <th>Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {billData.data && billData.data.map((item, index) => (
+              <tr key={index}>
+                <td>{item.description}</td>
+                <td>₱{item.amount?.toFixed(2) || '0.00'}</td>
+              </tr>
+            ))}
+            <tr>
+              <td><strong>Total Room Charges:</strong></td>
+              <td>₱{billData.totalRoomCharges?.toFixed(2) || '0.00'}</td>
+            </tr>
+            <tr>
+              <td><strong>Total Extra Charges:</strong></td>
+              <td>₱{billData.totalExtraCharges?.toFixed(2) || '0.00'}</td>
+            </tr>
+            <tr>
+              <td><strong>Paid Amount:</strong></td>
+              <td>₱{billData.paidAmount?.toFixed(2) || '0.00'}</td>
+            </tr>
+            <tr>
+              <td><strong>Remaining Balance:</strong></td>
+              <td>₱{billData.remainingBalance?.toFixed(2) || '0.00'}</td>
+            </tr>
+          </tbody>
+        </table>
+
         <p><strong>Payment Status:</strong> {billData.paymentStatus}</p>
       </div>
     </div>

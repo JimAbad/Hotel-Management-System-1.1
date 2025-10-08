@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const Booking = require('../models/bookingModel');
 const Room = require('../models/roomModel');
 const BookingActivity = require('../models/bookingActivityModel');
+const Billing = require('../models/Billing');
 const asyncHandler = require('../middleware/async');
 const ErrorResponse = require('../utils/errorResponse');
 
@@ -168,7 +169,23 @@ const createBooking = asyncHandler(async (req, res) => {
       status: 'pending'
     });
 
-    res.status(201).json(booking);
+    // Create billing record for the room booking
+    const roomBilling = await Billing.create({
+      booking: booking._id,
+      user: req.user.id,
+      roomNumber: selectedRoom.roomNumber,
+      amount: totalAmount,
+      description: `Room booking charge for ${selectedRoom.roomNumber} (${numberOfNights} nights)`,
+      status: 'pending',
+      paymentMethod: 'online payment'
+    });
+
+    console.log('Created room billing record:', roomBilling);
+
+    res.status(201).json({
+      ...booking.toObject(),
+      billingRecord: roomBilling
+    });
   }
 });
 

@@ -2,6 +2,8 @@ const Billing = require('../models/Billing');
 const Booking = require('../models/bookingModel');
 const ErrorResponse = require('../utils/errorResponse');
 const asyncHandler = require('../middleware/async');
+const Room = require('../models/roomModel');
+const mongoose = require('mongoose');
 
 // @desc    Create a new billing record
 // @route   POST /api/billings
@@ -155,5 +157,198 @@ exports.getAdminBillings = asyncHandler(async (req, res, next) => {
     success: true,
     count: billings.length,
     data: billings
+  });
+});
+
+// @desc    Get billings by room number with remaining balance calculation
+// @route   GET /api/billings/room/:roomNumber
+// @access  Private
+exports.getRoomBillings = asyncHandler(async (req, res, next) => {
+  const { roomNumber } = req.params;
+  
+  // Get all billings for the specific room number
+  // If user exists, filter by user, otherwise get all billings for the room
+  let billings = [];
+  if (req.user && req.user.id) {
+    billings = await Billing.find({ 
+      roomNumber: roomNumber,
+      user: req.user.id 
+    }).populate({
+      path: 'booking',
+      select: 'roomNumber checkIn checkOut totalAmount'
+    }).sort({ createdAt: -1 });
+  } else {
+    // If no valid user, still return room billings for display purposes
+    billings = await Billing.find({ 
+      roomNumber: roomNumber
+    }).populate({
+      path: 'booking',
+      select: 'roomNumber checkIn checkOut totalAmount'
+    }).sort({ createdAt: -1 });
+  }
+
+  // Get additional billing data that might be stored in a different format
+  // This handles the case where there are billing documents with items array
+  let additionalBillings = [];
+  try {
+    // Use MongoDB aggregation to find documents with the roomNumber and items
+    const BillingRaw = mongoose.model('Billing').collection;
+    const rawResults = await BillingRaw.find({ 
+      roomNumber: roomNumber,
+      items: { $exists: true, $ne: [] }
+    }).toArray();
+    
+    additionalBillings = rawResults.map(doc => ({
+      roomNumber: doc.roomNumber,
+      items: doc.items,
+      checkedOutAt: doc.checkedOutAt,
+      deliveredAt: doc.deliveredAt,
+      totalPrice: doc.totalPrice,
+      date: doc.deliveredAt || doc.checkedOutAt || doc.createdAt
+    }));
+  } catch (error) {
+    console.log('No additional billing format found, using standard format only');
+  }
+
+  // Merge billing items
+  const mergedBillings = [];
+  
+  // Add regular billings first
+  billings.forEach(billing => {
+    mergedBillings.push({
+      _id: billing._id,
+      roomNumber: billing.roomNumber || roomNumber,
+      description: billing.description || 'Room charge',
+      amount: billing.amount || 0,
+      status: billing.status || 'pending',
+      date: billing.createdAt || new Date(),
+      type: 'room_charge',
+      bookingData: billing.booking || null
+    });
+  });
+
+  // Add additional billing items as separate entries
+  additionalBillings.forEach(billing => {
+    if (billing.items && billing.items.length > 0) {
+      billing.items.forEach(item => {
+        mergedBillings.push({
+          roomNumber: billing.roomNumber,
+          description: `${item.name} (quantity: ${item.quantity || 1})`,
+          amount: (item.price || 0) * (item.quantity || 1),
+          status: 'pending', // Changed from 'completed' to 'pending'
+          date: billing.date,
+          type: 'item_charge',
+          bookingData: {
+            checkedOutAt: billing.checkedOutAt,
+            deliveredAt: billing.deliveredAt,
+            totalPrice: billing.totalPrice
+          }
+        });
+      });
+    }
+  });
+
+  // Sort by date (newest first)
+  mergedBillings.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  if (mergedBillings.length === 0) {
+    return res.status(200).json({
+      success: true,
+      count: 0,
+      data: [],
+      roomNumber: roomNumber,
+      totalRoomCharges: 0,
+      totalExtraCharges: 0,
+      remainingBalance: 0,
+      paidAmount: 0
+    });
+  }
+
+  // Calculate totals
+  let totalRoomCharges = 0;
+  let totalExtraCharges = 0;
+  let paidAmount = 0;
+
+  mergedBillings.forEach(billing => {
+    if (billing && billing.type === 'room_charge' && billing.description && billing.description.includes('Room booking charge')) {
+      totalRoomCharges += billing.amount || 0;
+    } else if (billing) {
+      totalExtraCharges += billing.amount || 0;
+    }
+    
+    if (billing && (billing.status === 'paid' || billing.status === 'completed')) {
+      paidAmount += billing.amount || 0;
+    }
+  });
+
+  // Calculate remaining balance (90% of room charges + total extra charges minus what's already paid)
+  const remainingBalance = Math.max(0, (totalRoomCharges * 0.9) + totalExtraCharges - paidAmount);
+
+  res.status(200).json({
+    success: true,
+    count: mergedBillings.length,
+    data: mergedBillings,
+    roomNumber: roomNumber,
+    totalRoomCharges: totalRoomCharges,
+    totalExtraCharges: totalExtraCharges,
+    remainingBalance: remainingBalance,
+    paidAmount: paidAmount
+  });
+});
+
+// @desc    Get all rooms with their billing summary for the logged-in user
+// @route   GET /api/billings/summary
+// @access  Private
+exports.getUserBillingSummary = asyncHandler(async (req, res, next) => {
+  // Get unique room numbers from user's bookings
+  const userBookings = await Booking.find({ user: req.user.id })
+    .select('roomNumber totalAmount')
+    .distinct('roomNumber');
+
+  const roomSummaries = [];
+
+  for (const roomNumber of userBookings) {
+    const roomBillings = await Billing.find({ 
+      roomNumber: roomNumber,
+      user: req.user.id 
+    }).populate({
+      path: 'booking',
+      select: 'checkIn checkOut totalAmount'
+    });
+
+    if (roomBillings.length > 0) {
+      let totalRoomCharges = 0;
+      let totalExtraCharges = 0;
+      let paidAmount = 0;
+
+      roomBillings.forEach(billing => {
+        if (billing.description && billing.description.includes('Room booking charge')) {
+          totalRoomCharges += billing.amount;
+        } else {
+          totalExtraCharges += billing.amount;
+        }
+        
+        if (billing.status === 'paid') {
+          paidAmount += billing.amount;
+        }
+      });
+
+      const remainingBalance = Math.max(0, (totalRoomCharges * 0.9) + totalExtraCharges - paidAmount);
+
+      roomSummaries.push({
+        roomNumber: roomNumber,
+        totalRoomCharges: totalRoomCharges,
+        totalExtraCharges: totalExtraCharges,
+        paidAmount: paidAmount,
+        remainingBalance: remainingBalance,
+        billings: roomBillings
+      });
+    }
+  }
+
+  res.status(200).json({
+    success: true,
+    count: roomSummaries.length,
+    data: roomSummaries
   });
 });
