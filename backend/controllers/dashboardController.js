@@ -12,7 +12,7 @@ const getDashboardData = asyncHandler(async (req, res) => {
   const totalBookings = await Booking.countDocuments();
 
   // Available Rooms
-  const availableRooms = await Room.countDocuments({ isBooked: false });
+  const availableRooms = await Room.countDocuments({ status: 'available' });
   const totalRooms = await Room.countDocuments();
 
   // Occupancy Rate
@@ -45,7 +45,7 @@ const getDashboardData = asyncHandler(async (req, res) => {
       $group: {
         _id: "$roomType",
         total: { $sum: 1 },
-        available: { $sum: { $cond: ["$isBooked", 0, 1] } },
+        available: { $sum: { $cond: [{ $eq: ["$status", "available"] }, 1, 0] } },
       },
     },
     {

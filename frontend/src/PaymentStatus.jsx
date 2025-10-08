@@ -24,7 +24,9 @@ const PaymentStatus = () => {
             <span className="check-icon">✔️</span>
             <h1>Booking Confirmed</h1>
           </div>
-          <p className="check-in-message">You're all set — please check in on {new Date(booking?.checkInDate).toLocaleDateString()}</p>
+          <p className="check-in-message">You're all set! 
+            <br></br> You can check all your bookings in My Bookings page.
+          </p>
           <div className="booking-reference-section">
             <p>Booking reference</p>
             <div className="booking-reference-box">
@@ -34,9 +36,8 @@ const PaymentStatus = () => {
           <div className="check-in-info">
             <h2>Check-in information</h2>
             <ul>
-              <li>Check-in from {new Date(booking?.checkInDate).toLocaleDateString()}</li>
               <li>Bring this reference number at the front desk for confirmation.</li>
-              <li>Cancellation: Until 48 hours before check-in; and you will pay 500 as fee.</li>
+              <li>Cancellation: Until 48 hours before check-in; and you will pay 10% of room's price as reservation fee.</li>
             </ul>
           </div>
           <button onClick={handleDoneClick} className="done-button">Done</button>
