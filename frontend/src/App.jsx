@@ -15,6 +15,7 @@ import './App.css';
 import { useAuth } from './AuthContext';
 import { FaSignInAlt } from 'react-icons/fa';
 import { AuthProvider } from './AuthContext';
+import ViewCustomerBillAdmin from './ViewCustomerBillAdmin';
 
 function App() {
   return (
@@ -84,6 +85,7 @@ function AppContent() {
         <Route path="/payment-status" element={<PaymentStatus />} />
         {/* <Route path="/payment-mini-page" element={<PaymentMiniPage />} /> */}
         <Route path="/room-details/:id" element={<RoomDetails />} />
+        <Route path="/admin/viewcustomerbills" element={<ViewCustomerBillAdmin />} />
       </Routes>
     </div>
   );
