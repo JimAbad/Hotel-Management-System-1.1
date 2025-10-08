@@ -109,6 +109,16 @@ tr:hover {
   color: white;
 }
 
+.status.checked_in {
+  background-color: #16a34a;
+  color: #fff;
+}
+
+.status.checked_out {
+  background-color: #6b7280;
+  color: #fff;
+}
+
 .action-buttons {
   display: flex;
   gap: 8px;
@@ -142,6 +152,7 @@ tr:hover {
   display: flex;
   align-items: center;
   gap: 4px;
+  background-color: #6c757d !important;
 }
 
 .modal-overlay {
@@ -319,3 +330,32 @@ tr:hover {
   border-radius: 4px;
   margin: 20px 0;
 }
+
+/* Ensure table text is visible */
+.booking-management .table-container table,
+.booking-management .table-container table th,
+.booking-management .table-container table td {
+  color: #1f2937 !important; /* dark slate */
+}
+
+/* Keep status badges readable */
+.status.pending   { background: #fde047; color: #111827; }
+.status.confirmed { background: #16a34a; color: #fff; }
+.status.cancelled { background: #ef4444; color: #fff; }
+.status.completed { background: #3b82f6; color: #fff; }
+
+/* Do not let table cell color override buttons */
+.booking-management .table-container td .activity-btn,
+.booking-management .table-container td .edit-btn,
+.booking-management .table-container td .delete-btn {
+  color: #fff !important;
+}
+
+/* Ensure activity/edit/delete backgrounds remain as designed */
+.activity-btn { background-color: #6c757d !important; }
+.edit-btn     { background-color: #ffc107 !important; color: #000 !important; }
+.delete-btn   { background-color: #dc3545 !important; }
+
+/* Show badges for these two extra states */
+.status.checked_in  { background: #16a34a; color: #fff; }
+.status.checked_out { background: #6b7280; color: #fff; }
