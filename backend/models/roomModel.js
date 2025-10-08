@@ -2,14 +2,18 @@ const mongoose = require('mongoose');
 
 const roomSchema = new mongoose.Schema({
   roomNumber: {
-    type: String,
+    type: Number,
     required: true,
     unique: true
+  },
+  floor: {
+    type: Number,
+    required: true
   },
   roomType: {
     type: String,
     required: true,
-    enum: ['Single', 'Double', 'Suite', 'Family']
+    enum: ['Presidential', 'Deluxe', 'Suite', 'Economy']
   },
   price: {
     type: Number,

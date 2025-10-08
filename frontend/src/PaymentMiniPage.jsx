@@ -48,7 +48,7 @@ function PaymentMiniPage() {
       // First, create the booking
       console.log('Attempting to create booking...');
       const bookingResponse = await axios.post('http://localhost:3000/bookings', {
-        roomId: room._id,
+        roomNumber: room.roomNumber,
         ...bookingDetails,
       });
 

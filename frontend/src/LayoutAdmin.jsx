@@ -3,6 +3,7 @@ import { Link, Outlet, useLocation } from 'react-router-dom';
 import AuthContextAdmin from './AuthContextAdmin';
 import './LayoutAdmin.css';
 import { FaTachometerAlt, FaBook, FaFileInvoiceDollar, FaStar, FaSignOutAlt } from 'react-icons/fa';
+import logo from './assetsAdmin/logo - Copy.png';
 
 const LayoutAdmin = () => {
   const { logout } = useContext(AuthContextAdmin);
@@ -16,7 +17,7 @@ const LayoutAdmin = () => {
     <div className="admin-layout">
       <div className="sidebar">
         <div className="sidebar-header">
-          <h2><span style={{ color: '#ffcc00' }}>&#9889;</span> Lumine</h2>
+          <img src={logo} alt="Lumine Admin Logo" className="admin-logo" />
           <p>Admin</p>
         </div>
         <nav className="sidebar-nav">
@@ -28,7 +29,7 @@ const LayoutAdmin = () => {
             </li>
             <li>
               <Link to="/admin/manage-booking" className={location.pathname === '/admin/manage-booking' ? 'active' : ''}>
-                <FaBook className="icon" /> Manage Booking
+                <FaBook className="icon" /> Manage Bookings
               </Link>
             </li>
             <li>

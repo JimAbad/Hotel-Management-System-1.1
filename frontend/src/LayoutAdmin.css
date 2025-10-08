@@ -11,8 +11,8 @@ body {
 
 .sidebar {
   width: 250px;
-  background-color: #361f1f; /* Dark brown from the image */
-  color: white;
+  background-color: #472607; /* Dark brown from the image */
+  color: black;
   display: flex;
   flex-direction: column; /* Ensure children stack vertically */
   padding: 20px 0;
@@ -26,7 +26,7 @@ body {
 .sidebar-header {
   padding: 0 20px 20px;
   text-align: center;
-  border-bottom: 1px solid #4a3333;
+  border-bottom: 1px solid #472607;
   height: 80px; /* Explicitly set height */
   display: flex; /* Use flexbox for alignment */
   flex-direction: column;
@@ -36,11 +36,17 @@ body {
 }
 
 .sidebar-header h2 {
-  margin: 0;
-  color: #ffcc00; /* Lumine logo color */
-  display: block; /* Ensure h2 is visible */
-  font-size: 1.8em; /* Make the logo text larger */
-}
+    margin: 0;
+    color: #ffcc00; /* Lumine logo color */
+    display: block; /* Ensure h2 is visible */
+    font-size: 1.8em; /* Make the logo text larger */
+  }
+
+  .admin-logo {
+    width: 120px; /* Adjust as needed */
+    height: auto;
+    margin-bottom: 10px;
+  }
 
 .sidebar-header p {
   display: block; /* Ensure p is visible */
@@ -82,12 +88,13 @@ body {
   border-radius: 5px;
   transition: background-color 0.3s ease;
   box-sizing: border-box; /* Include padding in width calculation */
-  border: 1px solid #554040; /* Added border for each navigation item */
+  border: 1px solid black; /* Added border for each navigation item */
 }
 
 .sidebar-nav a:hover,
 .sidebar-nav a.active {
-  background-color: #4a3333;
+  background-color: white;
+  color: black;
 }
 
 .sidebar-nav a .icon {
@@ -96,7 +103,7 @@ body {
 
 .sidebar-footer {
   padding: 20px;
-  border-top: 1px solid #4a3333;
+  
   /* Removed text-align: center; */ /* Align the logout button to the left */
   margin-top: auto; /* Push to the bottom */
   /* border: 2px solid blue; */ /* Removed for debugging */
@@ -105,8 +112,8 @@ body {
 .sidebar-footer button {
   width: 100%;
   padding: 10px;
-  background-color: #dc3545; /* Red for logout */
-  color: white;
+  background-color: #D4D4D4; /* Red for logout */
+  color: black;
   border: none;
   border-radius: 5px;
   cursor: pointer;
@@ -115,7 +122,7 @@ body {
 }
 
 .sidebar-footer button:hover {
-  background-color: #c82333;
+  background-color: #FBB200;
 }
 
 .main-content {

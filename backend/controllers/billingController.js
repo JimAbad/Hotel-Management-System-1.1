@@ -7,13 +7,13 @@ const asyncHandler = require('../middleware/async');
 // @route   POST /api/billings
 // @access  Private
 exports.createBilling = asyncHandler(async (req, res, next) => {
-  const { booking: bookingId, room: roomId, amount, description, status, paymentMethod } = req.body;
+  const { booking: bookingId, roomNumber, amount, description, status, paymentMethod } = req.body;
 
   // Create billing record
   const billing = await Billing.create({
     booking: bookingId,
     user: req.user.id,
-    room: roomId,
+    roomNumber,
     amount,
     description,
     status,
@@ -33,11 +33,7 @@ exports.getBillings = asyncHandler(async (req, res, next) => {
   const billings = await Billing.find({ user: req.user.id })
     .populate({
       path: 'booking',
-      select: 'specialId checkInDate checkOutDate'
-    })
-    .populate({
-      path: 'room',
-      select: 'roomNumber roomType price'
+      select: 'roomNumber checkIn checkOut'
     });
 
   res.status(200).json({
@@ -54,10 +50,6 @@ exports.getBookingBillings = asyncHandler(async (req, res, next) => {
   const billings = await Billing.find({ 
     booking: req.params.bookingId,
     user: req.user.id 
-  })
-  .populate({
-    path: 'room',
-    select: 'roomNumber roomType price'
   });
 
   if (!billings) {
@@ -78,11 +70,7 @@ exports.getBilling = asyncHandler(async (req, res, next) => {
   const billing = await Billing.findById(req.params.id)
     .populate({
       path: 'booking',
-      select: 'specialId checkInDate checkOutDate'
-    })
-    .populate({
-      path: 'room',
-      select: 'roomNumber roomType price'
+      select: 'roomNumber checkIn checkOut'
     });
 
   if (!billing) {
@@ -156,11 +144,7 @@ exports.getAdminBillings = asyncHandler(async (req, res, next) => {
   const billings = await Billing.find()
     .populate({
       path: 'booking',
-      select: 'specialId checkInDate checkOutDate'
-    })
-    .populate({
-      path: 'room',
-      select: 'roomNumber roomType price'
+      select: 'roomNumber checkIn checkOut'
     })
     .populate({
       path: 'user',

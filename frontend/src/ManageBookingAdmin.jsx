@@ -21,7 +21,7 @@ const ManageBooking = () => {
   const [editForm, setEditForm] = useState({
     bookingStatus: '',
     checkOutDate: '',
-    roomId: ''
+    roomNumber: ''
   });
   const [newBooking, setNewBooking] = useState({
     roomType: '',
@@ -52,7 +52,7 @@ const ManageBooking = () => {
         },
       };
       const { data } = await axios.get(
-        '/api/bookings',
+        `${import.meta.env.VITE_API_URL}/api/bookings`,
         {
           ...config,
           params: {
@@ -77,7 +77,7 @@ const ManageBooking = () => {
           Authorization: `Bearer ${token}`,
         },
       };
-      const { data } = await axios.get('/api/rooms', config);
+      const { data } = await axios.get(`${import.meta.env.VITE_API_URL}/api/rooms`, config);
       setRooms(data || []);
     } catch (err) {
       console.error('Error fetching rooms:', err);
@@ -91,7 +91,7 @@ const ManageBooking = () => {
           Authorization: `Bearer ${token}`,
         },
       };
-      const { data } = await axios.get(`/api/booking-activities/${bookingId}`, config);
+      const { data } = await axios.get(`${import.meta.env.VITE_API_URL}/api/booking-activities/${bookingId}`, config);
       return data;
     } catch (err) {
       console.error('Error fetching booking activities:', err);
@@ -125,7 +125,7 @@ const ManageBooking = () => {
         },
       };
       await axios.put(
-        `/api/bookings/${selectedBooking._id}`,
+        `${import.meta.env.VITE_API_URL}/api/bookings/${selectedBooking._id}`,
         editForm,
         config
       );
@@ -144,7 +144,7 @@ const ManageBooking = () => {
             Authorization: `Bearer ${token}`,
           },
         };
-        await axios.delete(`/api/bookings/${bookingId}`, config);
+        await axios.delete(`${import.meta.env.VITE_API_URL}/api/bookings/${bookingId}`, config);
         fetchBookings();
       } catch (err) {
         console.error('Error deleting booking:', err);
@@ -192,7 +192,7 @@ const ManageBooking = () => {
           Authorization: `Bearer ${token}`,
         },
       };
-      await axios.post('/api/bookings', newBooking, config);
+      await axios.post(`${import.meta.env.VITE_API_URL}/api/bookings`, newBooking, config);
       setShowConfirmModal(true);
       setTimeout(() => {
         setShowConfirmModal(false);
@@ -216,6 +216,8 @@ const ManageBooking = () => {
   };
 
   const getStatusClass = (status) => {
+    if (!status) return '';
+    
     switch (status.toLowerCase()) {
       case 'pending':
         return 'pending';
@@ -283,7 +285,7 @@ const ManageBooking = () => {
                 <tr key={booking._id}>
                   <td>{booking.referenceNumber}</td>
                   <td>{booking.guestName}</td>
-                  <td>{booking.room?.roomNumber || 'N/A'}</td>
+                  <td>{booking.room || 'N/A'}</td>
                   <td>{new Date(booking.checkInDate).toLocaleDateString()}</td>
                   <td>{new Date(booking.checkOutDate).toLocaleDateString()}</td>
                   <td>
@@ -388,14 +390,14 @@ const ManageBooking = () => {
                 <div className="form-group">
                   <label>Room:</label>
                   <select
-                    value={editForm.roomId}
+                    value={editForm.roomNumber}
                     onChange={(e) =>
-                      setEditForm({ ...editForm, roomId: e.target.value })
+                      setEditForm({ ...editForm, roomNumber: e.target.value })
                     }
                   >
                     <option value="">Select Room</option>
                     {rooms.map((room) => (
-                      <option key={room._id} value={room._id}>
+                      <option key={room.roomNumber} value={room.roomNumber}>
                         Room {room.roomNumber}
                       </option>
                     ))}
@@ -574,6 +576,17 @@ const ManageBooking = () => {
           </div>
         </div>
       )}
+    </div>
+  );
+};
+// Add the ManageBookingAdmin component
+const ManageBookingAdmin = () => {
+  return (
+    <div className="manage-booking-admin">
+      <h2>Manage Bookings</h2>
+      <div className="booking-table">
+        <BookingTable />
+      </div>
     </div>
   );
 };

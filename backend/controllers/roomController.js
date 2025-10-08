@@ -42,8 +42,9 @@ exports.getRoomById = async (req, res) => {
 exports.createRoom = async (req, res) => {
   const room = new Room({
     roomNumber: req.body.roomNumber,
-    type: req.body.type,
+    roomType: req.body.roomType, // Changed from type to roomType
     price: req.body.price,
+    floor: req.body.floor,
   });
   try {
     const newRoom = await room.save();
@@ -74,7 +75,7 @@ exports.updateRoom = async (req, res) => {
     if (req.body.roomNumber != null) {
       room.roomNumber = req.body.roomNumber;
     }
-    if (req.body.roomType != null) { // Changed from type to roomType
+    if (req.body.roomType != null) {
       room.roomType = req.body.roomType;
     }
     if (req.body.price != null) {
@@ -88,6 +89,9 @@ exports.updateRoom = async (req, res) => {
     }
     if (req.body.description != null) {
       room.description = req.body.description;
+    }
+    if (req.body.floor != null) {
+      room.floor = req.body.floor;
     }
     const updatedRoom = await room.save();
     res.status(200).json(updatedRoom);
@@ -126,6 +130,7 @@ exports.getRoomTypeSummary = async (req, res) => {
           _id: "$roomType",
           total: { $sum: 1 },
           available: { $sum: { $cond: ["$isBooked", 0, 1] } },
+          floor: { $first: "$floor" }, // Add floor to the group
         },
       },
       {
@@ -134,6 +139,7 @@ exports.getRoomTypeSummary = async (req, res) => {
           type: "$_id",
           total: 1,
           available: 1,
+          floor: 1, // Include floor in the projection
         },
       },
     ]);

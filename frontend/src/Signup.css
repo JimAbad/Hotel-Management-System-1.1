@@ -22,7 +22,7 @@
 
 .signup-form-card {
   background-color: var(--dark-surface);
-  padding: 2rem; /* Reduced from 3rem to shrink height */
+  padding: 1.5rem; /* Further reduced padding */
   border-radius: 10px;
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
   width: 100%;
@@ -30,10 +30,10 @@
 }
 
 .signup-form-card h2 {
-  font-size: 2rem;
-  color: var(--golden-accent); /* Ensure the title is golden */
-  margin-bottom: 1%;
-  margin-top: auto;
+  font-size: 1.8rem; /* Reduced font size */
+  color: var(--golden-accent);
+  margin-bottom: 0.5rem; /* Reduced margin */
+  margin-top: 0; /* Remove top margin */
 }
 
 .form-group label {
@@ -50,13 +50,13 @@
 }
 
 .form-group {
-  margin-bottom: 1.5rem;
+  margin-bottom: 0.8rem; /* Reduced from 1.5rem */
   text-align: left;
 }
 
 .form-group input {
   width: 100%;
-  padding: 0.8rem 10px;
+  padding: 0.6rem 10px; /* Reduced from 0.8rem */
   border: none;
   border-radius: 5px;
   background-color: #fff;

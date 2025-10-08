@@ -11,6 +11,7 @@ const AddRoom = () => {
     roomNumber: '',
     roomType: '',
     price: '',
+    floor: '', // Add floor to the state
     isBooked: false,
   });
   const [error, setError] = useState(null);
@@ -90,6 +91,17 @@ const AddRoom = () => {
             id="price"
             name="price"
             value={formData.price}
+            onChange={handleChange}
+            required
+          />
+        </div>
+        <div className="form-group">
+          <label htmlFor="floor">Floor</label>
+          <input
+            type="number"
+            id="floor"
+            name="floor"
+            value={formData.floor}
             onChange={handleChange}
             required
           />

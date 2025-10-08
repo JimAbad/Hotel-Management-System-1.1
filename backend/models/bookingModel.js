@@ -14,13 +14,12 @@ const bookingSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  customerPhone: {
+  contactNumber: {
     type: String,
     required: true
   },
-  room: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Room',
+  roomNumber: {
+    type: String,
     required: true
   },
   checkIn: {
@@ -29,6 +28,18 @@ const bookingSchema = new mongoose.Schema({
   },
   checkOut: {
     type: Date,
+    required: true
+  },
+  adults: {
+    type: Number,
+    required: true
+  },
+  children: {
+    type: Number,
+    required: true
+  },
+  guestName: {
+    type: String,
     required: true
   },
   numberOfGuests: {

@@ -5,12 +5,12 @@ const Review = require('../models/Review');
 // @route   POST /api/reviews
 // @access  Private
 const createReview = asyncHandler(async (req, res) => {
-  const { booking, customer, room, overallRating, serviceQuality, roomQuality, detailedFeedback } = req.body;
+  const { booking, customer, roomNumber, overallRating, serviceQuality, roomQuality, detailedFeedback } = req.body;
 
   const review = new Review({
     booking,
     customer,
-    room,
+    roomNumber,
     overallRating,
     serviceQuality,
     roomQuality,
@@ -25,7 +25,7 @@ const createReview = asyncHandler(async (req, res) => {
 // @route   GET /api/reviews
 // @access  Private
 const getReviews = asyncHandler(async (req, res) => {
-  const reviews = await Review.find({}).populate('booking').populate('customer').populate('room');
+  const reviews = await Review.find({}).populate('booking').populate('customer');
   res.json(reviews);
 });
 
@@ -37,8 +37,7 @@ const getMyReviews = asyncHandler(async (req, res) => {
   console.log('req.user._id in getMyReviews:', req.user._id);
   const reviews = await Review.find({ customer: req.user._id })
     .populate('booking')
-    .populate('customer')
-    .populate('room');
+    .populate('customer');
   res.json(reviews);
 });
 
@@ -46,7 +45,7 @@ const getMyReviews = asyncHandler(async (req, res) => {
 // @route   GET /api/reviews/:id
 // @access  Private
 const getReviewById = asyncHandler(async (req, res) => {
-  const review = await Review.findById(req.params.id).populate('booking').populate('customer').populate('room');
+  const review = await Review.findById(req.params.id).populate('booking').populate('customer');
 
   if (review) {
     res.json(review);
