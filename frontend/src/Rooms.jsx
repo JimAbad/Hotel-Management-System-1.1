@@ -439,7 +439,7 @@ function Rooms() {
                       <span key={index} className="amenity-item">{amenity}</span>
                     ))}
                   </div>
-                  <p>Cancellation Policy: Free cancellation before 24 hours of check-in. After that, {modalRoom?.price} will be charged.</p>
+                  
                 </div>
                 <div className="modal-room-details">
                   <h3>Room Details</h3>
