@@ -197,6 +197,7 @@ const ViewCustomerBillAdmin = () => {
         </tbody>
       </table>
     </div>
+    </div>
   );
 };
 

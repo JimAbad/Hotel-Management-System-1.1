@@ -395,18 +395,19 @@ function Rooms() {
           <div key={type} className="room-card">
             <div className="room-card-header">
               <img src="/src/img/room1.jpg" alt={type} className="room-image" />
-              {available > 0 ? (
-                <div>
-                  <button className="more-info-btn" onClick={() => handleMoreInfo(type)}>
-                    More info
-                  </button>
-                  <span className="room-price"><span> per night varies</span></span>
-                </div>
-              ) : null}
+              <div>
+                <button className="more-info-btn" onClick={() => handleMoreInfo(type)}>
+                  More info
+                </button>
+                <span className="room-price"><span> per night varies</span></span>
+                {available === 0 && (
+                  <span className="fully-booked-badge" title="This room type is fully booked">Fully booked</span>
+                )}
+              </div>
             </div>
             <div className="room-card-body">
               
-              <p>Room Type: {type}</p>
+              <p>Room Type: {type}</p>  
               <p>Floor: {summary.find(item => item.type === type)?.floor || 'N/A'}</p>
               <p>Total Rooms: {total}</p>
               <p>Available: {available}</p>
@@ -429,7 +430,7 @@ function Rooms() {
             ) : (
               <>
                 <div className="modal-header">
-                  <button className="modal-back" style={{ color: 'white', background: '#333', }} onClick={() => handleCloseModal()}>Back</button>
+                  <button className="modal-back" style={{ color: 'white', background: '#B8860B', }} onClick={() => handleCloseModal()}>Back</button>
                   <h2 className="modal-title">{modalRoom?.roomType || modalRoom?.type}</h2>
                 </div>
                 <div className="modal-amenities">
@@ -439,7 +440,6 @@ function Rooms() {
                       <span key={index} className="amenity-item">{amenity}</span>
                     ))}
                   </div>
-                  <p>Cancellation Policy: Free cancellation before 24 hours of check-in. After that, {modalRoom?.price} will be charged.</p>
                 </div>
                 <div className="modal-room-details">
                   <h3>Room Details</h3>
