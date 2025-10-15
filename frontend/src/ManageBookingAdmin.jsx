@@ -36,6 +36,8 @@ const ManageBooking = () => {
   });
   const [reservationSummary, setReservationSummary] = useState(null);
 
+  const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
+
   useEffect(() => {
     if (token) {
       fetchBookings();
@@ -43,42 +45,72 @@ const ManageBooking = () => {
     }
   }, [statusFilter, searchQuery, token]);
 
+  const parseList = (payload) => {
+    if (Array.isArray(payload)) return payload;
+    return (
+      payload?.data?.bookings ||
+      payload?.bookings ||
+      payload?.data ||
+      payload?.results ||
+      []
+    );
+  };
+
+  const formatDate = (d) => {
+    if (!d) return '-';
+    const dt = new Date(d);
+    return isNaN(dt) ? String(d) : dt.toLocaleDateString();
+  };
+
+  const getRoomDisplay = (b) => {
+    if (!b) return 'N/A';
+    const room = b.room;
+    // If room is an object, try common fields
+    if (room && typeof room === 'object') {
+      if (room.roomNumber !== undefined && room.roomNumber !== null && room.roomNumber !== '') {
+        return room.roomNumber;
+      }
+      if (room.number !== undefined && room.number !== null && room.number !== '') {
+        return room.number;
+      }
+    }
+    // If booking has a direct roomNumber
+    if (b.roomNumber !== undefined && b.roomNumber !== null && b.roomNumber !== '') {
+      return b.roomNumber;
+    }
+    // If room is just a string id/label
+    if (typeof room === 'string' && room) {
+      return room;
+    }
+    return 'N/A';
+  };
+
   const fetchBookings = async () => {
     try {
       setLoading(true);
+      setError(null);
       const config = {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
+        params: { status: statusFilter, search: searchQuery }
       };
-      const { data } = await axios.get(
-        `${import.meta.env.VITE_API_URL}/api/bookings`,
-        {
-          ...config,
-          params: {
-            status: statusFilter,
-            search: searchQuery
-          }
-        }
-      );
-      setBookings(data || []);
-      setLoading(false);
+      const res = await axios.get(`${API_BASE}/api/bookings`, config);
+      const list = parseList(res.data);
+      setBookings(Array.isArray(list) ? list : []);
     } catch (err) {
       console.error('Error fetching bookings:', err);
-      setError(err.message);
+      setBookings([]);
+      setError(err?.response?.data?.message || err.message || 'Failed to load bookings');
+    } finally {
       setLoading(false);
     }
   };
 
   const fetchRooms = async () => {
     try {
-      const config = {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      };
-      const { data } = await axios.get(`${import.meta.env.VITE_API_URL}/api/rooms`, config);
-      setRooms(data || []);
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+      const res = await axios.get(`${API_BASE}/api/rooms`, config);
+      const list = Array.isArray(res.data) ? res.data : res.data?.data || res.data?.rooms || [];
+      setRooms(Array.isArray(list) ? list : []);
     } catch (err) {
       console.error('Error fetching rooms:', err);
     }
@@ -86,13 +118,9 @@ const ManageBooking = () => {
 
   const fetchBookingActivities = async (bookingId) => {
     try {
-      const config = {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      };
-      const { data } = await axios.get(`${import.meta.env.VITE_API_URL}/api/booking-activities/${bookingId}`, config);
-      return data;
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+      const { data } = await axios.get(`${API_BASE}/api/booking-activities/${bookingId}`, config);
+      return Array.isArray(data) ? data : data?.data || [];
     } catch (err) {
       console.error('Error fetching booking activities:', err);
       return [];
@@ -108,10 +136,11 @@ const ManageBooking = () => {
 
   const handleEditClick = (booking) => {
     setSelectedBooking(booking);
+    const co = booking.checkOutDate ? new Date(booking.checkOutDate) : null;
     setEditForm({
-      bookingStatus: booking.bookingStatus,
-      checkOutDate: booking.checkOutDate.split('T')[0],
-      roomId: booking.room?._id || ''
+      bookingStatus: booking.bookingStatus || '',
+      checkOutDate: co && !isNaN(co) ? co.toISOString().slice(0, 10) : '',
+      roomNumber: booking?.room?.roomNumber ?? booking?.roomNumber ?? ''
     });
     setShowEditModal(true);
   };
@@ -119,53 +148,41 @@ const ManageBooking = () => {
   const handleEditSubmit = async (e) => {
     e.preventDefault();
     try {
-      const config = {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      };
-      await axios.put(
-        `${import.meta.env.VITE_API_URL}/api/bookings/${selectedBooking._id}`,
-        editForm,
-        config
-      );
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+      await axios.put(`${API_BASE}/api/bookings/${selectedBooking._id}`, editForm, config);
       setShowEditModal(false);
       fetchBookings();
     } catch (err) {
       console.error('Error updating booking:', err);
+      alert(err?.response?.data?.message || err.message);
     }
   };
 
   const handleDelete = async (bookingId) => {
     if (window.confirm('Are you sure you want to delete this booking?')) {
       try {
-        const config = {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        };
-        await axios.delete(`${import.meta.env.VITE_API_URL}/api/bookings/${bookingId}`, config);
+        const config = { headers: { Authorization: `Bearer ${token}` } };
+        await axios.delete(`${API_BASE}/api/bookings/${bookingId}`, config);
         fetchBookings();
       } catch (err) {
         console.error('Error deleting booking:', err);
+        alert(err?.response?.data?.message || err.message);
       }
     }
   };
 
-  const handleAddBooking = () => {
-    setShowAddModal(true);
-  };
+  const handleAddBooking = () => setShowAddModal(true);
 
   const calculateReservationSummary = () => {
     const baseRate = 50;
-    const nights = Math.ceil(
-      (new Date(newBooking.checkOutDate) - new Date(newBooking.checkInDate)) / (1000 * 60 * 60 * 24)
-    );
+    const start = new Date(newBooking.checkInDate);
+    const end = new Date(newBooking.checkOutDate);
+    const nights = Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)));
     const total = baseRate * nights;
-    
+
     return {
-      dates: `${new Date(newBooking.checkInDate).toLocaleDateString()} - ${new Date(newBooking.checkOutDate).toLocaleDateString()}`,
-      guests: `${newBooking.adults} Adult${newBooking.adults > 1 ? 's' : ''}, ${newBooking.children} Child${newBooking.children > 1 ? 'ren' : ''}`,
+      dates: `${start.toLocaleDateString()} - ${end.toLocaleDateString()}`,
+      guests: `${newBooking.adults} Adult${Number(newBooking.adults) > 1 ? 's' : ''}, ${newBooking.children} Child${Number(newBooking.children) > 1 ? 'ren' : ''}`,
       rate: `$${baseRate} per night`,
       total: `$${total}`
     };
@@ -173,26 +190,18 @@ const ManageBooking = () => {
 
   const handleNewBookingChange = (e) => {
     const { name, value } = e.target;
-    setNewBooking(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setNewBooking((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleNewBookingSubmit = async (e) => {
+  const handleNewBookingSubmit = (e) => {
     e.preventDefault();
-    const summary = calculateReservationSummary();
-    setReservationSummary(summary);
+    setReservationSummary(calculateReservationSummary());
   };
 
   const handleConfirmBooking = async () => {
     try {
-      const config = {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      };
-      await axios.post(`${import.meta.env.VITE_API_URL}/api/bookings`, newBooking, config);
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+      await axios.post(`${API_BASE}/api/bookings`, newBooking, config);
       setShowConfirmModal(true);
       setTimeout(() => {
         setShowConfirmModal(false);
@@ -209,26 +218,21 @@ const ManageBooking = () => {
           specialRequest: ''
         });
         fetchBookings();
-      }, 2000);
+      }, 1200);
     } catch (err) {
       console.error('Error creating booking:', err);
+      alert(err?.response?.data?.message || err.message);
     }
   };
 
   const getStatusClass = (status) => {
     if (!status) return '';
-    
-    switch (status.toLowerCase()) {
-      case 'pending':
-        return 'pending';
-      case 'confirmed':
-        return 'confirmed';
-      case 'cancelled':
-        return 'cancelled';
-      case 'completed':
-        return 'completed';
-      default:
-        return '';
+    switch (String(status).toLowerCase()) {
+      case 'pending': return 'pending';
+      case 'confirmed': return 'confirmed';
+      case 'cancelled': return 'cancelled';
+      case 'completed': return 'completed';
+      default: return '';
     }
   };
 
@@ -281,44 +285,41 @@ const ManageBooking = () => {
               </tr>
             </thead>
             <tbody>
-              {bookings.map((booking) => (
-                <tr key={booking._id}>
-                  <td>{booking.referenceNumber}</td>
-                  <td>{booking.guestName}</td>
-                  <td>{booking.room || 'N/A'}</td>
-                  <td>{new Date(booking.checkInDate).toLocaleDateString()}</td>
-                  <td>{new Date(booking.checkOutDate).toLocaleDateString()}</td>
-                  <td>
-                    <span className={`status ${getStatusClass(booking.bookingStatus)}`}>
-                      {booking.bookingStatus}
-                    </span>
-                  </td>
-                  <td>
-                    <button
-                      className="activity-btn"
-                      onClick={() => handleViewActivity(booking)}
-                    >
-                      <FaHistory /> Activity
-                    </button>
-                  </td>
-                  <td>
-                    <div className="action-buttons">
-                      <button
-                        className="edit-btn"
-                        onClick={() => handleEditClick(booking)}
-                      >
-                        <FaEdit />
+              {Array.isArray(bookings) && bookings.length > 0 ? (
+                bookings.map((booking) => (
+                  <tr key={booking._id}>
+                    <td>{booking.referenceNumber || `BK${String(booking._id || '').slice(-6)}`}</td>
+                    <td>{booking.guestName || booking.customerName || booking.name || '-'}</td>
+                    <td>{getRoomDisplay(booking)}</td>
+                    <td>{formatDate(booking.checkInDate || booking.checkinDate || booking.startDate)}</td>
+                    <td>{formatDate(booking.checkOutDate || booking.checkoutDate || booking.endDate)}</td>
+                    <td>
+                      <span className={`status ${getStatusClass(booking.bookingStatus)}`}>
+                        {booking.bookingStatus || '-'}
+                      </span>
+                    </td>
+                    <td>
+                      <button className="activity-btn" onClick={() => handleViewActivity(booking)}>
+                        <FaHistory /> Activity
                       </button>
-                      <button
-                        className="delete-btn"
-                        onClick={() => handleDelete(booking._id)}
-                      >
-                        <FaTrash />
-                      </button>
-                    </div>
-                  </td>
+                    </td>
+                    <td>
+                      <div className="action-buttons">
+                        <button className="edit-btn" onClick={() => handleEditClick(booking)}>
+                          <FaEdit />
+                        </button>
+                        <button className="delete-btn" onClick={() => handleDelete(booking._id)}>
+                          <FaTrash />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="8" style={{ textAlign: 'center', color: '#666' }}>No bookings found.</td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
@@ -334,16 +335,14 @@ const ManageBooking = () => {
             </div>
             <div className="modal-body">
               <div className="booking-details">
-                <p><strong>Guest:</strong> {selectedBooking.guestName}</p>
-                <p><strong>Reference:</strong> {selectedBooking.referenceNumber}</p>
-                <p><strong>Status:</strong> {selectedBooking.bookingStatus}</p>
+                <p><strong>Guest:</strong> {selectedBooking?.guestName}</p>
+                <p><strong>Reference:</strong> {selectedBooking?.referenceNumber}</p>
+                <p><strong>Status:</strong> {selectedBooking?.bookingStatus}</p>
               </div>
               <div className="activity-list">
                 {activities.map((activity, index) => (
                   <div key={index} className="activity-item">
-                    <span className="activity-date">
-                      {new Date(activity.timestamp).toLocaleString()}
-                    </span>
+                    <span className="activity-date">{formatDate(activity.timestamp)} {new Date(activity.timestamp).toLocaleTimeString()}</span>
                     <span className="activity-description">{activity.description}</span>
                   </div>
                 ))}
@@ -367,9 +366,7 @@ const ManageBooking = () => {
                   <label>Booking Status:</label>
                   <select
                     value={editForm.bookingStatus}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, bookingStatus: e.target.value })
-                    }
+                    onChange={(e) => setEditForm({ ...editForm, bookingStatus: e.target.value })}
                   >
                     <option value="pending">Pending</option>
                     <option value="confirmed">Confirmed</option>
@@ -382,38 +379,26 @@ const ManageBooking = () => {
                   <input
                     type="date"
                     value={editForm.checkOutDate}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, checkOutDate: e.target.value })
-                    }
+                    onChange={(e) => setEditForm({ ...editForm, checkOutDate: e.target.value })}
                   />
                 </div>
                 <div className="form-group">
                   <label>Room:</label>
                   <select
                     value={editForm.roomNumber}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, roomNumber: e.target.value })
-                    }
+                    onChange={(e) => setEditForm({ ...editForm, roomNumber: e.target.value })}
                   >
                     <option value="">Select Room</option>
                     {rooms.map((room) => (
-                      <option key={room.roomNumber} value={room.roomNumber}>
+                      <option key={room.roomNumber || room._id} value={room.roomNumber}>
                         Room {room.roomNumber}
                       </option>
                     ))}
                   </select>
                 </div>
                 <div className="form-actions">
-                  <button type="submit" className="save-btn">
-                    Save Changes
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowEditModal(false)}
-                    className="cancel-btn"
-                  >
-                    Cancel
-                  </button>
+                  <button type="submit" className="save-btn">Save Changes</button>
+                  <button type="button" onClick={() => setShowEditModal(false)} className="cancel-btn">Cancel</button>
                 </div>
               </form>
             </div>
@@ -585,7 +570,7 @@ const ManageBookingAdmin = () => {
     <div className="manage-booking-admin">
       <h2>Manage Bookings</h2>
       <div className="booking-table">
-        <BookingTable />
+        {/* This placeholder referenced BookingTable which doesn't exist; keeping real component renders above */}
       </div>
     </div>
   );

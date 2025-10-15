@@ -4,5 +4,6 @@ const { getCustomerBill } = require('../controllers/customerBillController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
 router.route('/:bookingId').get(protect, authorize(['admin']), getCustomerBill);
+router.get('/', authProtect, adminOnly, getAllCustomerBills);
 
 module.exports = router;

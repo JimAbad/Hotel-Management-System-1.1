@@ -47,6 +47,9 @@ app.use('/api/dashboard', require('./routes/dashboardRoutes'));
 
 app.use('/webhooks', require('./routes/webhookRoutes'));
 
+const customerBillRoutes = require('./routes/customerBillRoutes');
+app.use('/api/customer-bills', customerBillRoutes);
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error('Error:', err);
