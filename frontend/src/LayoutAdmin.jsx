@@ -1,5 +1,5 @@
 import React, { useContext } from 'react';
-import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Link, Outlet, useLocation, useNavigate, NavLink } from 'react-router-dom';
 import AuthContextAdmin from './AuthContextAdmin';
 import './LayoutAdmin.css';
 import { FaTachometerAlt, FaBook, FaFileInvoiceDollar, FaStar, FaSignOutAlt } from 'react-icons/fa';
@@ -39,9 +39,7 @@ const LayoutAdmin = () => {
               </Link>
             </li>
             <li>
-              <Link to="/admin/customer-bill" className={location.pathname === '/admin/customer-bill' ? 'active' : ''}>
-                <FaFileInvoiceDollar className="icon" />  Customers Bills
-              </Link>
+              <NavLink to="/admin/customer-bills">Customer Bills</NavLink>
             </li>
             <li>
               <Link to="/admin/reviews-management" className={location.pathname === '/admin/reviews-management' ? 'active' : ''}>

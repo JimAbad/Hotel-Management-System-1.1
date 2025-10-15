@@ -1,0 +1,165 @@
+/* Copied look from ManageBookingAdmin.css and adapted for Customer Bills */.customerbill-management {  padding: 20px;  background-color: #f5f5f5;  min-height: 100vh;}.customerbill-header {  display: flex;  justify-content: space-between;  align-items: center;  margin-bottom: 20px;  padding: 10px;  background-color: white;  border-radius: 8px;  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);}.customerbill-header h2 {  margin: 0;  color: #333;}.customerbill-actions {  display: flex;  gap: 10px;  align-items: center;}.search-input {  padding: 8px 12px;  border: 1px solid #ddd;  border-radius: 4px;  min-width: 200px;}.status-filter {  padding: 8px 12px;  border: 1px solid #ddd;  border-radius: 4px;  background-color: white;}.table-container {  background-color: white;  border-radius: 8px;  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);  overflow: hidden;}table {  width: 100%;  border-collapse: collapse;}th, td {  padding: 12px 15px;  text-align: left;  border-bottom: 1px solid #ddd;}th {  background-color: #f8f9fa;  font-weight: 600;  color: #333;}tr:hover {  background-color: #f8f9fa;}/* Status pills (adapted for billing) */.status {  padding: 4px 8px;  border-radius: 4px;  font-size: 0.9em;  font-weight: 500;}.status.paid {  background-color: #28a745;  color: white;}.status.partially-paid {  background-color: #ffd700;  color: #856404;}.status.unpaid {  background-color: #dc3545;  color: white;}/* Action buttons */.action-buttons {  display: flex;  gap: 8px;}.action-buttons .view-btn,.action-buttons .mark-paid-btn {  padding: 6px 12px;  border: none;  border-radius: 4px;  cursor: pointer;  transition: background-color 0.3s;}/* View button (neutral) */.view-btn {  background-color: #6c757d;  color: white;}.view-btn:hover {  background-color: #5a6268;}/* Mark as Paid button (green) */.mark-paid-btn {  background-color: #28a745;  color: white;}.mark-paid-btn:hover {  background-color: #218838;}.mark-paid-btn:disabled {  background-color: #a0d9b5;  cursor: not-allowed;}/* Loading and error styles consistent with ManageBooking */.loading {  text-align: center;  padding: 20px;  font-size: 1.2em;  color: #666;}.error {  text-align: center;  padding: 20px;  color: #dc3545;  background-color: #f8d7da;  border: 1px solid #f5c6cb;  border-radius: 4px;  margin: 20px 0;}/* Modal (mirrors ManageBooking look) */.modal-overlay {  position: fixed;  inset: 0;  background: rgba(0,0,0,0.5);  display: flex;  align-items: center;  justify-content: center;  z-index: 50;}.modal-content {  background: #fff;  width: 600px;  max-width: 90vw;  border-radius: 10px;  box-shadow: 0 10px 30px rgba(0,0,0,0.2);  animation: slideIn 0.2s ease-out;}.modal-header {  display: flex;  justify-content: space-between;  align-items: center;  padding: 14px 16px;  border-bottom: 1px solid #eee;}.modal-header h3 { margin: 0; }.modal-header button {  border: none; background: transparent; font-size: 18px; cursor: pointer;}.modal-body { padding: 16px; }.booking-details p { margin: 6px 0; }.form-actions {  display: flex;  gap: 8px;  justify-content: flex-end;  margin-top: 12px;}@keyframes slideIn {  from { transform: translateY(8px); opacity: 0; }  to { transform: translateY(0); opacity: 1; }}
+
+.customer-bill-list-container { padding: 16px; }
+
+.customer-bill-table { width: 100%; border-collapse: collapse; background: #fff; }
+
+.customer-bill-table th, .customer-bill-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #eee;
+  text-align: left;
+}
+
+.customer-bill-table th { background: #f7f7f7; }
+
+.view-details-link { color: #2563eb; text-decoration: underline; }
+
+.loading, .error, .empty { margin-top: 12px; color: #444; }
+
+.error { color: #b91c1c; }
+
+.customer-bill-list-container {
+  padding: 24px;
+}
+
+.billing-card {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.06);
+  padding: 20px;
+}
+
+.billing-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.billing-header h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.bill-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.search input {
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  outline: none;
+  width: 220px;
+}
+
+.filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filter label {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.filter select {
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.customer-bill-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.customer-bill-table th,
+.customer-bill-table td {
+  padding: 12px 10px;
+  border-bottom: 1px solid #eee;
+  text-align: left;
+  font-size: 14px;
+}
+
+.customer-bill-table th {
+  color: #374151;
+  background: #fafafa;
+  font-weight: 600;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 1;
+  color: #111827;
+  background: #e5e7eb;
+}
+.status-badge.paid { background: #d1fae5; color: #065f46; }
+.status-badge.partial { background: #fef3c7; color: #92400e; }
+.status-badge.unpaid { background: #fee2e2; color: #7f1d1d; }
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn {
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  color: #111827;
+  font-size: 13px;
+  cursor: pointer;
+}
+.btn:hover { background: #f3f4f6; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-light {
+  background: #eef2ff;
+  border-color: #c7d2fe;
+  color: #3730a3;
+}
+.btn-ghost {
+  background: #fff;
+  border-color: #e5e7eb;
+  color: #374151;
+}
+
+.loading, .empty { margin: 16px 0; color: #6b7280; }
+
+.error-banner {
+  margin: 12px 0 0;
+  padding: 12px 16px;
+  border-radius: 8px;
+  background: #fbe4e6;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
+/* Ensure table text is visible (override any global white text) */
+.customer-bill-list-container .customer-bill-table th,
+.customer-bill-list-container .customer-bill-table td {
+  color: #1f2937 !important; /* slate-800 */
+}
+
+/* Optional: make links/buttons readable inside cells */
+.customer-bill-list-container .customer-bill-table a {
+  color: #2563eb !important;
+  text-decoration: none;
+}
+.customer-bill-list-container .customer-bill-table a:hover {
+  text-decoration: underline;
+}

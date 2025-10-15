@@ -319,3 +319,15 @@ tr:hover {
   border-radius: 4px;
   margin: 20px 0;
 }
+
+/* Ensure table cell text is readable (some global styles set white text) */
+.booking-management table td,
+.booking-management table th {
+  color: #1f2937 !important; /* slate-800 */
+}
+
+.booking-management table a {
+  color: #2563eb !important;
+  text-decoration: none;
+}
+.booking-management table a:hover { text-decoration: underline; }
