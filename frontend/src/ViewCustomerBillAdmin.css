@@ -1,0 +1,113 @@
+.view-customer-bill-container {
+  padding: 30px;
+  background: #f9fafb;
+  min-height: 100vh;
+}
+
+h1 {
+  text-align: center;
+  color: #333;
+  margin-bottom: 20px;
+}
+
+.controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  flex-wrap: wrap;
+}
+
+.search-box {
+  display: flex;
+  align-items: center;
+  border: 1px solid #ccc;
+  background: #fff;
+  border-radius: 8px;
+  padding: 5px 10px;
+  width: 280px;
+}
+
+.search-box input {
+  border: none;
+  outline: none;
+  flex: 1;
+  padding: 6px;
+}
+
+.search-icon {
+  color: #777;
+  margin-right: 8px;
+}
+
+.filter-select {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  background: #fff;
+}
+
+.bill-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.bill-table th,
+.bill-table td {
+  padding: 12px 15px;
+  text-align: center;
+  border-bottom: 1px solid #eee;
+}
+
+.bill-table th {
+  background: #3b82f6;
+  color: white;
+  font-weight: 600;
+}
+
+.status-badge {
+  padding: 5px 10px;
+  border-radius: 15px;
+  color: white;
+  font-weight: bold;
+}
+
+.status-badge.paid {
+  background-color: #22c55e;
+}
+
+.status-badge.partial {
+  background-color: #f59e0b;
+}
+
+.action-buttons button {
+  margin: 0 5px;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 6px;
+  color: white;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 14px;
+}
+
+.view-btn {
+  background-color: #3b82f6;
+}
+
+.view-btn:hover {
+  background-color: #2563eb;
+}
+
+.paid-btn {
+  background-color: #16a34a;
+}
+
+.paid-btn:hover {
+  background-color: #15803d;
+}

@@ -1,0 +1,186 @@
+.billings-container {
+  padding: 20px;
+}
+
+.billings-container h1 {
+  text-align: left;
+  color: var(--golden-accent);
+  margin-bottom: 30px;
+}
+
+.billings-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: left;
+  align-items: left;
+}
+.billing-container {
+  padding: 50px;
+  max-width: 1200px;
+  margin: 20px auto;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  color: black;
+  
+}
+
+.billing-card {
+  background-color: var(--dark-surface);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  transition: transform 0.2s;
+  padding: 15px;
+}
+
+.billing-card:hover {
+  transform: translateY(-5px);
+}
+
+.billing-card h2 {
+  color: var(--golden-accent);
+  margin-top: 0;
+  margin-bottom: 10px;
+}
+
+.billing-card p {
+  color: var(--light-text-color);
+  font-size: 0.9em;
+  line-height: 1.5;
+  margin-bottom: 5px;
+}
+
+/* Room Grouped Bills Styles */
+.room-grouped-bills {
+  margin-top: 20px;
+}
+
+.room-bill-group {
+  margin-bottom: 30px;
+  background-color: white;
+  border: 1px solid #555;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.room-header {
+  background-color: #f5f5f5;
+  padding: 15px 20px;
+  border-bottom: 1px solid #555;
+}
+
+.room-header h3 {
+  margin: 0;
+  color: #B8860B;
+  font-size: 18px;
+}
+
+.room-bills-table table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0;
+  box-shadow: none;
+}
+
+.room-bills-table th,
+.room-bills-table td {
+  padding: 12px 15px;
+  text-align: left;
+  border-bottom: 1px solid #555;
+}
+
+.room-bills-table th {
+  background-color: #fafafa;
+  font-weight: bold;
+  color: #333;
+}
+
+.room-bills-table tr:last-child td {
+  border-bottom: none;
+}
+
+.room-bills-table tr:hover {
+  background-color: #f9f9f9;
+}
+
+/* View Customer Bill Styles */
+.view-customer-bill-container {
+  display: flex;
+  justify-content: center;
+  padding: 20px;
+  min-height: 100vh;
+}
+
+.view-customer-bill-container .bill-details {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 30px;
+  max-width: 800px;
+  width: 100%;
+  text-align: left;
+}
+
+.view-customer-bill-container h1 {
+  text-align: center;
+  margin-bottom: 20px;
+  color: #333;
+}
+
+.view-customer-bill-container .bill-info p {
+  margin-bottom: 8px;
+  font-size: 16px;
+}
+
+.view-customer-bill-container .bill-items-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+  margin-bottom: 20px;
+}
+
+.view-customer-bill-container .bill-items-table th,
+.view-customer-bill-container .bill-items-table td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid #555;
+}
+
+.view-customer-bill-container .bill-items-table th {
+  background-color: #f5f5f5;
+  font-weight: bold;
+}
+
+.view-customer-bill-container .bill-items-table tr:last-child td {
+  border-bottom: none;
+}
+
+.view-customer-bill-container p {
+  font-size: 16px;
+  margin-bottom: 10px;
+}
+.view-bill-button {
+  display: block;
+  margin: 20px auto;
+  padding: 10px 20px;
+  background-color: var(--golden-accent);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+

@@ -1,0 +1,245 @@
+.my-bookings-container {
+  padding: 30px;
+}
+
+.my-bookings-container h1 {
+  text-align: center;
+  color: var(--golden-accent);
+  margin-bottom: 30px;
+}
+.no-bookings{
+  text-align: center;
+  padding: 40px;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  margin-top: 20px;
+  color: black;
+}
+
+.bookings-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.booking-card {
+  background-color: var(--dark-surface);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  transition: transform 0.2s;
+  padding: 15px;
+}
+
+.booking-card:hover {
+  transform: translateY(-5px);
+}
+
+.booking-card h2 {
+  color: var(--golden-accent);
+  margin-top: 0;
+  margin-bottom: 10px;
+}
+
+.booking-card p {
+  color: var(--light-text-color);
+  font-size: 0.9em;
+  line-height: 1.5;
+  margin-bottom: 5px;
+}
+
+.payment-details {
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid #eee;
+}
+
+.payment-details-btn {
+  background-color: #007bff;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  margin-bottom: 10px;
+}
+
+.payment-details-btn:hover {
+  background-color: #0056b3;
+}
+
+.payment-info {
+  background-color: #f8f9fa;
+  padding: 15px;
+  border-radius: 5px;
+  margin-top: 10px;
+}
+
+.payment-info p {
+  margin: 5px 0;
+  font-size: 14px;
+}
+
+.payment-info .warning {
+  color: #856404;
+  background-color: #fff3cd;
+  padding: 8px;
+  border-radius: 3px;
+  margin-top: 10px;
+}
+
+.booking-actions button {
+  display: block;
+  margin: 0 auto; /* centers horizontally */
+  background-color: #B8860B;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+
+
+.booking-actions button:hover {
+  background-color: #a37b14;
+}
+
+.booking-actions button:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+.cancelled-bookings-actions {
+  margin-bottom: 20px;
+  text-align: right;
+}
+
+/* Modal styles for cancellation reason */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  color: black;
+}
+
+.modal-content {
+  background-color: white;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  border-bottom: 1px solid #ddd;
+}
+
+.modal-header h3 {
+  margin: 0;
+  color: #333;
+}
+
+.modal-header button {
+  background: none;
+  border: none;
+  font-size: 1.5em;
+  cursor: pointer;
+  color: #666;
+}
+
+.modal-body {
+  padding: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
+.form-group textarea {
+  width: 100%;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 8px;
+  resize: vertical;
+}
+
+.form-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.confirm-btn {
+  background-color: #B8860B;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.cancel-btn {
+  background-color: #ccc;
+  color: #333;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.modal-error {
+  color: #dc3545;
+  margin-top: 8px;
+}
+
+/* Reason checklist styles */
+.reason-checklist {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.reason-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid #ddd;
+  border-radius: 16px;
+  background-color: #f7f7f7;
+  color: #000;
+}
+
+.reason-option input[type="checkbox"] {
+  accent-color: #B8860B;
+  
+}
+
+
+/* Ensure predefined reasons display in pure black */
+.reason-checklist .reason-option {
+  color: #000 !important;
+}
+
+
+

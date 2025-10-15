@@ -1,0 +1,150 @@
+.login-page-wrapper {
+  display: flex;
+  /* height: 100vh; */ /* Removed to allow navbar to be visible */
+  background-color: transparent;
+  background-image: url('./img/loginbg.jpg'); /* Ensure this path is correct */
+  background-size: cover;
+  background-position: center;
+  padding-top: 5rem; /* Add padding to match the height of the navbar */
+  color: var(--text-color);
+}
+
+.login-page {
+  display: flex;
+  justify-content: flex-end; /* Align to the right */
+  align-items: center;
+  padding: 5rem;
+  padding-right: 10%; /* Adjust as needed to match the image */
+  padding-left: 10%; /* Add padding to match the image */
+  height: 100vh;
+  background-image: url('./img/loginbg.jpg'); /* Use the same background image as login */
+  background-size: cover;
+  background-position: center;
+  color: var(--text-color);
+}
+
+.login-left {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem;
+}
+
+.login-logo {
+  width: 300px;
+  height: auto;
+  margin-bottom: 1rem;
+  padding-right: 15%;
+}
+
+.login-container {
+  
+  /* This container will hold the form card */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 400%;
+  max-width: 400px; /* Adjusted from 300px */
+}
+
+.login-form-card {
+  background-color: var(--dark-surface);
+  padding: 3rem;
+  border-radius: 10px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+  width: 100%;
+  max-width: 400px; /* Adjusted from 300px */
+  text-align: center;
+}
+
+.login-form-card h2 {
+  font-size: 2rem;
+  color: var(--golden-accent); /* Ensure the title is golden */
+  margin-bottom: 2rem;
+}
+
+.form-group label {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  color: var(--golden-accent);
+  font-size: 1rem;
+}
+
+.form-group label i {
+  margin-right: 0.5rem;
+  color: var(--golden-accent); /* Ensure icon color matches label */
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+  text-align: left;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: var(--golden-accent); /* Changed from var(--light-text-color) */
+  font-size: 1rem;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 0.8rem 10px;
+  border-radius: 5px;
+  background-color: #fff; /* Changed from #3a3a3a */
+  color: #333; /* Changed from var(--text-color) */
+  font-size: 1rem;
+}
+
+.login-form-card button {
+  background-color: var(--golden-accent);
+  color: var(--dark-surface);
+  padding: 0.8rem 1.5rem;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 1.1rem;
+  font-weight: bold;
+  transition: background-color 0.3s ease;
+  margin-top: 1.5rem;
+}
+
+.login-form-card button:hover {
+  background-color: #ffd700;
+}
+
+.forgot-password {
+  margin-top: 1rem;
+  font-size: 0.9rem;
+}
+
+.forgot-password a {
+  color: var(--golden-accent);
+  text-decoration: none;
+}
+
+.forgot-password a:hover {
+  text-decoration: underline;
+}
+
+.signup-link {
+  margin-top: 1.5rem;
+  font-size: 1rem;
+}
+
+.signup-link a {
+  color: var(--golden-accent);
+  text-decoration: none;
+  font-weight: bold;
+}
+
+.signup-link a:hover {
+  text-decoration: underline;
+}
+
+/* Show/Hide Password toggle positioning for login form */
+/* Removed show/hide password toggle styles */
+

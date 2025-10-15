@@ -1,0 +1,48 @@
+const roomDetails = {
+  Presidential: {
+    roomSize: '120-150 sqm (1,292-1,614 sq ft)',
+    bedType: '1 California King Bed + Separate Living Room with Sofa Bed',
+    capacity: '4 Adults',
+    view: 'Panoramic Ocean View or City Skyline View',
+    floor: 'Top Floor',
+    accessibility: 'Wheelchair accessible',
+    smoking: 'Non-smoking',
+    pets: 'Not allowed',
+    quietHours: '10 PM - 7 AM',
+  },
+  Deluxe: {
+    roomSize: '35-40 sqm (377-430 sq ft)',
+    bedType: '1 King Bed or 2 Queen Beds',
+    capacity: '3 Adults',
+    view: 'Partial Ocean View or Garden View',
+    floor: '4-7',
+    accessibility: 'Limited accessibility',
+    smoking: 'Non-smoking',
+    pets: 'Allowed (extra charge)',
+    quietHours: '11 PM - 6 AM',
+  },
+  Suite: {
+    roomSize: '55-65 sqm (592-700 sq ft)',
+    bedType: '1 King Bed + Separate Seating Area',
+    capacity: '3 Adults',
+    view: 'Full Ocean View or Pool View',
+    floor: '2-5',
+    accessibility: 'Wheelchair accessible',
+    smoking: 'Non-smoking',
+    pets: 'Not allowed',
+    quietHours: '10 PM - 7 AM',
+  },
+  Economy: {
+    roomSize: '25-30 sqm (269-323 sq ft)',
+    bedType: '1 Queen Bed or 2 Twin Beds',
+    capacity: '2 Adults',
+    view: 'City View or Courtyard View',
+    floor: '1-3',
+    accessibility: 'Wheelchair accessible (on request)',
+    smoking: 'Non-smoking',
+    pets: 'Not allowed',
+    quietHours: '10 PM - 7 AM',
+  },
+};
+
+export default roomDetails;
