@@ -14,13 +14,16 @@ function Rooms() {
   const [error, setError] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [modalRoom, setModalRoom] = useState(null);
+  const [modalRoomAvailability, setModalRoomAvailability] = useState(null);
   const [modalLoading, setModalLoading] = useState(false);
   const [modalError, setModalError] = useState(null);
   const [guestName, setGuestName] = useState('');
   const [contactNumber, setContactNumber] = useState('');
   const [email, setEmail] = useState('');
   const [checkInDate, setCheckInDate] = useState('');
+  const [checkInTime, setCheckInTime] = useState('');
   const [checkOutDate, setCheckOutDate] = useState('');
+  const [checkOutTime, setCheckOutTime] = useState('');
   const [adults, setAdults] = useState(1);
   const [children, setChildren] = useState(0);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -29,7 +32,7 @@ function Rooms() {
   const [showPaymentForm, setShowPaymentForm] = useState(false); // New state for showing payment form
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(''); // 'gcash' or 'paymaya'
   const [modalPurpose, setModalPurpose] = useState('info'); // 'info' or 'book'
-  const [numberOfNights, setNumberOfNights] = useState(0);
+  const [numberOfHours, setNumberOfHours] = useState(0);
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [bookingSuccessData, setBookingSuccessData] = useState(null);
   const [subtotal, setSubtotal] = useState(0);
@@ -52,15 +55,15 @@ function Rooms() {
   }, []);
 
   useEffect(() => {
-    if (checkInDate && checkOutDate && modalRoom) {
-      const checkIn = new Date(checkInDate);
-      const checkOut = new Date(checkOutDate);
+    if (checkInDate && checkOutDate && checkInTime && checkOutTime && modalRoom) {
+      const checkIn = new Date(`${checkInDate}T${checkInTime}`);
+      const checkOut = new Date(`${checkOutDate}T${checkOutTime}`);
       const diffTime = Math.abs(checkOut - checkIn);
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      setNumberOfNights(diffDays);
+      const diffHours = Math.ceil(diffTime / (1000 * 60 * 60));
+      setNumberOfHours(diffHours);
 
       const roomPrice = modalRoom.price || 0;
-      const calculatedSubtotal = diffDays * roomPrice;
+      const calculatedSubtotal = diffHours * roomPrice;
       setSubtotal(calculatedSubtotal);
 
       const calculatedTaxesAndFees = calculatedSubtotal * 0.12; // Assuming 12% tax
@@ -68,7 +71,113 @@ function Rooms() {
 
       setTotal(calculatedSubtotal + calculatedTaxesAndFees);
     }
-  }, [checkInDate, checkOutDate, modalRoom]);
+  }, [checkInDate, checkOutDate, checkInTime, checkOutTime, modalRoom]);
+
+  // Helper functions for date/time validation
+  const getCurrentDateTime = () => {
+    const now = new Date();
+    const date = now.toISOString().split('T')[0];
+    const time = now.toTimeString().slice(0, 5);
+    return { date, time };
+  };
+
+  const isDateTimeInPast = (date, time) => {
+    if (!date || !time) return false;
+    const selectedDateTime = new Date(`${date}T${time}`);
+    const now = new Date();
+    return selectedDateTime < now;
+  };
+
+  const getMinimumCheckOutTime = (checkInDate, checkInTime) => {
+    if (!checkInDate || !checkInTime) return '';
+    
+    const checkInDateTime = new Date(`${checkInDate}T${checkInTime}`);
+    const minCheckOutDateTime = new Date(checkInDateTime.getTime() + (3 * 60 * 60 * 1000)); // Add 3 hours
+    
+    return minCheckOutDateTime.toTimeString().slice(0, 5);
+  };
+
+  const validateDateTime = () => {
+    // Validate check-in date/time
+    if (isDateTimeInPast(checkInDate, checkInTime)) {
+      alert('Check-in date and time cannot be in the past.');
+      return false;
+    }
+    
+    // Validate check-out date/time
+    if (isDateTimeInPast(checkOutDate, checkOutTime)) {
+      alert('Check-out date and time cannot be in the past.');
+      return false;
+    }
+    
+    // Validate minimum 3-hour duration
+    if (checkInDate && checkInTime && checkOutDate && checkOutTime) {
+      const checkInDateTime = new Date(`${checkInDate}T${checkInTime}`);
+      const checkOutDateTime = new Date(`${checkOutDate}T${checkOutTime}`);
+      const diffHours = (checkOutDateTime - checkInDateTime) / (1000 * 60 * 60);
+      
+      if (diffHours < 3) {
+        alert('Minimum booking duration is 3 hours.');
+        return false;
+      }
+    }
+    
+    return true;
+  };
+
+  const generateTimeOptions = (isCheckOut = false, checkInDate = null, checkInTime = null) => {
+    const times = [];
+    const now = new Date();
+    const currentDate = now.toISOString().split('T')[0];
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    
+    for (let hour = 0; hour < 24; hour++) {
+      for (let minute = 0; minute < 60; minute += 30) {
+        // Convert to 12-hour format
+        let displayHour = hour;
+        let ampm = 'AM';
+        
+        if (hour === 0) {
+          displayHour = 12;
+        } else if (hour === 12) {
+          displayHour = 12;
+          ampm = 'PM';
+        } else if (hour > 12) {
+          displayHour = hour - 12;
+          ampm = 'PM';
+        }
+        
+        const timeString24 = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+        const timeString12 = `${displayHour}:${minute.toString().padStart(2, '0')} ${ampm}`;
+        
+        // For check-in time: disable past times if selecting today's date
+        if (!isCheckOut && checkInDate === currentDate) {
+          if (hour < currentHour || (hour === currentHour && minute <= currentMinute)) {
+            continue; // Skip past times
+          }
+        }
+        
+        // For check-out time: enforce 3-hour minimum duration
+        if (isCheckOut && checkInDate && checkInTime && checkOutDate === checkInDate) {
+          const checkInHour24 = parseInt(checkInTime.split(':')[0]);
+          const checkInMinute24 = parseInt(checkInTime.split(':')[1]);
+          
+          // Calculate minimum checkout time (3 hours after check-in)
+          const checkInTotalMinutes = checkInHour24 * 60 + checkInMinute24;
+          const minCheckOutTotalMinutes = checkInTotalMinutes + (3 * 60); // Add 3 hours
+          const currentTotalMinutes = hour * 60 + minute;
+          
+          if (currentTotalMinutes < minCheckOutTotalMinutes) {
+            continue; // Skip times that don't meet 3-hour minimum
+          }
+        }
+        
+        times.push({ value: timeString24, display: timeString12 });
+      }
+    }
+    return times;
+  };
 
   const renderStars = (rating) => {
     const stars = [];
@@ -85,6 +194,23 @@ function Rooms() {
     if (type.includes('Suite')) return 'Suite';
     if (type.includes('Economy')) return 'Economy';
     return type; // Fallback if no match
+  };
+
+  const deriveFloorFromRoomNumber = (rn) => {
+    if (!rn) return null;
+    const num = parseInt(String(rn), 10);
+    if (isNaN(num)) return null;
+    const floor = Math.floor(num / 100);
+    return floor > 0 ? floor : null;
+  };
+
+  const getDisplayFloor = (type) => {
+    const economyFloor = summary.find(item => item.type?.includes('Economy'))?.floor;
+    const deluxeFloor = summary.find(item => item.type?.includes('Deluxe'))?.floor;
+    const itemFloor = summary.find(item => item.type === type)?.floor;
+    if (type?.includes('Economy')) return deluxeFloor ?? itemFloor ?? 'N/A';
+    if (type?.includes('Deluxe')) return economyFloor ?? itemFloor ?? 'N/A';
+    return itemFloor ?? 'N/A';
   };
 
   const handleBookType = async (type) => {
@@ -140,7 +266,13 @@ function Rooms() {
       } else {
         const normalizedType = normalizeRoomType(room.roomType);
         const combinedRoomDetails = { ...room, ...roomDetails[normalizedType] };
+        
+        // Find availability information from summary data
+        const roomSummary = summary.find(item => item.type === type);
+        const availability = roomSummary ? roomSummary.available : 0;
+        
         setModalRoom(combinedRoomDetails);
+        setModalRoomAvailability(availability);
         setModalPurpose('info'); // Set purpose to info
         setShowModal(true);
       }
@@ -195,13 +327,28 @@ function Rooms() {
       navigate('/login');
       return;
     }
+
+    // Validate all required fields
+    if (!checkInDate || !checkInTime || !checkOutDate || !checkOutTime) {
+      alert('Please fill in all date and time fields.');
+      return;
+    }
+
+    // Validate date/time constraints
+    if (!validateDateTime()) {
+      return;
+    }
+
     try {
+      const checkInDateTime = `${checkInDate}T${checkInTime}`;
+      const checkOutDateTime = `${checkOutDate}T${checkOutTime}`;
+
       const bookingData = {
         roomNumber: modalRoom.roomNumber,
         customerName: user.name,
         customerEmail: user.email,
-        checkIn: checkInDate,
-        checkOut: checkOutDate,
+        checkIn: checkInDateTime,
+        checkOut: checkOutDateTime,
         adults: adults,
         children: children,
         guestName: guestName,
@@ -234,7 +381,6 @@ function Rooms() {
   };
 
   const handleProceedToPayment = async () => {
-    console.log('handleProceedToPayment function called.');
     try {
       setModalLoading(true);
       setModalError('');
@@ -246,40 +392,17 @@ function Rooms() {
         return;
       }
 
-      // Validate dates
-      if (new Date(checkOutDate) <= new Date(checkInDate)) {
-        setModalError('Check-out date must be after check-in date.');
+      // Validate dates and times
+      const checkInDateTime = new Date(`${checkInDate}T${checkInTime || '00:00'}`);
+      const checkOutDateTime = new Date(`${checkOutDate}T${checkOutTime || '23:59'}`);
+      
+      if (checkOutDateTime <= checkInDateTime) {
+        setModalError('Check-out date and time must be after check-in date and time.');
         setModalLoading(false);
         return;
       }
 
-      // Create booking first
-      console.log('Creating booking...');
-      console.log('Current user:', user);
-      console.log('Modal room data:', modalRoom);
-      
-      const bookingData = {
-        roomNumber: modalRoom.roomNumber,
-        customerName: guestName,
-        customerEmail: email,
-        contactNumber: contactNumber,
-        checkIn: checkInDate,
-        checkOut: checkOutDate,
-        adults: adults,
-        children: children,
-        guestName: guestName,
-        specialRequests: '',
-        totalAmount: modalRoom.price,
-        downPayment: modalRoom.price * 0.1, // 10% down payment
-        paymentMethod: selectedPaymentMethod, // Store selected payment method
-        paymentType: 'ewallet' // Specify this is an e-wallet payment
-      };
-
-      console.log('Booking data to send:', bookingData);
-
       const token = localStorage.getItem('token');
-      console.log('Token being used:', token);
-      
       const config = {
         headers: {
           'Content-Type': 'application/json',
@@ -287,84 +410,30 @@ function Rooms() {
         }
       };
 
-      console.log('Attempting to create booking...');
-      const response = await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/bookings`,
-        bookingData,
-        config
-      );
-
-      console.log('Booking created:', response.data);
-      console.log('Response data from booking creation:', JSON.stringify(response.data));
-      const booking = response.data;
-
-      // Create e-wallet payment source
-      console.log(`Creating ${selectedPaymentMethod} payment source...`);
-      console.log('Selected payment method before switch:', selectedPaymentMethod);
-      let formattedChannelCode = `PH_${selectedPaymentMethod.toUpperCase()}`;
-
-      let channelCode;
-      switch (formattedChannelCode) {
-        case 'PH_GCASH':
-          channelCode = 'PH_GCASH';
-          break;
-        case 'PH_PAYMAYA':
-          channelCode = 'PH_PAYMAYA';
-          break;
-        case 'PH_GRABPAY':
-          channelCode = 'PH_GRABPAY';
-          break;
-        default:
-          console.error('Invalid e-wallet type. Supported: PH_GCASH, PH_PAYMAYA, PH_GRABPAY');
-          return;
-      }
-
-      // Calculate 10% down payment amount
-      const downPaymentAmount = parseFloat(booking.totalAmount) * 0.1;
-      
-      const ewalletData = {
-        channelCode,
-        amount: downPaymentAmount.toFixed(2),
-        currency: 'PHP',
-        bookingId: booking._id,
-        successReturnUrl: `${window.location.origin}/payment-success?bookingId=${booking._id}`,
-        failureReturnUrl: `${window.location.origin}/payment-failed?bookingId=${booking._id}`,
+      const bookingData = {
+        roomNumber: modalRoom.roomNumber,
+        customerName: guestName,
+        customerEmail: email,
+        contactNumber,
+        checkIn: `${checkInDate}T${checkInTime || '00:00'}`,
+        checkOut: `${checkOutDate}T${checkOutTime || '23:59'}`,
+        adults,
+        children,
+        guestName,
+        specialRequests: '',
+        totalAmount: total
       };
 
-      const ewalletResponse = await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/payment/create-ewallet-payment-source`,
-        ewalletData,
-        config
-      );
+      const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/bookings`, bookingData, config);
+      const booking = response.data?.newBooking || response.data;
 
-      console.log('E-wallet source created:', ewalletResponse.data);
-
-      // Redirect to e-wallet payment page
-      if (ewalletResponse.data.redirectUrl) {
-        console.log('Redirecting to:', ewalletResponse.data.redirectUrl);
-        window.location.href = ewalletResponse.data.redirectUrl;
-      } else {
-        throw new Error('No redirect URL received from payment provider');
-      }
-
+      setBookingSuccessData(booking);
+      setShowSuccessPopup(true);
+      setShowModal(false);
     } catch (err) {
-      console.error('Payment error:', err);
-      console.error('Error response:', err.response);
-      
-      let errorMessage = 'An error occurred while processing your payment.';
-      
-      if (err.response?.status === 401) {
-        errorMessage = 'Your session has expired. Please log in again.';
-        setTimeout(() => {
-          navigate('/login');
-        }, 2000);
-      } else if (err.response?.data?.message) {
-        errorMessage = err.response.data.message;
-      } else if (err.message) {
-        errorMessage = err.message;
-      }
-      
+      const errorMessage = err?.response?.data?.message || err.message || 'Failed to create booking.';
       setModalError(errorMessage);
+    } finally {
       setModalLoading(false);
     }
   };
@@ -391,34 +460,34 @@ function Rooms() {
       )}
       <h1>Available Room Types</h1>
       <div className="room-list">
-        {summary.map(({ type, total, available }) => (
-          <div key={type} className="room-card">
-            <div className="room-card-header">
-              <img src="/src/img/room1.jpg" alt={type} className="room-image" />
-              <div>
-                <button className="more-info-btn" onClick={() => handleMoreInfo(type)}>
-                  More info
-                </button>
-                <span className="room-price"><span> per night varies</span></span>
-                {available === 0 && (
-                  <span className="fully-booked-badge" title="This room type is fully booked">Fully booked</span>
-                )}
-              </div>
-            </div>
-            <div className="room-card-body">
-              
-              <p>Room Type: {type}</p>  
-              <p>Floor: {summary.find(item => item.type === type)?.floor || 'N/A'}</p>
-              <p>Total Rooms: {total}</p>
-              <p>Available: {available}</p>
-            </div>
-            <div className="room-card-footer">
-              <button className="book-room-btn" disabled={available === 0} onClick={() => handleBookRoom(type)}>
-                {available === 0 ? 'Fully booked' : 'Book this room'}
-              </button>
-            </div>
-          </div>
-        ))}
+        {summary.filter(({ type }) => !type?.includes('Presidential')).map(({ type, total, available }) => (
+           <div key={type} className="room-card">
+             <div className="room-card-header">
+               <img src="/src/img/room1.jpg" alt={type} className="room-image" />
+               <div>
+                 <button className="more-info-btn" onClick={() => handleMoreInfo(type)}>
+                   More info
+                 </button>
+                 <span className="room-price"><span>{roomDetails[normalizeRoomType(type)]?.price ? `₱${roomDetails[normalizeRoomType(type)].price} per hour` : ' per hour varies'}</span></span>
+                 {available === 0 && (
+                   <span className="fully-booked-badge" title="This room type is fully booked">Fully booked</span>
+                 )}
+               </div>
+             </div>
+             <div className="room-card-body">
+               
+               <p>Room Type: {type}</p>  
+               <p>Floor: {getDisplayFloor(type)}</p>
+               <p>Total Rooms: {total}</p>
+               <p>Available: {available}</p>
+             </div>
+             <div className="room-card-footer">
+               <button className="book-room-btn" disabled={available === 0} onClick={() => handleBookRoom(type)}>
+                 {available === 0 ? 'Fully booked' : 'Book this room'}
+               </button>
+             </div>
+           </div>
+         ))}
       </div>
       {showModal && (
         <div className="modal-overlay">
@@ -431,7 +500,13 @@ function Rooms() {
               <>
                 <div className="modal-header">
                   <button className="modal-back" style={{ color: 'white', background: '#B8860B', }} onClick={() => handleCloseModal()}>Back</button>
-                  <h2 className="modal-title">{modalRoom?.roomType || modalRoom?.type}</h2>
+                  <h2 
+  className="modal-title" 
+  style={{ textAlign: "center" }}
+>
+  {modalRoom?.roomType || modalRoom?.type}
+</h2>
+
                 </div>
                 <div className="modal-amenities">
                   <h3>Amenities</h3>
@@ -442,14 +517,15 @@ function Rooms() {
                   </div>
                 </div>
                 <div className="modal-room-details">
-                  <h3>Room Details</h3>
+                  <h3 style={{ textAlign: 'center' }}>Room Details</h3>
+
                   <div className="room-details-grid">
                     <div className="room-detail-item">
                       <p><strong>Room size:</strong> {modalRoom?.roomSize || 'N/A'}</p>
                       <p><strong>Bed type:</strong> {modalRoom?.bedType || 'N/A'}</p>
                       <p><strong>Capacity:</strong> {modalRoom?.capacity || 'N/A'}</p>
                       <p><strong>View:</strong> {modalRoom?.view || 'N/A'}</p>
-                      
+                      <p><strong>Floor:</strong> {deriveFloorFromRoomNumber(modalRoom?.roomNumber) ?? modalRoom?.floor ?? roomDetails[normalizeRoomType(modalRoom?.roomType || modalRoom?.type)]?.floor ?? 'N/A'}</p>
                       <p><strong>Accessibility:</strong> {modalRoom?.accessibility || 'N/A'}</p>
                     </div>
                     <div className="room-detail-item">
@@ -459,8 +535,12 @@ function Rooms() {
                   </div>
                   {modalPurpose === 'info' && (
                     <div className="modal-actions">
-                      <button className="book-room-btn" onClick={() => handleBookRoom(modalRoom.roomType || modalRoom.type)}>
-                        Book this room
+                      <button 
+                        className="book-room-btn" 
+                        disabled={modalRoomAvailability === 0} 
+                        onClick={() => handleBookRoom(modalRoom.roomType || modalRoom.type)}
+                      >
+                        {modalRoomAvailability === 0 ? 'Fully booked' : 'Book this room'}
                       </button>
                     </div>
                   )}
@@ -504,33 +584,61 @@ function Rooms() {
 
                       <h3>Stay Details</h3>
                       <div className="form-group date-group">
-                        <label htmlFor="checkInDate">Check-in Date</label>
+                        <label htmlFor="checkInDate" style={{color: 'black'}}>Check-in Date</label>
                         <input
                           type="date"
                           id="checkInDate"
                           value={checkInDate}
                           onChange={(e) => setCheckInDate(e.target.value)}
+                          min={getCurrentDateTime().date}
                         />
                       </div>
                       <div className="form-group date-group">
-                        <label htmlFor="checkOutDate">Check-out Date</label>
+                        <label htmlFor="checkInTime" style={{color: 'black'}}>Check-in Time</label>
+                        <select
+                          id="checkInTime"
+                          value={checkInTime}
+                          onChange={(e) => setCheckInTime(e.target.value)}
+                        >
+                          <option value="">Select time</option>
+                          {generateTimeOptions(false, checkInDate).map(time => (
+                            <option key={time.value} value={time.value}>{time.display}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="form-group date-group">
+                        <label htmlFor="checkOutDate" style={{color: 'black'}}>Check-out Date</label>
                         <input
                           type="date"
                           id="checkOutDate"
                           value={checkOutDate}
                           onChange={(e) => setCheckOutDate(e.target.value)}
+                          min={checkInDate || getCurrentDateTime().date}
                         />
                       </div>
 
+                      <div className="form-group date-group">
+                        <label htmlFor="checkOutTime" style={{color: 'black'}}>Check-out Time</label>
+                        <select
+                          id="checkOutTime"
+                          value={checkOutTime}
+                          onChange={(e) => setCheckOutTime(e.target.value)}
+                        >
+                          <option value="">Select time</option>
+                          {generateTimeOptions(true, checkInDate, checkInTime).map(time => (
+                            <option key={time.value} value={time.value}>{time.display}</option>
+                          ))}
+                        </select>
+                      </div>
                       <h3>Number of Guests</h3>
                       <div className="form-group guest-count-group">
-                        <label htmlFor="adults">Adults</label>
+                        <label htmlFor="adults" style={{color: 'black'}}>Adults</label>
                         <select id="adults" value={adults} onChange={(e) => setAdults(Number(e.target.value))}>
                           {[...Array(10).keys()].map(i => <option key={i + 1} value={i + 1}>{i + 1}</option>)}
                         </select>
                       </div>
                       <div className="form-group guest-count-group">
-                        <label htmlFor="children">Children (0-5 years old)</label>
+                        <label htmlFor="children" style={{color: 'black'}}>Children (0-5 years old)</label>
                         <select id="children" value={children} onChange={(e) => setChildren(Number(e.target.value))}>
                           {[...Array(5).keys()].map(i => <option key={i} value={i}>{i}</option>)}
                         </select>
@@ -551,103 +659,23 @@ function Rooms() {
                         <p>Room: {modalRoom?.roomType || modalRoom?.type}</p>
                         <p>Dates: {checkInDate} - {checkOutDate}</p>
                         <p>Guests: {adults} Adults, {children} Children (0-5 years old)</p>
-                        <p>Rate: ₱{modalRoom?.price} per night</p>
-                        <p>Taxes and fees: ₱{taxesAndFees.toFixed(2)}</p>
-                        <p>Total: ₱{total.toFixed(2)}</p>
+                        <p>Rate: ₱{modalRoom?.price?.toLocaleString()} per hour</p>
+                        <p>Taxes and fees: ₱{taxesAndFees.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+                        <p>Total: ₱{total.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
                       </div>
                       <div className={`overlay-content ${showQrCode ? 'show-qr' : ''}`}>
-                        <p className="cancellation-note" style={{ fontSize: '15px', color: 'black', marginTop: '10px' }}>
-                          Note: 
-                          The cancellation fee is ₱{ (total * 0.1).toFixed(2) }. You’ll be charged ₱{ (total * 0.1).toFixed(2) } today; any remaining balance (payable at the hotel front desk) will be settled at check-in.
-                        </p>
+                        
                         <div className="modal-actions">
-                          {!showPaymentForm && (
-                            <button
-                              className="proceed-payment-btn" style={{ color: 'black', backgroundColor: '#B8860B' }}
-                              onClick={() => {
-                                console.log('Proceed to Down Payment button clicked.');
-                                setShowQrCode(false); // Remove QR code step
-                                setShowPaymentForm(true); // Show payment form
-                                console.log('showPaymentForm set to true.');
-                              }}
-                            >
-                              Proceed to Down Payment
-                            </button>
-                          )}
+                          <button
+                            className="book-now-btn"
+                            style={{ color: 'black', backgroundColor: '#B8860B' }}
+                            onClick={handleProceedToPayment}
+                            disabled={modalLoading}
+                          >
+                            {modalLoading ? 'Booking...' : 'Book Now'}
+                          </button>
+                          {modalError && <div className="modal-error">{modalError}</div>}
                         </div>
-                        {showPaymentForm && (
-                          <div className="payment-details" style={{ color: 'black' }}>
-                            <h3>Choose Payment Method</h3>
-                            <div className="payment-methods" style={{ marginBottom: '20px' }}>
-                              <div className="payment-method-option" style={{ 
-                                border: '2px solid #ddd', 
-                                borderRadius: '8px', 
-                                padding: '15px', 
-                                marginBottom: '10px',
-                                cursor: 'pointer',
-                                backgroundColor: selectedPaymentMethod === 'gcash' ? '#e8f5e8' : 'white'
-                              }} onClick={() => setSelectedPaymentMethod('gcash')}>
-                                <div style={{ display: 'flex', alignItems: 'center' }}>
-                                  <input 
-                                    type="radio" 
-                                    name="paymentMethod" 
-                                    value="gcash" 
-                                    checked={selectedPaymentMethod === 'gcash'}
-                                    onChange={() => setSelectedPaymentMethod('gcash')}
-                                    style={{ marginRight: '10px' }}
-                                  />
-                                  <div>
-                                    <strong>GCash</strong>
-                                    <p style={{ margin: '5px 0 0 0', fontSize: '14px', color: '#666' }}>
-                                      Pay using your GCash e-wallet
-                                    </p>
-                                  </div>
-                                </div>
-                              </div>
-                              
-                              <div className="payment-method-option" style={{ 
-                                border: '2px solid #ddd', 
-                                borderRadius: '8px', 
-                                padding: '15px', 
-                                marginBottom: '10px',
-                                cursor: 'pointer',
-                                backgroundColor: selectedPaymentMethod === 'paymaya' ? '#e8f5e8' : 'white'
-                              }} onClick={() => setSelectedPaymentMethod('paymaya')}>
-                                <div style={{ display: 'flex', alignItems: 'center' }}>
-                                  <input 
-                                    type="radio" 
-                                    name="paymentMethod" 
-                                    value="paymaya" 
-                                    checked={selectedPaymentMethod === 'paymaya'}
-                                    onChange={() => setSelectedPaymentMethod('paymaya')}
-                                    style={{ marginRight: '10px' }}
-                                  />
-                                  <div>
-                                    <strong>PayMaya</strong>
-                                    <p style={{ margin: '5px 0 0 0', fontSize: '14px', color: '#666' }}>
-                                      Pay using your PayMaya e-wallet
-                                    </p>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                            
-                           
-                            
-                            <button
-                              className="confirm-payment-btn"
-                              onClick={handleProceedToPayment}
-                              disabled={modalLoading || !selectedPaymentMethod}
-                              style={{ 
-                                backgroundColor: selectedPaymentMethod ? '#B8860B' : '#ccc',
-                                cursor: selectedPaymentMethod ? 'pointer' : 'not-allowed'
-                              }}
-                            >
-                              {modalLoading ? 'Processing...' : `Pay with ${selectedPaymentMethod.toUpperCase()}`}
-                            </button>
-                            {modalError && <div className="modal-error">{modalError}</div>}
-                          </div>
-                        )}
                       </div>
                     </div>
                   </div>
@@ -686,29 +714,9 @@ function Rooms() {
                   <span>{new Date(bookingSuccessData.checkOut).toLocaleDateString()}</span>
                 </div>
                 <div className="detail-item">
-                  <strong>Down Payment (10%):</strong>
-                  <span className="amount">₱{(bookingSuccessData.totalAmount * 0.1)?.toFixed(2)}</span>
+                  <strong>Total Amount:</strong>
+                  <span className="amount">{bookingSuccessData.totalAmount ? `₱${bookingSuccessData.totalAmount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : 'N/A'}</span>
                 </div>
-                <div className="detail-item">
-                  <strong>Remaining Balance:</strong>
-                  <span className="amount">₱{(bookingSuccessData.totalAmount * 0.9)?.toFixed(2)}</span>
-                </div>
-                {bookingSuccessData.paymentStatus && (
-                  <div className="detail-item">
-                    <strong>Payment Status:</strong>
-                    <span className={`payment-status ${bookingSuccessData.paymentStatus}`}>
-                      {bookingSuccessData.paymentStatus === 'paid' ? '✅ Paid' : 
-                       bookingSuccessData.paymentStatus === 'pending' ? '⏳ Pending' : 
-                       bookingSuccessData.paymentStatus}
-                    </span>
-                  </div>
-                )}
-                {bookingSuccessData.paymentIntentId && (
-                  <div className="detail-item">
-                    <strong>Payment ID:</strong>
-                    <span className="payment-id">{bookingSuccessData.paymentIntentId}</span>
-                  </div>
-                )}
               </div>
               <p className="success-note">You can view all your bookings in the "My Bookings" section.</p>
             </div>

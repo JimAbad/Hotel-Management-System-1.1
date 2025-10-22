@@ -12,7 +12,7 @@ router.use(protect);
 router.post('/', createBooking);
 router.get('/my-bookings', getMyBookings);
 router.delete('/user-cancelled', authorize(['user']), deleteCancelledBookings);
-router.delete('/user-cancel/:id', cancelBooking);
+router.post('/user-cancel/:id', cancelBooking);
 
 // Admin routes
 router.delete('/cancelled', authorize(['admin']), deleteCancelledBookings);

@@ -19,10 +19,19 @@ const AddRoom = () => {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData((prevFormData) => ({
-      ...prevFormData,
-      [name]: type === 'checkbox' ? checked : value,
-    }));
+    setFormData((prevFormData) => {
+      const next = {
+        ...prevFormData,
+        [name]: type === 'checkbox' ? checked : value,
+      };
+      if (name === 'roomNumber') {
+        const num = parseInt(String(value), 10);
+        if (!isNaN(num)) {
+          next.floor = Math.floor(num / 100);
+        }
+      }
+      return next;
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -41,6 +50,7 @@ const AddRoom = () => {
         roomNumber: '',
         roomType: '',
         price: '',
+        floor: '',
         isBooked: false,
       });
       navigate('/admin/manage-rooms');

@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const Booking = require('../models/bookingModel');
 const Room = require('../models/roomModel');
 const BookingActivity = require('../models/bookingActivityModel');
+const CancelledBooking = require('../models/cancelledBookingModel');
 const Billing = require('../models/Billing');
 const asyncHandler = require('../middleware/async');
 const ErrorResponse = require('../utils/errorResponse');
@@ -75,21 +76,21 @@ const createBooking = asyncHandler(async (req, res) => {
     throw new Error('Room not found');
   }
 
-  // Calculate number of nights
+  // Calculate number of hours
   const checkInDate = new Date(checkIn);
   const checkOutDate = new Date(checkOut);
   const diffTime = Math.abs(checkOutDate - checkInDate);
-  const numberOfNights = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  const numberOfHours = Math.ceil(diffTime / (1000 * 60 * 60));
   const numberOfGuests = adults + children;
 
-  // Calculate total amount based on room price and number of nights
+  // Calculate total amount based on room price (per hour)
   const roomPrice = room.price;
   console.log('Room price:', roomPrice, 'Type:', typeof roomPrice); // Log room price and type
   if (typeof roomPrice !== 'number' || isNaN(roomPrice)) {
     res.status(500);
     throw new Error('Room price is not a valid number.');
   }
-  const subtotal = numberOfNights * roomPrice;
+  const subtotal = numberOfHours * roomPrice;
   const taxesAndFees = subtotal * 0.12; // Assuming 12% tax
   const totalAmount = subtotal + taxesAndFees;
 
@@ -175,7 +176,7 @@ const createBooking = asyncHandler(async (req, res) => {
       user: req.user.id,
       roomNumber: selectedRoom.roomNumber,
       amount: totalAmount,
-      description: `Room booking charge for ${selectedRoom.roomNumber} (${numberOfNights} nights)`,
+      description: `Room booking charge for ${selectedRoom.roomNumber} (${numberOfHours} hours)`,
       status: 'pending',
       paymentMethod: 'online payment'
     });
@@ -327,22 +328,67 @@ const updateRoomStatus = asyncHandler(async (req, res) => {
 // @route   DELETE /api/bookings/:id
 // @access  Admin
 const cancelBooking = asyncHandler(async (req, res) => {
-  const booking = await Booking.findById(req.params.id);
+  const booking = await Booking.findById(req.params.id).populate('room user');
   
   if (!booking) {
     res.status(404);
     throw new Error('Booking not found');
   }
   
+  // Extract cancellation data from request body
+  const { cancellationReasons, cancellationElaboration } = req.body;
+  
+  // Validate that at least one cancellation reason is provided
+  if (!cancellationReasons || !Array.isArray(cancellationReasons) || cancellationReasons.length === 0) {
+    res.status(400);
+    throw new Error('At least one cancellation reason must be selected');
+  }
+  
+  // Calculate cancellation fee (10% of total amount)
+  const cancellationFee = booking.totalAmount * 0.10;
+  const refundAmount = booking.totalAmount - cancellationFee;
+  
+  // Store cancelled booking data
+  const cancelledBookingData = {
+    originalBookingId: booking._id,
+    room: booking.room._id,
+    user: booking.user._id,
+    referenceNumber: booking.referenceNumber,
+    customerName: booking.customerName,
+    customerEmail: booking.customerEmail,
+    checkIn: booking.checkIn,
+    checkOut: booking.checkOut,
+    adults: booking.adults,
+    children: booking.children,
+    guestName: booking.guestName,
+    contactNumber: booking.contactNumber,
+    specialRequests: booking.specialRequests,
+    roomNumber: booking.roomNumber,
+    numberOfGuests: booking.numberOfGuests,
+    totalAmount: booking.totalAmount,
+    originalBookingDate: booking.createdAt,
+    cancellationReasons,
+    cancellationElaboration: cancellationElaboration || null,
+    cancellationFee,
+    refundAmount,
+    cancelledBy: 'user'
+  };
+  
+  // Create cancelled booking record
+  await CancelledBooking.create(cancelledBookingData);
+  
   // Get the room ID before deleting the booking
-  const roomId = booking.room;
+  const roomId = booking.room._id;
   
   // Create booking activity before deletion
   await BookingActivity.create({
     booking: booking._id,
-    activity: 'Booking cancelled and deleted',
+    activity: `Booking cancelled by user. Reasons: ${cancellationReasons.join(', ')}${cancellationElaboration ? `. Additional details: ${cancellationElaboration}` : ''}`,
     status: 'cancelled'
   });
+  
+  // Delete associated billing records before deleting the booking
+  await Billing.deleteMany({ booking: booking._id });
   
   // Permanently delete the booking
   await Booking.findByIdAndDelete(req.params.id);
@@ -365,7 +411,9 @@ const cancelBooking = asyncHandler(async (req, res) => {
   }
   
   res.json({ 
-    message: 'Booking cancelled and permanently deleted',
+    message: 'Booking cancelled successfully',
+    cancellationFee,
+    refundAmount,
     roomStatus: room ? room.status : 'unknown'
   });
 });

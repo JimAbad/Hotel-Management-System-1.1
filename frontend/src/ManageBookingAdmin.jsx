@@ -157,17 +157,17 @@ const ManageBooking = () => {
   };
 
   const calculateReservationSummary = () => {
-    const baseRate = 50;
-    const nights = Math.ceil(
-      (new Date(newBooking.checkOutDate) - new Date(newBooking.checkInDate)) / (1000 * 60 * 60 * 24)
+    const rateByType = { Economy: 100, Deluxe: 150, Suite: 250 };
+    const baseRate = rateByType[newBooking.roomType] ?? 100;
+    const hours = Math.ceil(
+      (new Date(newBooking.checkOutDate) - new Date(newBooking.checkInDate)) / (1000 * 60 * 60)
     );
-    const total = baseRate * nights;
-    
+    const total = baseRate * Math.max(hours, 1);
     return {
       dates: `${new Date(newBooking.checkInDate).toLocaleDateString()} - ${new Date(newBooking.checkOutDate).toLocaleDateString()}`,
       guests: `${newBooking.adults} Adult${newBooking.adults > 1 ? 's' : ''}, ${newBooking.children} Child${newBooking.children > 1 ? 'ren' : ''}`,
-      rate: `$${baseRate} per night`,
-      total: `$${total}`
+      rate: `₱${baseRate.toLocaleString()} per hour`,
+      total: `₱${total.toLocaleString()}`
     };
   };
 

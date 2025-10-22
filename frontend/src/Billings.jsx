@@ -9,7 +9,9 @@ function Billings() {
   const [billings, setBillings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedBill, setSelectedBill] = useState(null);
+  const [selectedRoom, setSelectedRoom] = useState(null);
+  const [selectedRoomItems, setSelectedRoomItems] = useState([]);
+  const [selectedRoomSummary, setSelectedRoomSummary] = useState({});
   const [showBillModal, setShowBillModal] = useState(false);
   const [billsByRoom, setBillsByRoom] = useState({});
 
@@ -28,25 +30,61 @@ function Billings() {
 
     try {
       setLoading(true);
-      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/billings`, {
+      const config = {
         headers: {
           Authorization: `Bearer ${token}`,
         },
+      };
+
+      // 1) Get current user's bookings
+      const bookingsRes = await axios.get(`${import.meta.env.VITE_API_URL}/api/bookings/my-bookings`, config);
+      const today = new Date();
+
+      // 2) Keep only active bookings and group by roomNumber
+      const activeRoomNumbers = Array.from(
+        new Set(
+          (bookingsRes.data || [])
+            .filter(b => {
+              const checkOut = new Date(b.checkOut);
+              const status = String(b.status || '').toLowerCase();
+              return checkOut >= today && status !== 'cancelled' && status !== 'completed';
+            })
+            .map(b => String(b.roomNumber))
+        )
+      );
+
+      // 3) If no active rooms, clear and exit
+      if (activeRoomNumbers.length === 0) {
+        setBillsByRoom({});
+        setBillings([]);
+        setLoading(false);
+        return;
+      }
+
+      // 4) Fetch merged billings per active room using backend API (normalized below)
+      const roomResults = await Promise.all(
+        activeRoomNumbers.map(async (roomNumber) => {
+          try {
+            const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/billings/room/${roomNumber}`, config);
+            const payload = res.data?.data;
+            const items = Array.isArray(payload) ? payload : Array.isArray(payload?.items) ? payload.items : [];
+            const summary = Array.isArray(payload) ? {} : (payload || {});
+            return { roomNumber, items, summary };
+          } catch (e) {
+            console.error('Failed to fetch merged billings for room', roomNumber, e);
+            return { roomNumber, items: [], summary: {} };
+          }
+        })
+      );
+
+      // 5) Build billsByRoom map
+      const grouped = {};
+      roomResults.forEach(({ roomNumber, items, summary }) => {
+        grouped[roomNumber] = { items, summary };
       });
-      const bills = response.data.data;
-      setBillings(bills);
-      
-      // Group bills by room number
-      const grouped = bills.reduce((acc, bill) => {
-        const roomNum = bill.roomNumber;
-        if (!acc[roomNum]) {
-          acc[roomNum] = [];
-        }
-        acc[roomNum].push(bill);
-        return acc;
-      }, {});
-      
+
       setBillsByRoom(grouped);
+      setBillings(roomResults.flatMap(r => r.items));
       setLoading(false);
     } catch (err) {
       setError('Failed to fetch billing data. Please try again later.');
@@ -55,15 +93,17 @@ function Billings() {
     }
   };
 
-
-
-  const handleViewBill = (bill) => {
-    setSelectedBill(bill);
+  const handleViewRoom = (roomNumber) => {
+    const roomData = billsByRoom[roomNumber] || { items: [], summary: {} };
+    setSelectedRoom(roomNumber);
+    setSelectedRoomItems(roomData.items || []);
+    setSelectedRoomSummary(roomData.summary || {});
     setShowBillModal(true);
   };
 
   const getStatusClass = (status) => {
-    switch (status.toLowerCase()) {
+    const normalized = String(status || 'pending').toLowerCase();
+    switch (normalized) {
       case 'paid':
         return 'status-paid';
       case 'pending':
@@ -73,6 +113,15 @@ function Billings() {
       default:
         return '';
     }
+  };
+
+  // Add currency formatter to show thousands with commas
+  const formatCurrency = (value) => {
+    const num = Number(value ?? 0);
+    return '₱' + num.toLocaleString('en-PH', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
   };
 
   const formatDate = (dateString) => {
@@ -100,58 +149,67 @@ function Billings() {
       {/* Bills Grouped by Room */}
       {Object.keys(billsByRoom).length === 0 ? (
         <div className="no-billings">
-          <p>You don't have any billing records yet.</p>
+          <p>You don't have any active billing records.</p>
         </div>
       ) : (
         <div className="room-grouped-bills">
-          {Object.entries(billsByRoom).map(([roomNumber, roomBills]) => (
-            <div key={roomNumber} className="room-bill-group">
-              <div className="room-header">
-                <h3>Room {roomNumber}</h3>
-              </div>
-              <div className="room-bills-table">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Bill ID</th>
-                      <th>Room</th>
-                      <th>Description</th>
-                      <th>Amount</th>
-                      <th>Status</th>
-                      <th>Date</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {roomBills.map((bill) => (
-                      <tr key={bill._id}>
-                        <td>{bill._id.substring(0, 8)}...</td>
-                        <td>{bill.roomNumber}</td>
-                        <td>{bill.description}</td>
-                        <td>₱{bill.amount.toFixed(2)}</td>
-                        <td><span className={getStatusClass(bill.status)}>{bill.status}</span></td>
-                        <td>{formatDate(bill.createdAt)}</td>
-                        <td>
-                          <button 
-                            className="view-bill-btn" style={{ backgroundColor: '#B8860B', color: 'white' }}
-                            onClick={() => handleViewBill(bill)}
-                          >
-                            <FaEye /> View
-                          </button>
+          {Object.entries(billsByRoom).map(([roomNumber, roomData]) => (
+            (roomData.items?.length || 0) === 0 ? null : (
+              <div key={roomNumber} className="room-bill-group">
+                <div className="room-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h3>Room {roomNumber}</h3>
+                  <button 
+                    className="view-bill-btn" style={{ backgroundColor: '#B8860B', color: 'white' }}
+                    onClick={() => handleViewRoom(roomNumber)}
+                  >
+                    <FaEye /> View
+                  </button>
+                </div>
+                <div className="room-bills-summary" style={{ padding: '8px 0' }}>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Description</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                        <th>Date</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {roomData.items.map((item, idx) => (
+                        <tr key={item._id || idx}>
+                          <td>{item.description || '—'}</td>
+                          <td>{formatCurrency(item.amount ?? item.price ?? item.totalPrice ?? 0)}</td>
+                          <td><span className={getStatusClass(item.status)}>{item.status || 'pending'}</span></td>
+                          <td>{formatDate(item.date || item.createdAt || roomData.summary.deliveredAt || roomData.summary.checkedOutAt || new Date())}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr>
+                        <td><strong>Total</strong></td>
+                        <td colSpan="3">
+                          <strong>
+                            {formatCurrency(
+                              typeof roomData.summary.totalPrice === 'number'
+                                ? roomData.summary.totalPrice
+                                : roomData.items.reduce((sum, it) => sum + Number(it.amount ?? it.price ?? it.totalPrice ?? 0), 0)
+                            )}
+                          </strong>
                         </td>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </tfoot>
+                  </table>
+                </div>
               </div>
-            </div>
+            )
           ))}
         </div>
       )}
       
 
       {/* Bill Detail Modal */}
-      {showBillModal && selectedBill && (
+      {showBillModal && selectedRoom && (
         <div className="modal-overlay">
           <div className="modal-content bill-modal">
 <div
@@ -178,7 +236,7 @@ Back
   </button>
 
   <h3 style={{ margin: 0 }}>
-    <FaReceipt /> Bill Details
+    <FaReceipt /> Room {selectedRoom} Bills
   </h3>
 </div>
 
@@ -190,54 +248,42 @@ Back
       className="bill-header"
       style={{ textAlign: 'center', marginBottom: '20px' }}
     >
-      <h4 style={{ margin: 0 }}>Lumine Hotel</h4>
+     
       <p style={{ margin: 0 }}></p>
       <p style={{ margin: 0 }}></p>
     </div>
-<br></br>
-<br></br>
-<br></br>
     {/* Bill info section */}
     <div
       className="bill-info"
       style={{ textAlign: 'left', marginLeft: '10px' }}
     >
       <div className="bill-row">
-        <span>Bill ID:</span>
-        <span>{selectedBill._id}</span>
-      </div>
-      <div className="bill-row">
-        <span>Date:</span>
-        <span>{formatDate(selectedBill.createdAt)}</span>
-      </div>
-      <div className="bill-row">
-        <span>Room:</span>
-        <span>
-          {selectedBill.roomNumber
-            ? `Room ${selectedBill.roomNumber}`
-            : 'N/A'}
-        </span>
+        
       </div>
 
-      {selectedBill.booking && (
-        <>
-          <div className="bill-row">
-            <span>Check-in:</span>
-            <span>
-              {selectedBill.booking.checkInDate
-                ? formatDate(selectedBill.booking.checkInDate)
-                : 'N/A'}
-            </span>
-          </div>
-          <div className="bill-row">
-            <span>Check-out:</span>
-            <span>
-              {selectedBill.booking.checkOutDate
-                ? formatDate(selectedBill.booking.checkOutDate)
-                : 'N/A'}
-            </span>
-          </div>
-        </>
+      {selectedRoomSummary.checkedOutAt && (
+        <div className="bill-row">
+          <span>Checked-out:</span>
+          <span>{formatDate(selectedRoomSummary.checkedOutAt)}</span>
+        </div>
+      )}
+      {selectedRoomSummary.deliveredAt && (
+        <div className="bill-row">
+          <span>Delivered:</span>
+          <span>{formatDate(selectedRoomSummary.deliveredAt)}</span>
+        </div>
+      )}
+      {selectedRoomSummary.checkIn && (
+        <div className="bill-row">
+          <span>Check-in:</span>
+          <span>{formatDate(selectedRoomSummary.checkIn)}</span>
+        </div>
+      )}
+      {selectedRoomSummary.checkOut && (
+        <div className="bill-row">
+          <span>Check-out:</span>
+          <span>{formatDate(selectedRoomSummary.checkOut)}</span>
+        </div>
       )}
     </div>
   </div>
@@ -251,34 +297,38 @@ Back
                       <tr>
                         <th>Description</th>
                         <th>Amount</th>
+                        <th>Status</th>
+                        <th>Date</th>
                       </tr>
                     </thead>
                     <tbody>
-                      <tr>
-                        <td>{selectedBill.description}</td>
-                        <td>₱{selectedBill.amount.toFixed(2)}</td>
-                      </tr>
+                      {selectedRoomItems.map((item, idx) => (
+                        <tr key={item._id || idx}>
+                          <td>{item.description || '—'}</td>
+                          <td>{formatCurrency(item.amount ?? item.price ?? item.totalPrice ?? 0)}</td>
+                          <td><span className={getStatusClass(item.status)}>{item.status || 'pending'}</span></td>
+                          <td>{formatDate(item.date || item.createdAt || selectedRoomSummary.deliveredAt || selectedRoomSummary.checkedOutAt || new Date())}</td>
+                        </tr>
+                      ))}
                     </tbody>
                     <tfoot>
                       <tr>
                         <td><strong>Total</strong></td>
-                        <td><strong>₱{selectedBill.amount.toFixed(2)}</strong></td>
+                        <td colSpan="3">
+                          <strong>
+                            {formatCurrency(
+                              typeof selectedRoomSummary.totalPrice === 'number'
+                                ? selectedRoomSummary.totalPrice
+                                : selectedRoomItems.reduce((sum, it) => sum + Number(it.amount ?? it.price ?? it.totalPrice ?? 0), 0)
+                            )}
+                          </strong>
+                        </td>
                       </tr>
                     </tfoot>
                   </table>
                 </div>
                 
-           <div className="bill-status" style={{ textAlign: 'left', marginLeft: '10px' }}>
-  <p>
-    Payment Status:{' '}
-    <span className={getStatusClass(selectedBill.status)}>
-      {selectedBill.status}
-    </span>
-  </p>
-  {selectedBill.paymentMethod && (
-    <p>Payment Method: {selectedBill.paymentMethod}</p>
-  )}
-</div>
+           {/* Aggregated view: item statuses are shown in the table; no single payment status */}
 
 <div
   className="bill-footer"

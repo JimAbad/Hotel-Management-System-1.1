@@ -186,8 +186,9 @@
   background-color: #e0c67a;
 }
 
-.room-card button:disabled {
-  background-color: var(--secondary-color);
+.book-room-btn:disabled {
+  background-color: var(--secondary-color) !important;
+  color: #fff !important;
   cursor: not-allowed;
 }
 
@@ -607,18 +608,22 @@
   background-color: #f9f9f9;
   border-radius: 8px;
   justify-content: left;
+  text-align: left; /* Ensure Room Details section is left-aligned */
 }
 
 .modal-room-details h3 {
   color: #333;
   margin-bottom: 10px;
   font-size: 1.2em;
+  text-align: left; /* Explicitly left-align the section header */
 }
 
 .room-details-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 15px;
+  justify-items: start; /* Left-align grid items */
+  align-items: start; /* Align items to the start vertically */
 }
 
 .room-details-container {

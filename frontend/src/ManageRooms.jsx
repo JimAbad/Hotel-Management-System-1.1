@@ -58,6 +58,14 @@ const ManageRooms = () => {
     return <div className="container error-message">Error: {error}</div>;
   }
 
+  const deriveFloorFromRoomNumber = (rn) => {
+    if (!rn) return null;
+    const num = parseInt(String(rn), 10);
+    if (isNaN(num)) return null;
+    const floor = Math.floor(num / 100);
+    return floor > 0 ? floor : null;
+  };
+
   return (
     <div className="container">
       <h1>Manage Rooms</h1>
@@ -75,7 +83,7 @@ const ManageRooms = () => {
                 <p>Bed Type: {details.bedType || 'N/A'}</p>
                 <p>Capacity: {details.capacity || 'N/A'}</p>
                 <p>View: {details.view || 'N/A'}</p>
-                <p>Floor: {details.floor || 'N/A'}</p>
+                <p>Floor: {deriveFloorFromRoomNumber(room.roomNumber) || room.floor || details.floor || 'N/A'}</p>
                 <p>Smoking: {details.smoking ? 'Yes' : 'No'}</p>
                 <p>Pets: {details.pets ? 'Yes' : 'No'}</p>
                 <p>Quiet Hours: {details.quietHours || 'N/A'}</p>

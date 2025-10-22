@@ -59,6 +59,7 @@ function RoomDetails() {
       <p>View: {currentRoomDetails.view || 'N/A'}</p>
       <p>Floor: {currentRoomDetails.floor || 'N/A'}</p>
       <p>Accessibility: {currentRoomDetails.accessibility || 'N/A'}</p>
+      <br></br>
       <p>Smoking: {currentRoomDetails.smoking || 'N/A'}</p>
       <p>Pets: {currentRoomDetails.pets || 'N/A'}</p>
       <p>Quiet Hours: {currentRoomDetails.quietHours || 'N/A'}</p>
