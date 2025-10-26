@@ -131,6 +131,12 @@
   z-index: 1000;
 }
 
+/* Success modal overlay with dim background to show My Bookings behind */
+.modal-overlay:has(.success-modal) {
+  background-color: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(2px);
+}
+
 .modal-content {
   background-color: var(--dark-surface);
   border-radius: 12px;
@@ -354,6 +360,173 @@
   background-color: #6c757d;
   cursor: not-allowed;
   opacity: 0.6;
+}
+
+/* Warning Modal Styles */
+.warning-modal {
+  max-width: 500px;
+}
+
+.warning-content {
+  text-align: center;
+  padding: 20px 0;
+}
+
+.warning-icon {
+  font-size: 48px;
+  margin-bottom: 20px;
+  display: block;
+}
+
+.warning-text {
+  color: var(--light-text-color);
+  font-size: 16px;
+  line-height: 1.5;
+  margin: 0;
+  font-weight: 500;
+}
+
+.proceed-btn {
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.proceed-btn:hover {
+  background-color: #c82333;
+}
+
+/* Success Modal Styles */
+.success-modal {
+  max-width: 450px;
+  background-color: white;
+  margin: 0; /* let overlay flex fully control centering */
+  position: static; /* remove fixed positioning */
+  transform: none; /* reset transform */
+  border: none; /* remove any borders */
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25); /* subtle elevation */
+}
+/* Scoped overrides so My Bookings success modal always centers */
+.my-bookings-container .modal-overlay {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.my-bookings-container .success-modal {
+  position: static !important;
+  top: auto !important;
+  right: auto !important;
+  left: auto !important;
+  transform: none !important;
+  margin: 0 !important;
+  max-width: 450px;
+}
+
+.my-bookings-container .modal-content.success-modal {
+  border: none !important;
+  background-color: white !important;
+  width: auto !important;
+  max-width: 420px !important;
+  overflow: visible !important;
+}
+
+.success-content {
+  text-align: center;
+  padding: 20px 0;
+}
+
+.success-icon {
+  font-size: 48px;
+  margin-bottom: 20px;
+  display: block;
+}
+
+.success-text {
+  color: black;
+  font-size: 16px;
+  line-height: 1.5;
+  margin: 0;
+  font-weight: 500;
+}
+
+.ok-btn {
+  background-color: var(--golden-accent);
+  color: #000;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s;
+  min-width: 80px;
+}
+
+.ok-btn:hover {
+  background-color: #a37b14;
+}
+
+/* Enhanced modal styling for better visual hierarchy */
+.warning-modal .modal-header,
+.success-modal .modal-header {
+  background-color: white;
+  border-bottom: 2px solid #ddd;
+  justify-content: center;
+}
+
+.success-modal .modal-header h3 {
+  color: black;
+}
+
+.warning-modal .modal-body,
+.success-modal .modal-body {
+  background-color: white;
+}
+
+.warning-modal .modal-footer,
+.success-modal .modal-footer {
+  background-color: white;
+  border-top: 1px solid #ddd;
+  justify-content: center;
+}
+
+/* Responsive design for smaller screens */
+@media (max-width: 768px) {
+  .warning-modal,
+  .success-modal {
+    max-width: 90%;
+    margin: 0 auto;
+  }
+  
+  .warning-content,
+  .success-content {
+    padding: 15px 0;
+  }
+  
+  .warning-icon,
+  .success-icon {
+    font-size: 36px;
+    margin-bottom: 15px;
+  }
+  
+  .warning-text,
+  .success-text {
+    font-size: 14px;
+  }
+  
+  .modal-footer {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .modal-footer button {
+    width: 100%;
+  }
 }
 
 

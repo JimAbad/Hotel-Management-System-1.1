@@ -143,7 +143,7 @@ function Billings() {
   return (
     <div className="billing-container">
       <div className="billing-header">
-        <h2 style={{ color: '#B8860B' }}> My Billings</h2>
+      
       </div>
 
       {/* Bills Grouped by Room */}

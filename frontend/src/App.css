@@ -81,12 +81,9 @@ nav {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 20px;
-  background-color: rgba(255, 255, 255, 0.9);
-  color: var(--text-color);
-  position: static;
+  padding: 1rem 20px;
   background-color: transparent;
-  padding: 1rem 0;
+  color: var(--text-color);
   position: fixed;
   width: 100%;
   top: 0;
@@ -522,4 +519,89 @@ nav ul li button:hover {
 .auth-controls a.active {
   color: var(--golden-accent); /* Gold color for active link */
   font-weight: bold;
+}
+
+/* Logout confirmation modal styles */
+.logout-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+  backdrop-filter: blur(2px);
+}
+
+.logout-confirmation-modal {
+  background: #fff;
+  border-radius: 12px;
+  width: 92%;
+  max-width: 420px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+}
+
+.logout-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #eee;
+}
+
+.logout-modal-title {
+  margin: 0;
+  font-size: 1.25rem;
+  color: #333;
+}
+
+.logout-modal-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: #666;
+  cursor: pointer;
+}
+
+.logout-modal-body {
+  padding: 20px;
+  color: #333;
+  text-align: center;
+}
+
+.logout-modal-footer {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px 20px;
+  border-top: 1px solid #eee;
+}
+
+.logout-cancel-btn {
+  background-color: #6c757d;
+  color: #fff;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.logout-confirm-btn {
+  background-color: #B8860B; /* golden accent */
+  color: #000;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.logout-cancel-btn:hover {
+  background-color: #5a6268;
+}
+
+.logout-confirm-btn:hover {
+  background-color: #cf9709;
 }

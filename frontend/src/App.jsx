@@ -10,12 +10,12 @@ import ReviewsRatings from './ReviewsRatings';
 import Login from './Login';
 import Signup from './Signup';
 import PaymentStatus from './PaymentStatus';
-// import PaymentMiniPage from './PaymentMiniPage'; // Removed as component is no longer used
 import './App.css';
 import { useAuth } from './AuthContext';
-import { FaSignInAlt } from 'react-icons/fa';
+import { FaSignInAlt, FaSignOutAlt } from 'react-icons/fa';
 import { AuthProvider } from './AuthContext';
 import ViewCustomerBillAdmin from './ViewCustomerBillAdmin';
+import VerifyEmail from './VerifyEmail';
 
 function App() {
   return (
@@ -27,9 +27,10 @@ function App() {
 
 function AppContent() {
   const navigate = useNavigate();
-  const location = useLocation(); // Correctly call useLocation hook
+  const location = useLocation();
   const [rooms, setRooms] = useState([]);
   const { user, logout } = useAuth();
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   console.log('User state in App.jsx:', user);
 
   const fetchRooms = async () => {
@@ -64,7 +65,7 @@ function AppContent() {
         </ul>
         <div className="auth-controls">
           {user ? (
-            <button onClick={logout} className="logout-btn">Logout</button>
+            <button onClick={() => setShowLogoutConfirm(true)} className="logout-btn"><FaSignOutAlt /> Logout</button>
           ) : (
             <>
               <Link to="/login" className={location.pathname === '/login' ? 'active' : ''}><FaSignInAlt /> Log in</Link>
@@ -73,6 +74,24 @@ function AppContent() {
           )}
         </div>
       </nav>
+
+      {showLogoutConfirm && (
+        <div className="logout-modal-overlay">
+          <div className="logout-confirmation-modal">
+            <div className="logout-modal-header">
+              <h3 className="logout-modal-title">Confirm Logout</h3>
+              <button className="logout-modal-close" onClick={() => setShowLogoutConfirm(false)}>×</button>
+            </div>
+            <div className="logout-modal-body">
+              Are you sure you want to logout?
+            </div>
+            <div className="logout-modal-footer">
+              <button className="logout-cancel-btn" onClick={() => { setShowLogoutConfirm(false); navigate(-1); }}>Cancel</button>
+              <button className="logout-confirm-btn" onClick={() => { setShowLogoutConfirm(false); logout(); navigate('/'); }}>Logout</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Routes>
         <Route path="/" element={<Home />} />
@@ -83,7 +102,7 @@ function AppContent() {
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/payment-status" element={<PaymentStatus />} />
-        {/* <Route path="/payment-mini-page" element={<PaymentMiniPage />} /> */}
+        <Route path="/verify-email" element={<VerifyEmail />} />
         <Route path="/room-details/:id" element={<RoomDetails />} />
         <Route path="/admin/viewcustomerbills" element={<ViewCustomerBillAdmin />} />
       </Routes>

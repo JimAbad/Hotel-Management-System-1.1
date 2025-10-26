@@ -6,6 +6,7 @@ const CancelledBooking = require('../models/cancelledBookingModel');
 const Billing = require('../models/Billing');
 const asyncHandler = require('../middleware/async');
 const ErrorResponse = require('../utils/errorResponse');
+const { triggerExpiredBookingCheck } = require('../utils/bookingExpirationUpdater');
 
 // @desc    Get all bookings with optional status and search filters
 // @route   GET /api/bookings
@@ -65,6 +66,29 @@ const createBooking = asyncHandler(async (req, res) => {
     guestName,
     specialRequests
   } = req.body;
+
+  // Check booking limit (3 bookings per user)
+  const userActiveBookings = await Booking.countDocuments({
+    $and: [
+      {
+        $or: [
+          { customerEmail: customerEmail },
+          { user: req.user.id }
+        ]
+      },
+      {
+        status: { $nin: ['cancelled', 'completed'] }
+      },
+      {
+        checkOut: { $gte: new Date() }
+      }
+    ]
+  });
+
+  if (userActiveBookings >= 3) {
+    res.status(400);
+    throw new Error('Booking limit reached. You can only have a maximum of 3 active bookings at a time.');
+  }
 
   // Generate reference number
   const referenceNumber = 'BK' + Date.now().toString().slice(-8);
@@ -275,13 +299,26 @@ const generatePaymentQrCode = asyncHandler(async (req, res) => {
 const getMyBookings = asyncHandler(async (req, res) => {
   console.log('Backend: Fetching bookings for email:', req.user.email);
   console.log('Backend: Fetching bookings for userId:', req.user._id);
+  
+  // Get current date at start of day to compare with checkout dates
+  const currentDate = new Date();
+  currentDate.setHours(0, 0, 0, 0);
+  
   const bookings = await Booking.find({
-    $or: [
-      { customerEmail: req.user.email },
-      { user: req.user._id }
+    $and: [
+      {
+        $or: [
+          { customerEmail: req.user.email },
+          { user: req.user._id }
+        ]
+      },
+      {
+        // Only include bookings where checkout date is today or in the future
+        checkOut: { $gte: currentDate }
+      }
     ]
   }).sort({ createdAt: -1 });
-  console.log('Backend: Bookings found:', bookings);
+  console.log('Backend: Bookings found (excluding past bookings):', bookings);
   
   res.json(bookings);
 });
@@ -456,6 +493,24 @@ const deleteCancelledBookings = asyncHandler(async (req, res, next) => {
   }
 });
 
+// @desc    Manually trigger expired booking check
+// @route   POST /api/bookings/check-expired
+// @access  Admin
+const checkExpiredBookings = asyncHandler(async (req, res) => {
+  try {
+    const result = await triggerExpiredBookingCheck();
+    
+    res.json({
+      message: 'Expired booking check completed successfully',
+      processedBookings: result.processedBookings,
+      updatedRooms: result.updatedRooms
+    });
+  } catch (error) {
+    res.status(500);
+    throw new Error('Failed to process expired bookings');
+  }
+});
+
 module.exports = {
   createBooking,
   getAllBookings,
@@ -467,4 +522,5 @@ module.exports = {
   cancelBooking,
   deleteCancelledBookings,
   updateRoomStatus,
+  checkExpiredBookings,
 };

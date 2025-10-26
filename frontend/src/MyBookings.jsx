@@ -11,6 +11,8 @@ function MyBookings() {
   const [cancelingId, setCancelingId] = useState(null);
   const [deletingCancelled, setDeletingCancelled] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showWarningModal, setShowWarningModal] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [cancellationReasons, setCancellationReasons] = useState([]);
   const [cancellationText, setCancellationText] = useState('');
@@ -39,6 +41,14 @@ function MyBookings() {
     const formattedTime = date.toLocaleTimeString('en-US', timeOptions);
     
     return `${formattedDate} at ${formattedTime}`;
+  };
+
+  // Check if booking is within 48 hours of booking date
+  const isWithin48Hours = (booking) => {
+    const bookingDate = new Date(booking.createdAt || booking.bookingDate);
+    const now = new Date();
+    const hoursDifference = (now - bookingDate) / (1000 * 60 * 60);
+    return hoursDifference <= 48;
   };
 
   const fetchMyBookings = async () => {
@@ -79,10 +89,29 @@ function MyBookings() {
       alert('Only pending or upcoming bookings can be canceled.');
       return;
     }
+    
     setSelectedBooking(booking);
+    
+    // Check if booking is past 48 hours
+    if (!isWithin48Hours(booking)) {
+      setShowWarningModal(true);
+    } else {
+      setShowCancelModal(true);
+      setCancellationReasons([]);
+      setCancellationText('');
+    }
+  };
+
+  const handleWarningProceed = () => {
+    setShowWarningModal(false);
     setShowCancelModal(true);
     setCancellationReasons([]);
     setCancellationText('');
+  };
+
+  const handleWarningCancel = () => {
+    setShowWarningModal(false);
+    setSelectedBooking(null);
   };
 
   const handleReasonChange = (reason) => {
@@ -116,18 +145,20 @@ function MyBookings() {
         }
       );
 
-      // Show cancellation details to user
-      const { cancellationFee, refundAmount } = response.data;
-      alert(`Booking cancelled successfully!\nCancellation Fee: ₱${cancellationFee.toFixed(2)}\nRefund Amount: ₱${refundAmount.toFixed(2)}`);
-
-      setBookings((prev) => prev.filter((b) => b._id !== selectedBooking._id));
+      // Show success modal instead of alert
       setShowCancelModal(false);
-      setSelectedBooking(null);
+      setShowSuccessModal(true);
+      setBookings((prev) => prev.filter((b) => b._id !== selectedBooking._id));
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to cancel booking.');
     } finally {
       setCancelingId(null);
     }
+  };
+
+  const handleSuccessClose = () => {
+    setShowSuccessModal(false);
+    setSelectedBooking(null);
   };
   
   const deleteAllCancelledBookings = async () => {
@@ -203,6 +234,72 @@ if (bookings.length === 0) {
           </div>
         ))}
       </div>
+
+      {/* 48-Hour Warning Modal */}
+      {showWarningModal && (
+        <div className="modal-overlay">
+          <div className="modal-content warning-modal">
+            <div className="modal-header">
+              <h3>Cancellation Notice</h3>
+              <button 
+                className="modal-close"
+                onClick={handleWarningCancel}
+              >
+                ×
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="warning-content">
+                <div className="warning-icon">⚠️</div>
+                <p className="warning-text">
+                  Your booking is past 48hrs of booked date, your reservation fee will not be refunded.
+                </p>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button 
+                className="cancel-btn"
+                onClick={handleWarningCancel}
+              >
+                Cancel
+              </button>
+              <button 
+                className="proceed-btn"
+                onClick={handleWarningProceed}
+              >
+                Proceed
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Success Modal */}
+      {showSuccessModal && (
+        <div className="modal-overlay">
+          <div className="modal-content success-modal">
+            <div className="modal-header">
+              <h3>Booking Cancelled</h3>
+            </div>
+            <div className="modal-body">
+              <div className="success-content">
+                <div className="success-icon">✅</div>
+                <p className="success-text">
+                  Booking cancelled successfully!
+                </p>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button 
+                className="ok-btn"
+                onClick={handleSuccessClose}
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Cancellation Modal */}
       {showCancelModal && (

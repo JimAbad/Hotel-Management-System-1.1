@@ -38,6 +38,42 @@ function Rooms() {
   const [subtotal, setSubtotal] = useState(0);
   const [taxesAndFees, setTaxesAndFees] = useState(0);
   const [total, setTotal] = useState(0);
+  const [bookingType, setBookingType] = useState('myself'); // 'myself' or 'someone'
+  const [userBookingCount, setUserBookingCount] = useState(0); // New state for user's booking count
+  const [bookingCountLoading, setBookingCountLoading] = useState(false); // Loading state for booking count
+
+  // Function to fetch user's current booking count
+  const fetchUserBookingCount = async () => {
+    if (!user || !token) {
+      setUserBookingCount(0);
+      return;
+    }
+
+    try {
+      setBookingCountLoading(true);
+      const config = {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      };
+      const { data } = await axios.get(`${import.meta.env.VITE_API_URL}/api/bookings/my-bookings`, config);
+      
+      // Count active bookings (not cancelled or completed)
+      const activeBookings = data.filter(booking => {
+        const status = String(booking.status || '').toLowerCase();
+        const checkOut = new Date(booking.checkOut);
+        const today = new Date();
+        return status !== 'cancelled' && status !== 'completed' && checkOut >= today;
+      });
+      
+      setUserBookingCount(activeBookings.length);
+    } catch (err) {
+      console.error('Error fetching user booking count:', err);
+      setUserBookingCount(0);
+    } finally {
+      setBookingCountLoading(false);
+    }
+  };
 
   useEffect(() => {
     const fetchSummary = async () => {
@@ -53,6 +89,11 @@ function Rooms() {
     };
     fetchSummary();
   }, []);
+
+  // Fetch user's booking count when user or token changes
+  useEffect(() => {
+    fetchUserBookingCount();
+  }, [user, token]);
 
   useEffect(() => {
     if (checkInDate && checkOutDate && checkInTime && checkOutTime && modalRoom) {
@@ -208,8 +249,8 @@ function Rooms() {
     const economyFloor = summary.find(item => item.type?.includes('Economy'))?.floor;
     const deluxeFloor = summary.find(item => item.type?.includes('Deluxe'))?.floor;
     const itemFloor = summary.find(item => item.type === type)?.floor;
-    if (type?.includes('Economy')) return deluxeFloor ?? itemFloor ?? 'N/A';
-    if (type?.includes('Deluxe')) return economyFloor ?? itemFloor ?? 'N/A';
+    if (type?.includes('Economy')) return economyFloor ?? itemFloor ?? 'N/A';
+    if (type?.includes('Deluxe')) return deluxeFloor ?? itemFloor ?? 'N/A';
     return itemFloor ?? 'N/A';
   };
 
@@ -226,7 +267,7 @@ function Rooms() {
       });
       const room = availableRooms.data.rooms?.[0];
       if (!room) {
-        alert(`${type} is fully booked.`);
+        alert(`${type} is not available.`);
         return;
       }
       const bookingData = {
@@ -249,7 +290,15 @@ function Rooms() {
       navigate('/payment-status', { state: { success: true, booking: bookingResponse.data, customerAccountId: bookingResponse.data.customerAccountId } });
     } catch (err) {
       console.error(err);
-      navigate('/payment-status', { state: { success: false, error: err.message } });
+      const errorMessage = err?.response?.data?.message || err.message || 'Failed to create booking.';
+      
+      // Check if it's a booking limit error
+      if (errorMessage.includes('Booking limit reached')) {
+        alert('You have reached the maximum limit of 3 active bookings. Please cancel or complete existing bookings before making a new one.');
+        setShowModal(false);
+      } else {
+        navigate('/payment-status', { state: { success: false, error: errorMessage } });
+      }
     }
   };
 
@@ -288,6 +337,13 @@ function Rooms() {
       setShowLoginConfirmation(true); // Show confirmation dialog
       return;
     }
+    
+    // Check booking limit
+    if (userBookingCount >= 3) {
+      alert('You have reached the maximum limit of 3 active bookings. Please cancel or complete existing bookings before making a new one.');
+      return;
+    }
+    
     try {
       setModalError(null);
       setModalLoading(true);
@@ -302,12 +358,37 @@ function Rooms() {
         const combinedRoomDetails = { ...room, ...roomDetails[normalizedType] };
         setModalRoom(combinedRoomDetails);
         setModalPurpose('book'); // Set purpose to book
+        
+        // Auto-fill user info if booking for myself
+        if (bookingType === 'myself') {
+          setGuestName(user.name || '');
+          setEmail(user.email || '');
+          setContactNumber(user.contactNumber || '');
+        }
+        
         setShowModal(true);
       }
     } catch (err) {
       setModalError(err.message || 'Failed to load room details.');
     } finally {
       setModalLoading(false);
+    }
+  };
+
+  // Handle booking type change
+  const handleBookingTypeChange = (type) => {
+    setBookingType(type);
+    
+    if (type === 'myself' && user) {
+      // Auto-fill with user information
+      setGuestName(user.name || '');
+      setEmail(user.email || '');
+      setContactNumber(user.contactNumber || '');
+    } else if (type === 'someone') {
+      // Clear the fields for someone else
+      setGuestName('');
+      setEmail('');
+      setContactNumber('');
     }
   };
 
@@ -430,9 +511,18 @@ function Rooms() {
       setBookingSuccessData(booking);
       setShowSuccessPopup(true);
       setShowModal(false);
+      
+      // Refresh booking count after successful booking
+      fetchUserBookingCount();
     } catch (err) {
       const errorMessage = err?.response?.data?.message || err.message || 'Failed to create booking.';
-      setModalError(errorMessage);
+      
+      // Check if it's a booking limit error
+      if (errorMessage.includes('Booking limit reached')) {
+        setModalError('You have reached the maximum limit of 3 active bookings. Please cancel or complete existing bookings before making a new one.');
+      } else {
+        setModalError(errorMessage);
+      }
     } finally {
       setModalLoading(false);
     }
@@ -459,6 +549,8 @@ function Rooms() {
         </div>
       )}
       <h1>Available Room Types</h1>
+     <p style={{ color: "red" }}>You can book up to 3 rooms per account only</p>
+
       <div className="room-list">
         {summary.filter(({ type }) => !type?.includes('Presidential')).map(({ type, total, available }) => (
            <div key={type} className="room-card">
@@ -470,7 +562,7 @@ function Rooms() {
                  </button>
                  <span className="room-price"><span>{roomDetails[normalizeRoomType(type)]?.price ? `₱${roomDetails[normalizeRoomType(type)].price} per hour` : ' per hour varies'}</span></span>
                  {available === 0 && (
-                   <span className="fully-booked-badge" title="This room type is fully booked">Fully booked</span>
+                   <span className="fully-booked-badge" title="This room type is not available">Not available</span>
                  )}
                </div>
              </div>
@@ -482,8 +574,12 @@ function Rooms() {
                <p>Available: {available}</p>
              </div>
              <div className="room-card-footer">
-               <button className="book-room-btn" disabled={available === 0} onClick={() => handleBookRoom(type)}>
-                 {available === 0 ? 'Fully booked' : 'Book this room'}
+               <button 
+                 className="book-room-btn" 
+                 disabled={available === 0 || userBookingCount >= 3} 
+                 onClick={() => handleBookRoom(type)}
+               >
+                 {available === 0 ? 'Not available' : userBookingCount >= 3 ? '3 rooms per account' : 'Book this room'}
                </button>
              </div>
            </div>
@@ -537,10 +633,10 @@ function Rooms() {
                     <div className="modal-actions">
                       <button 
                         className="book-room-btn" 
-                        disabled={modalRoomAvailability === 0} 
+                        disabled={modalRoomAvailability === 0 || userBookingCount >= 3} 
                         onClick={() => handleBookRoom(modalRoom.roomType || modalRoom.type)}
                       >
-                        {modalRoomAvailability === 0 ? 'Fully booked' : 'Book this room'}
+                        {modalRoomAvailability === 0 ? 'Not available' : userBookingCount >= 3 ? '3 rooms per account' : 'Book this room'}
                       </button>
                     </div>
                   )}
@@ -549,6 +645,33 @@ function Rooms() {
                   <div className="modal-body-content">
                     <div className="guest-info-section">
                       <h3>Guest Information</h3>
+                      
+                      {/* Booking Type Selection */}
+                      <div className="booking-type-section">
+                        <div className="booking-type-options">
+                          <label className="radio-option">
+                            <input
+                              type="radio"
+                              name="bookingType"
+                              value="myself"
+                              checked={bookingType === 'myself'}
+                              onChange={(e) => handleBookingTypeChange(e.target.value)}
+                            />
+                            <span className="radio-label">Book for me</span>
+                          </label>
+                          <label className="radio-option">
+                            <input
+                              type="radio"
+                              name="bookingType"
+                              value="someone"
+                              checked={bookingType === 'someone'}
+                              onChange={(e) => handleBookingTypeChange(e.target.value)}
+                            />
+                            <span className="radio-label">Book for someone else</span>
+                          </label>
+                        </div>
+                      </div>
+
                       <div className="guest-info-group">
                         <label htmlFor="guestName">Guest Name</label>
                         <input
@@ -557,10 +680,12 @@ function Rooms() {
                           value={guestName}
                           onChange={(e) => setGuestName(e.target.value)}
                           placeholder="Guest Name"
+                          disabled={bookingType === 'myself'}
+                          className={bookingType === 'myself' ? 'disabled-field' : ''}
                         />
                       </div>
                       <div className="form-group">
-                        <label htmlFor="contactNumber"> </label>
+                        <label htmlFor="contactNumber">Contact Number</label>
                         <br></br>
                         <input
                           type="text"
@@ -571,7 +696,7 @@ function Rooms() {
                         />
                       </div>
                       <div className="form-group">
-                        <label htmlFor="email"></label>
+                        <label htmlFor="email">Email</label>
                         <br></br>
                         <input
                           type="email"
@@ -579,6 +704,8 @@ function Rooms() {
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
                           placeholder="Email"
+                          disabled={bookingType === 'myself'}
+                          className={bookingType === 'myself' ? 'disabled-field' : ''}
                         />
                       </div>
 
@@ -691,8 +818,8 @@ function Rooms() {
         <div className="success-popup-overlay">
           <div className="success-popup-content">
             <div className="success-popup-header">
-              <span className="success-icon">🎉</span>
-              <h2>Booking Successful!</h2>
+              <span className="success-icon"></span>
+              <h2 style={{ marginTop: "-30px" }}>Booking Successful!</h2>
             </div>
             <div className="success-popup-body">
               <p className="success-message">Your room has been successfully booked!</p>

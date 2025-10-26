@@ -1,10 +1,12 @@
 .signup-page {
   display: flex;
-  justify-content: flex-end; /* Align to the right */
+  justify-content: flex-end; /* existing code */
   align-items: center;
   padding: 2rem;
   padding-right: 10%; /* Adjust as needed to match the image */
-  height: 100vh;
+  padding-top: 5rem; /* Add padding to account for fixed navbar */
+  height: calc(100vh - 4rem); /* Adjust height to account for navbar and padding */
+  min-height: calc(100vh - 4rem); /* Ensure minimum height */
   background-image: url('./img/loginbg.jpg'); /* Use the same background image as login */
   background-size: cover;
   background-position: center;
@@ -99,4 +101,344 @@
 .fas {
   margin-right: 8px;
   color: var(--golden-accent);
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal {
+  background: #fff;
+  padding: 24px;
+  border-radius: 12px;
+  width: 92%;
+  max-width: 440px;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.2);
+  text-align: center;
+  position: relative;
+}
+
+.modal-close-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: none;
+  border: none;
+  font-size: 18px;
+  color: #666;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.modal-close-btn:hover {
+  background-color: #f0f0f0;
+  color: #333;
+}
+
+.modal h3 {
+  margin: 0 0 8px;
+  font-size: 20px;
+}
+
+.modal p {
+  margin: 6px 0 14px;
+  color: #444;
+}
+
+.code-input {
+  width: 100%;
+  max-width: 300px;
+  margin: 0 auto;
+  padding: 12px 14px;
+  font-size: 20px;
+  letter-spacing: 4px;
+  text-align: center;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  display: block;
+}
+
+.modal-message {
+  margin-top: 10px;
+  color: #333;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.modal-actions button {
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: none;
+  background: var(--golden-accent);
+  color: white;
+  cursor: pointer;
+  width: 100%;
+  font-size: 16px;
+}
+
+.modal-actions button[disabled] {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.modal-actions .link-button {
+  background: transparent;
+  color: var(--golden-accent);
+  border: none;
+  text-decoration: underline;
+}
+
+.verify-icon {
+  font-size: 40px;
+  color: var(--golden-accent);
+  margin-bottom: 8px;
+}
+
+.code-label {
+  display: block;
+  margin: 8px 0 6px;
+  font-size: 14px;
+  color: #666;
+}
+
+.resend-line {
+  margin-top: 12px;
+  text-align: center;
+  color: #444;
+}
+
+.resend-line .link-button {
+  text-decoration: underline;
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: var(--golden-accent);
+  cursor: pointer;
+}
+.verification-actions {
+  margin: 8px 0 16px;
+}
+
+.verification-actions button {
+  padding: 8px 12px;
+  border: none;
+  border-radius: 8px;
+  background: var(--golden-accent);
+  color: white;
+  cursor: pointer;
+}
+
+.verification-actions button[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.signup-form button[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Error Popup Modal Styles */
+.error-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  animation: errorOverlayFadeIn 0.3s ease-out;
+}
+
+@keyframes errorOverlayFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.error-modal {
+  background: linear-gradient(135deg, #ffffff 0%, #fafafa 100%);
+  border: 3px solid var(--golden-accent);
+  border-radius: 16px;
+  width: 92%;
+  max-width: 480px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(224, 177, 0, 0.2);
+  text-align: center;
+  position: relative;
+  animation: errorModalSlideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  overflow: hidden;
+}
+
+@keyframes errorModalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-30px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.error-modal::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 6px;
+  background: linear-gradient(90deg, #dc3545, #e74c3c, #c0392b);
+  animation: errorGradientShift 3s ease-in-out infinite;
+}
+
+@keyframes errorGradientShift {
+  0%, 100% {
+    background: linear-gradient(90deg, #dc3545, #e74c3c, #c0392b);
+  }
+  50% {
+    background: linear-gradient(90deg, #c0392b, #dc3545, #e74c3c);
+  }
+}
+
+.error-modal-close-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 2px solid #e0e0e0;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 16px;
+  color: #666;
+  transition: all 0.3s ease;
+  z-index: 10;
+}
+
+.error-modal-close-btn:hover {
+  background: #f5f5f5;
+  border-color: var(--golden-accent);
+  color: #333;
+  transform: rotate(90deg);
+}
+
+.error-modal-icon {
+  margin: 30px 0 20px;
+  position: relative;
+}
+
+.error-modal-icon i {
+  font-size: 64px;
+  color: #dc3545;
+  text-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
+  animation: errorIconPulse 2s ease-in-out infinite;
+}
+
+@keyframes errorIconPulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+.error-modal-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #2c3e50;
+  margin: 0 0 16px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.error-modal-message {
+  font-size: 16px;
+  line-height: 1.6;
+  color: #555;
+  margin: 0 0 30px;
+  padding: 0 24px;
+  font-weight: 500;
+}
+
+.error-modal-actions {
+  padding: 0 24px 30px;
+}
+
+.error-modal-ok-btn {
+  background: linear-gradient(135deg, var(--golden-accent) 0%, #ffd700 100%);
+  color: #2c3e50;
+  border: none;
+  border-radius: 12px;
+  padding: 14px 32px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(224, 177, 0, 0.3);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  min-width: 120px;
+}
+
+.error-modal-ok-btn:hover {
+  background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(224, 177, 0, 0.4);
+}
+
+.error-modal-ok-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(224, 177, 0, 0.3);
+}
+
+/* Responsive design for error modal */
+@media (max-width: 480px) {
+  .error-modal {
+    margin: 20px;
+    width: calc(100% - 40px);
+  }
+  
+  .error-modal-icon i {
+    font-size: 48px;
+  }
+  
+  .error-modal-title {
+    font-size: 20px;
+  }
+  
+  .error-modal-message {
+    font-size: 14px;
+    padding: 0 16px;
+  }
+  
+  .error-modal-actions {
+    padding: 0 16px 24px;
+  }
 }
