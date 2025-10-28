@@ -38,13 +38,13 @@ for (const t of TYPES) {
       floor = 1;
       break;
     case 'Deluxe':
-      floor = 2;
+      floor = 4;
       break;
     case 'Suite':
       floor = 3;
       break;
     case 'Economy':
-      floor = 4;
+      floor = 2;
       break;
     default:
       floor = 1; // Default floor

@@ -13,6 +13,7 @@ const EditRoom = () => {
     roomNumber: '',
     roomType: '',
     price: '',
+    floor: '',
     isBooked: false,
   });
   const [loading, setLoading] = useState(true);
@@ -32,6 +33,7 @@ const EditRoom = () => {
           roomNumber: response.data.roomNumber,
           roomType: response.data.roomType,
           price: response.data.price,
+          floor: response.data.floor,
           isBooked: response.data.isBooked,
         });
       } catch (err) {
@@ -48,10 +50,19 @@ const EditRoom = () => {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData((prevFormData) => ({
-      ...prevFormData,
-      [name]: type === 'checkbox' ? checked : value,
-    }));
+    setFormData((prevFormData) => {
+      const next = {
+        ...prevFormData,
+        [name]: type === 'checkbox' ? checked : value,
+      };
+      if (name === 'roomNumber') {
+        const num = parseInt(String(value), 10);
+        if (!isNaN(num)) {
+          next.floor = Math.floor(num / 100);
+        }
+      }
+      return next;
+    });
   };
 
   const handleSubmit = async (e) => {

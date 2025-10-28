@@ -1,5 +1,14 @@
 const Room = require('../models/roomModel');
 
+// Derive floor from room number utility
+const deriveFloorFromRoomNumber = (rn) => {
+  if (!rn) return null;
+  const num = parseInt(String(rn), 10);
+  if (isNaN(num)) return null;
+  const floor = Math.floor(num / 100);
+  return floor > 0 ? floor : null;
+};
+
 exports.getAllRooms = async (req, res) => {
   try {
     const { page = 1, limit = 8, rating, roomType, date, availableOnly } = req.query;
@@ -40,11 +49,12 @@ exports.getRoomById = async (req, res) => {
 };
 
 exports.createRoom = async (req, res) => {
+  const derivedFloor = deriveFloorFromRoomNumber(req.body.roomNumber);
   const room = new Room({
     roomNumber: req.body.roomNumber,
     roomType: req.body.roomType, // Changed from type to roomType
     price: req.body.price,
-    floor: req.body.floor,
+    floor: derivedFloor ?? req.body.floor,
   });
   try {
     const newRoom = await room.save();
@@ -60,7 +70,11 @@ exports.createMultipleRooms = async (req, res) => {
     if (!Array.isArray(roomsData)) {
       return res.status(400).json({ message: "Request body must be an array of room objects." });
     }
-    const newRooms = await Room.insertMany(roomsData);
+    const payload = roomsData.map(r => ({
+      ...r,
+      floor: deriveFloorFromRoomNumber(r.roomNumber) ?? r.floor,
+    }));
+    const newRooms = await Room.insertMany(payload);
     res.status(201).json(newRooms);
   } catch (err) {
     res.status(400).json({ message: err.message });

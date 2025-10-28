@@ -38,10 +38,13 @@ exports.getBillings = asyncHandler(async (req, res, next) => {
       select: 'roomNumber checkIn checkOut'
     });
 
+  // Filter out billings that reference non-existent bookings (cancelled bookings)
+  const validBillings = billings.filter(billing => billing.booking !== null);
+
   res.status(200).json({
     success: true,
-    count: billings.length,
-    data: billings
+    count: validBillings.length,
+    data: validBillings
   });
 });
 
@@ -49,12 +52,19 @@ exports.getBillings = asyncHandler(async (req, res, next) => {
 // @route   GET /api/billings/booking/:bookingId
 // @access  Private
 exports.getBookingBillings = asyncHandler(async (req, res, next) => {
+  // Check if the booking exists first
+  const booking = await Booking.findById(req.params.bookingId);
+  
+  if (!booking) {
+    return next(new ErrorResponse(`Booking not found or has been cancelled`, 404));
+  }
+
   const billings = await Billing.find({ 
     booking: req.params.bookingId,
     user: req.user.id 
   });
 
-  if (!billings) {
+  if (!billings || billings.length === 0) {
     return next(new ErrorResponse(`No billing records found for this booking`, 404));
   }
 
@@ -210,16 +220,33 @@ exports.getRoomBillings = asyncHandler(async (req, res, next) => {
     console.log('No additional billing format found, using standard format only');
   }
 
+  // Recompute room charge using hourly pricing for this room
+  const roomDoc = await Room.findOne({ roomNumber });
+  const pricePerHour = roomDoc ? Number(roomDoc.price) : 0;
+
   // Merge billing items
   const mergedBillings = [];
   
   // Add regular billings first
   billings.forEach(billing => {
+    const hours = billing?.booking ? Math.ceil((new Date(billing.booking.checkOut) - new Date(billing.booking.checkIn)) / (1000 * 60 * 60)) : null;
+    const recomputedAmount = (hours != null && pricePerHour > 0)
+      ? (() => {
+          const subtotal = hours * pricePerHour;
+          const taxesAndFees = subtotal * 0.12;
+          return subtotal + taxesAndFees;
+        })()
+      : (billing.amount || 0);
+
     mergedBillings.push({
       _id: billing._id,
       roomNumber: billing.roomNumber || roomNumber,
-      description: billing.description || 'Room charge',
-      amount: billing.amount || 0,
+      description: (billing.description && billing.description.includes('Room booking charge'))
+        ? `Room booking charge for ${roomNumber} (${hours ?? 0} hours)`
+        : (billing.description || 'Room charge'),
+      amount: (billing.description && billing.description.includes('Room booking charge'))
+        ? recomputedAmount
+        : (billing.amount || 0),
       status: billing.status || 'pending',
       date: billing.createdAt || new Date(),
       type: 'room_charge',
