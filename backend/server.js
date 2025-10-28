@@ -6,9 +6,6 @@ require('dotenv').config();
 
 const app = express();
 
-// ✅ Serve static uploads folder (add this right after initializing express)
-app.use('/uploads', express.static('uploads'));
-
 // Connect Database
 connectDB();
 
@@ -19,24 +16,8 @@ app.use(express.json({
     req.rawBody = buf;
   }
 }));
-
-const allowedOrigins = [
-  process.env.FRONTEND_URL,
-  process.env.APP_URL,
-  'http://localhost:5173',
-  'http://localhost:3000',
-  'http://localhost:5174',
-  'http://localhost:5175',
-  'http://localhost:5176'
-].filter(Boolean);
-
 app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin) return callback(null, true);
-    const isAllowed = allowedOrigins.includes(origin) || (typeof origin === 'string' && origin.includes('onrender.com'));
-    if (isAllowed) return callback(null, true);
-    return callback(new Error('Not allowed by CORS'));
-  },
+  origin: ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:5176'],
   credentials: true
 }));
 
@@ -48,9 +29,6 @@ app.use((req, res, next) => {
 
 // Define Routes
 console.log('Loading routes...');
-// Health check route
-app.use('/', require('./routes/healthRoutes'));
-
 app.use('/api/rooms', require('./routes/roomRoutes'));
 console.log('Loading auth routes...');
 try {
@@ -70,10 +48,12 @@ app.use('/api/test', require('./routes/testRoutes'));
 app.use('/api/debug', require('./routes/debugRoutes'));
 
 app.use('/api/reviews', require('./routes/reviewRoutes'));
+
 app.use('/api/booking-activities', require('./routes/bookingActivityRoutes'));
+
 app.use('/api/dashboard', require('./routes/dashboardRoutes'));
+
 app.use('/webhooks', require('./routes/webhookRoutes'));
-app.use('/paymongo', require('./routes/paymongoRoutes'));
 
 const customerBillRoutes = require('./routes/customerBillRoutes');
 app.use('/api/customer-bills', customerBillRoutes);
@@ -91,6 +71,7 @@ const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+  
   // Start the booking expiration updater service
   startBookingExpirationUpdater();
 });

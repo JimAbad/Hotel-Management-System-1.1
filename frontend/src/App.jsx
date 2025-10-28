@@ -10,7 +10,6 @@ import ReviewsRatings from './ReviewsRatings';
 import Login from './Login';
 import Signup from './Signup';
 import PaymentStatus from './PaymentStatus';
-import PaymongoQR from './PaymongoQR';
 import './App.css';
 import { useAuth } from './AuthContext';
 import { FaSignInAlt, FaSignOutAlt } from 'react-icons/fa';
@@ -103,7 +102,6 @@ function AppContent() {
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/payment-status" element={<PaymentStatus />} />
-        <Route path="/paymongo-qr/:bookingId" element={<PaymongoQR />} />
         <Route path="/verify-email" element={<VerifyEmail />} />
         <Route path="/room-details/:id" element={<RoomDetails />} />
         <Route path="/admin/viewcustomerbills" element={<ViewCustomerBillAdmin />} />

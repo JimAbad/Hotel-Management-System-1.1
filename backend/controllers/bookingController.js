@@ -116,15 +116,7 @@ const createBooking = asyncHandler(async (req, res) => {
   }
   const subtotal = numberOfHours * roomPrice;
   const taxesAndFees = subtotal * 0.12; // Assuming 12% tax
-  let totalAmount = subtotal + taxesAndFees;
-
-  // Test pricing override: Economy room for exactly 3 hours totals ₱10
-  // Also set downpayment of ₱1 to be charged via PayMongo
-  let initialPaymentDetails = {};
-  if (room.roomType === 'Economy' && numberOfHours === 3) {
-    totalAmount = 10;
-    initialPaymentDetails.downpaymentAmount = 1;
-  }
+  const totalAmount = subtotal + taxesAndFees;
 
   // Find an available room on the same floor if the requested room is not available
   let selectedRoom = room;
@@ -167,8 +159,9 @@ const createBooking = asyncHandler(async (req, res) => {
   }
   console.log('Selected room before saving:', selectedRoom); // Log selected room before saving
 
-  // Do NOT change room status here. Rooms should only be marked as
-  // occupied after a successful payment (handled via webhook).
+  // Update room status to reserved
+  selectedRoom.status = 'occupied';
+  await selectedRoom.save();
 
     const bookingData = {
       room: selectedRoom._id,
@@ -186,7 +179,6 @@ const createBooking = asyncHandler(async (req, res) => {
       roomNumber: selectedRoom.roomNumber,
       numberOfGuests,
       totalAmount,
-      paymentDetails: initialPaymentDetails
     };
 
     console.log('Booking data before creation:', bookingData);
@@ -301,7 +293,7 @@ const generatePaymentQrCode = asyncHandler(async (req, res) => {
   res.json({ qrCode: 'QR code data' });
 });
 
-// @desc    Get user's bookings (only paid)
+// @desc    Get user's bookings
 // @route   GET /api/bookings/my-bookings
 // @access  Private
 const getMyBookings = asyncHandler(async (req, res) => {
@@ -323,10 +315,6 @@ const getMyBookings = asyncHandler(async (req, res) => {
       {
         // Only include bookings where checkout date is today or in the future
         checkOut: { $gte: currentDate }
-      },
-      {
-        // Include bookings with successful full or partial payment
-        paymentStatus: { $in: ['paid', 'partial'] }
       }
     ]
   }).sort({ createdAt: -1 });
@@ -345,7 +333,6 @@ const updateRoomStatus = asyncHandler(async (req, res) => {
   const activeBooking = await Booking.findOne({
     room: roomId,
     status: { $nin: ['cancelled', 'completed'] },
-    paymentStatus: 'paid',
     checkOut: { $gte: new Date() },
   });
   
