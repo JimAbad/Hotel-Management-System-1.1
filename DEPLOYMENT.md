@@ -2,6 +2,16 @@
 
 This branch is prepared for deploying the monorepo to Render using two services (Backend Web Service and Frontend Static Site). Secrets are removed and replaced with `.env.example` files.
 
+## Option A: Render Blueprint (recommended)
+Use `render.yaml` at the repo root to spin up both services automatically.
+
+1) In Render, click New → Blueprint, paste repo URL and pick branch `deployment`.
+2) Review services:
+   - `hotel-backend` (Node Web Service) with health check `/healthz`.
+   - `hotel-frontend` (Static Site) publishing `dist`.
+3) Fill required environment variables (marked `sync: false`) after creation.
+4) Deploy. Update `VITE_API_URL` to your backend URL and register PayMongo webhook.
+
 ## Backend (Node Web Service)
 - Repository: this repo, branch `deployment`
 - Root directory: `backend`

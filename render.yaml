@@ -1,0 +1,62 @@
+services:
+  - type: web
+    name: hotel-backend
+    env: node
+    rootDirectory: backend
+    buildCommand: npm install
+    startCommand: npm start
+    autoDeploy: true
+    healthCheckPath: /healthz
+    envVars:
+      - key: MONGO_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: XENDIT_SECRET_API_KEY
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: FROM_EMAIL
+        sync: false
+      - key: FROM_NAME
+        sync: false
+      - key: EMAIL_PROVIDER
+        sync: false
+      - key: BREVO_API_KEY
+        sync: false
+      - key: DISABLE_EMAIL_SEND
+        value: "false"
+      - key: APP_URL
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: PAYMONGO_API_KEY
+        sync: false
+      - key: PAYMONGO_TEST_SECRET_KEY
+        sync: false
+      - key: PAYMONGO_PUBLIC_KEY
+        sync: false
+      - key: PAYMONGO_WEBHOOK_URL
+        sync: false
+      - key: PAYMONGO_WEBHOOK_SECRET
+        sync: false
+
+  - type: static_site
+    name: hotel-frontend
+    rootDirectory: frontend
+    buildCommand: npm install && npm run build
+    publishPath: dist
+    autoDeploy: true
+    envVars:
+      - key: VITE_API_URL
+        sync: false
+      - key: VITE_XENDIT_PUBLIC_KEY
+        sync: false
+      - key: VITE_PAYMONGO_PUBLIC_KEY
+        sync: false
