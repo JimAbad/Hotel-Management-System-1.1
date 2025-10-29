@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
+
 const { getCustomerBill } = require('../controllers/customerBillController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
-router.route('/:bookingId').get(protect, authorize(['admin']), getCustomerBill);
-router.get('/', authProtect, adminOnly, getAllCustomerBills);
+// GET /api/customer-bills/:bookingId  (admin only)
+router.get('/:bookingId', protect, authorize(['admin']), getCustomerBill);
 
 module.exports = router;
