@@ -6,6 +6,9 @@ require('dotenv').config();
 
 const app = express();
 
+// ✅ Serve static uploads folder (add this right after initializing express)
+app.use('/uploads', express.static('uploads'));
+
 // Connect Database
 connectDB();
 
@@ -16,6 +19,7 @@ app.use(express.json({
     req.rawBody = buf;
   }
 }));
+
 const allowedOrigins = [
   process.env.FRONTEND_URL,
   process.env.APP_URL,
@@ -66,13 +70,9 @@ app.use('/api/test', require('./routes/testRoutes'));
 app.use('/api/debug', require('./routes/debugRoutes'));
 
 app.use('/api/reviews', require('./routes/reviewRoutes'));
-
 app.use('/api/booking-activities', require('./routes/bookingActivityRoutes'));
-
 app.use('/api/dashboard', require('./routes/dashboardRoutes'));
-
 app.use('/webhooks', require('./routes/webhookRoutes'));
-// PayMongo webhook route mounted at /paymongo/webhook
 app.use('/paymongo', require('./routes/paymongoRoutes'));
 
 // Error handling middleware
@@ -88,7 +88,6 @@ const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-  
   // Start the booking expiration updater service
   startBookingExpirationUpdater();
 });
