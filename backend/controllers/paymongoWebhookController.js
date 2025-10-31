@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const Booking = require('../models/bookingModel');
+const Room = require('../models/roomModel');
 
 // Prefer webhook secret returned by PayMongo when registering the webhook.
 // Fallback to test secret if explicitly requested.
@@ -69,36 +70,56 @@ function extractIdentifiers(resource) {
   return ids;
 }
 
-async function updateBookingStatusByIdentifiers(ids, statusLabel, eventType, fullBody) {
+async function updateBookingFromWebhook(ids, eventType, resourceAttributes) {
+  // Resolve the booking via stored PaymentIntent or reference number
   let booking = null;
-
-  // Try matching by stored PayMongo ids
   if (!booking && ids.payment_intent_id) {
-    booking = await Booking.findOne({ paymongoPaymentIntentId: ids.payment_intent_id });
+    booking = await Booking.findOne({ 'paymentDetails.paymentIntentId': ids.payment_intent_id });
   }
-  if (!booking && ids.source_id) {
-    booking = await Booking.findOne({ paymongoSourceId: ids.source_id });
-  }
-  // Try matching by reference number
   if (!booking && ids.reference_number) {
     booking = await Booking.findOne({ referenceNumber: ids.reference_number });
   }
-  // Fallback: none found
   if (!booking) return { found: false };
 
-  booking.paymongoStatus = statusLabel;
+  // Determine paymentStatus
+  let paymentStatus = null;
+  if (eventType === 'payment.paid' || eventType === 'payment.success') {
+    const dp = booking.paymentDetails?.downpaymentAmount;
+    const total = booking.totalAmount || 0;
+    paymentStatus = dp && total && dp < total ? 'partial' : 'paid';
+  } else if (eventType === 'payment.failed') {
+    paymentStatus = 'failed';
+  } else if (eventType === 'qrph.expired') {
+    paymentStatus = 'expired';
+  }
+
+  if (!paymentStatus) return { found: true, booking };
+
+  // Update booking fields
+  booking.paymentStatus = paymentStatus;
+  booking.status = (eventType === 'payment.paid' || eventType === 'payment.success') ? 'confirmed' : booking.status;
   booking.paymentDetails = booking.paymentDetails || {};
-  booking.paymentDetails.paymongo = {
-    ...(booking.paymentDetails.paymongo || {}),
-    eventType,
-    lastUpdateAt: new Date(),
-    payloadPreview: {
-      payment_intent_id: ids.payment_intent_id || null,
-      source_id: ids.source_id || null,
-      reference_number: ids.reference_number || null,
-      id: ids.id || null,
+  booking.paymentDetails.paymongoStatus = eventType;
+  booking.paymentDetails.paymongoPaymentIntentId = ids.payment_intent_id || booking.paymentDetails.paymentIntentId;
+  booking.paymentDetails.paymongoAmount = resourceAttributes?.amount;
+  booking.paymentDetails.paymongoCurrency = resourceAttributes?.currency || 'PHP';
+  if (eventType === 'payment.paid' || eventType === 'payment.success') {
+    booking.paymentDetails.paymongoPaidAt = new Date();
+  }
+
+  // If payment succeeded, mark room occupied
+  if (eventType === 'payment.paid' || eventType === 'payment.success') {
+    try {
+      const room = await Room.findById(booking.room);
+      if (room) {
+        room.status = 'occupied';
+        await room.save();
+      }
+    } catch (err) {
+      console.warn('[PayMongo] Failed to mark room occupied:', err?.message);
     }
-  };
+  }
+
   await booking.save();
   return { found: true, booking };
 }
@@ -122,42 +143,21 @@ exports.handlePaymongoWebhook = async (req, res) => {
     const ids = extractIdentifiers(resource);
     console.log('[PayMongo] Event:', eventType, '\nIDs:', ids);
 
-    let statusLabel = null;
-    switch (eventType) {
-      case 'payment.paid':
-        statusLabel = 'Paid';
-        break;
-      case 'payment.failed':
-        statusLabel = 'Failed';
-        break;
-      case 'qrph.expired':
-        statusLabel = 'QR Expired';
-        break;
-      default:
-        console.log('[PayMongo] Unhandled event type:', eventType);
-        return res.status(200).json({ message: 'Unhandled event type' });
-    }
+    // Attributes can be under resource.attributes depending on payload shape
+    const attrs = resource?.attributes || resource || {};
 
-    const result = await updateBookingStatusByIdentifiers(ids, statusLabel, eventType, req.body);
+    const result = await updateBookingFromWebhook(ids, eventType, attrs);
     if (!result.found) {
       console.warn('[PayMongo] No matching booking found for webhook.');
       return res.status(200).json({ message: 'No matching booking found' });
     }
 
-    // Mark paymentStatus as paid when we receive paid event
-    if (statusLabel === 'Paid') {
-      try {
-        result.booking.paymentStatus = 'paid';
-        await result.booking.save();
-      } catch (e) {
-        console.warn('[PayMongo] Unable to set paymentStatus to paid:', e?.message);
-      }
-    }
-
     console.log('[PayMongo] Booking updated:', {
       id: result.booking._id?.toString?.(),
       referenceNumber: result.booking.referenceNumber,
-      paymongoStatus: result.booking.paymongoStatus
+      paymentStatus: result.booking.paymentStatus,
+      status: result.booking.status,
+      paymongoStatus: result.booking.paymentDetails?.paymongoStatus
     });
     return res.status(200).json({ message: 'Webhook received and processed' });
   } catch (err) {
