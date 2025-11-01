@@ -21,6 +21,7 @@ const updateRoomStatuses = async () => {
       const activeBooking = await Booking.findOne({
         room: room._id,
         status: { $nin: ['cancelled', 'completed'] },
+        paymentStatus: 'paid',
         checkOut: { $gte: new Date() },
       });
       

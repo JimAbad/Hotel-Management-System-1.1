@@ -70,6 +70,11 @@ const bookingSchema = new mongoose.Schema({
     enum: ['pending', 'partial', 'paid'],
     default: 'pending'
   },
+  // Flexible container for gateway-specific payment details (PayMongo/Xendit)
+  paymentDetails: {
+    type: mongoose.Schema.Types.Mixed,
+    default: {}
+  },
   totalAmount: {
     type: Number,
     required: true
