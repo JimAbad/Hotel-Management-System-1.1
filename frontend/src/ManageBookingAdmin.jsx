@@ -6,7 +6,7 @@ import './ManageBookingAdmin.css';
 
 const ManageBooking = () => {
   const { token } = useAuthAdmin();
-  const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
+  const API_BASE = (import.meta.env.VITE_API_URL || "").replace(/\/+$/, "");
 
   const [bookings, setBookings] = useState([]);
   const [activities, setActivities] = useState([]);
@@ -58,10 +58,30 @@ const ManageBooking = () => {
     );
   };
 
-  const formatDate = (d) => {
-    if (!d) return '-';
-    const dt = new Date(d);
-    return isNaN(dt) ? String(d) : dt.toLocaleDateString();
+  // Helper: pick the first existing field name from your API result
+  const pick = (obj, keys) => keys.find((k) => obj?.[k] !== undefined && obj?.[k] !== null) && obj[keys.find((k) => obj?.[k] !== undefined && obj?.[k] !== null)];
+
+  const formatDate = (val) => {
+    if (!val) return "-";
+    const d = new Date(val);
+    return isNaN(d) ? String(val) : d.toLocaleDateString();
+  };
+
+  // Map backend variations → unified values for the row
+  const getCheckIn = (b) =>
+    pick(b, ["checkInDate", "checkinDate", "check_in", "checkIn", "startDate", "fromDate", "dateFrom"]);
+  const getCheckOut = (b) =>
+    pick(b, ["checkOutDate", "checkoutDate", "check_out", "checkOut", "endDate", "toDate", "dateTo"]);
+  const getBookingStatus = (b) =>
+    pick(b, ["status", "bookingStatus", "booking_status", "state", "reservationStatus"]);
+
+  const getStatusClass = (status) => {
+    const s = String(status || "").toLowerCase();
+    if (["pending"].includes(s)) return "pending";
+    if (["confirmed", "reserved"].includes(s)) return "confirmed";
+    if (["cancelled", "canceled"].includes(s)) return "cancelled";
+    if (["completed", "checked-out", "finished"].includes(s)) return "completed";
+    return "";
   };
 
   const getRoomDisplay = (b) => {
@@ -90,18 +110,14 @@ const ManageBooking = () => {
   const fetchBookings = async () => {
     try {
       setLoading(true);
-      setError(null);
-      const config = {
+      const res = await axios.get(`${API_BASE}/api/bookings`, {
         headers: { Authorization: `Bearer ${token}` },
-        params: { status: statusFilter, search: searchQuery }
-      };
-      const res = await axios.get(`${API_BASE}/api/bookings`, config);
-      const list = parseList(res.data);
+      });
+      const list = Array.isArray(res.data) ? res.data : res?.data?.bookings || res?.data?.data || [];
       setBookings(Array.isArray(list) ? list : []);
-    } catch (err) {
-      console.error('Error fetching bookings:', err);
+    } catch (e) {
+      setError(e?.response?.data?.message || e.message || "Failed to load bookings");
       setBookings([]);
-      setError(err?.response?.data?.message || err.message || 'Failed to load bookings');
     } finally {
       setLoading(false);
     }
@@ -243,17 +259,6 @@ const ManageBooking = () => {
     }
   };
 
-  const getStatusClass = (status) => {
-    if (!status) return '';
-    switch (String(status).toLowerCase()) {
-      case 'pending': return 'pending';
-      case 'confirmed': return 'confirmed';
-      case 'cancelled': return 'cancelled';
-      case 'completed': return 'completed';
-      default: return '';
-    }
-  };
-
   // Helper: does this booking already have a room?
   const isAssigned = (b) =>
     !!(b?.room?.roomNumber || b?.roomNumber || (typeof b?.room === 'string' && b.room));
@@ -283,6 +288,19 @@ const ManageBooking = () => {
       alert(e?.response?.data?.message || e.message || 'Failed to assign room');
     }
   };
+
+  // ADD: compute filtered rows based on search + status
+  const filtered = React.useMemo(() => {
+    const q = (searchQuery || "").toLowerCase();
+    const sf = (statusFilter || "").toLowerCase();
+    return (bookings || []).filter((b) => {
+      const name = (b.guestName || b.customerName || b.name || "").toLowerCase();
+      const status = String(getBookingStatus(b) || "").toLowerCase();
+      const okSearch = !q || name.includes(q);
+      const okStatus = !sf || status === sf;
+      return okSearch && okStatus;
+    });
+  }, [bookings, searchQuery, statusFilter]);
 
   return (
     <div className="booking-management">
@@ -333,49 +351,45 @@ const ManageBooking = () => {
               </tr>
             </thead>
             <tbody>
-              {Array.isArray(bookings) && bookings.length > 0 ? (
-                bookings.map((booking) => (
-                  <tr key={booking._id}>
-                    <td>{booking.referenceNumber || `BK${String(booking._id || '').slice(-6)}`}</td>
-                    <td>{booking.guestName || booking.customerName || booking.name || '-'}</td>
-                    <td>{getRoomDisplay(booking)}</td>
-                    <td>{formatDate(booking.checkInDate || booking.checkinDate || booking.startDate)}</td>
-                    <td>{formatDate(booking.checkOutDate || booking.checkoutDate || booking.endDate)}</td>
-                    <td>
-                      <span className={`status ${getStatusClass(booking.bookingStatus)}`}>
-                        {booking.bookingStatus || '-'}
-                      </span>
-                    </td>
-                    <td>
+              {filtered.map((b) => (
+                <tr key={b._id}>
+                  <td>{b.referenceNumber || `BK${String(b._id || '').slice(-6)}`}</td>
+                  <td>{b.guestName || b.customerName || b.name || '-'}</td>
+                  <td>{getRoomDisplay(b)}</td>
+                  <td>{formatDate(getCheckIn(b))}</td>
+                  <td>{formatDate(getCheckOut(b))}</td>
+                  <td>
+                    {(() => {
+                      const status = getBookingStatus(b);
+                      return (
+                        <span className={`status ${getStatusClass(status)}`}>
+                          {status ?? "-"}
+                        </span>
+                      );
+                    })()}
+                  </td>
+                  <td>
+                    {/* Details button stays “More Info” */}
+                    <button className="activity-btn" title="More Info" onClick={() => handleViewActivity(b)}>
+                      More Info
+                    </button>
+                  </td>
+                  <td>
+                    <div className="action-buttons">
                       <button
-                        className="activity-btn"    // keep existing class so styling stays the same
-                        title="More Info"
-                        onClick={() => handleViewActivity(booking)} // ...existing handler...
+                        className={`assign-btn ${isAssigned(b) ? 'assigned' : ''}`}
+                        disabled={isAssigned(b)}
+                        onClick={() => handleAssignRoom(b)}
                       >
-                        More Info
+                        Assign Room
                       </button>
-                    </td>
-                    <td>
-                      <div className="action-buttons">
-                        <button
-                          className={`assign-btn ${isAssigned(booking) ? 'assigned' : ''}`}
-                          disabled={isAssigned(booking)}
-                          onClick={() => handleAssignRoom(booking)}
-                        >
-                          Assign Room
-                        </button>
-                        <button className="delete-btn" onClick={() => handleDelete(booking._id)}>
-                          Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="8" style={{ textAlign: 'center', color: '#666' }}>No bookings found.</td>
+                      <button className="delete-btn" onClick={() => handleDelete(b._id)}>
+                        Delete
+                      </button>
+                    </div>
+                  </td>
                 </tr>
-              )}
+              ))}
             </tbody>
           </table>
         </div>
