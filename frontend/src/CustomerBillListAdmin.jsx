@@ -36,6 +36,14 @@ const CustomerBillList = () => {
     }
     return undefined;
   };
+  const pickCheckout = (b) =>
+    b?.checkOutDate ||
+    b?.checkoutDate ||
+    b?.bookingId?.checkOutDate ||
+    b?.bookingId?.checkoutDate ||
+    b?.booking?.checkOutDate ||
+    b?.booking?.checkoutDate ||
+    null;
 
   // Normalize into a unified bill shape for rendering
   const normalizeBill = (x) => {
@@ -367,7 +375,7 @@ const CustomerBillList = () => {
                       <td>
                         <span className={`status-badge ${badge}`}>{b.paymentStatus}</span>
                       </td>
-                      <td>{prettyDate(b.checkOutDate)}</td>
+                      <td>{prettyDate(pickCheckout(b))}</td>
                       <td className="actions">
                         <button
                           type="button"
