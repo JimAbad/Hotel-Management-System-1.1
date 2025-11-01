@@ -28,18 +28,23 @@ const DashboardAdmin = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // FIX: call backend (VITE_API_URL) instead of 5173
+  const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
+
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const token = localStorage.getItem('tokenAdmin');
-        if (!token) {
-          throw new Error('No authentication token found');
-        }
+        // FIX: tolerate different token keys
+        const token =
+          localStorage.getItem('tokenAdmin') ||
+          localStorage.getItem('adminToken') ||
+          localStorage.getItem('token');
 
-        const response = await axios.get('/api/dashboard', {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+        if (!token) throw new Error('No authentication token found');
+
+        // FIX: use API_BASE
+        const response = await axios.get(`${API_BASE}/api/dashboard`, {
+          headers: { Authorization: `Bearer ${token}` },
         });
 
         const data = response.data;

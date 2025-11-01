@@ -6,6 +6,8 @@ import './ManageBookingAdmin.css';
 
 const ManageBooking = () => {
   const { token } = useAuthAdmin();
+  const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
+
   const [bookings, setBookings] = useState([]);
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -16,8 +18,10 @@ const ManageBooking = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [selectedBooking, setSelectedBooking] = useState(null);
   const [rooms, setRooms] = useState([]);
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [selectedBooking, setSelectedBooking] = useState(null);
+  const [selectedRoomNumber, setSelectedRoomNumber] = useState('');
   const [editForm, setEditForm] = useState({
     bookingStatus: '',
     checkOutDate: '',
@@ -35,8 +39,6 @@ const ManageBooking = () => {
     specialRequest: ''
   });
   const [reservationSummary, setReservationSummary] = useState(null);
-
-  const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
 
   useEffect(() => {
     if (token) {
@@ -107,12 +109,14 @@ const ManageBooking = () => {
 
   const fetchRooms = async () => {
     try {
-      const config = { headers: { Authorization: `Bearer ${token}` } };
-      const res = await axios.get(`${API_BASE}/api/rooms`, config);
-      const list = Array.isArray(res.data) ? res.data : res.data?.data || res.data?.rooms || [];
+      const res = await axios.get(`${API_BASE}/api/rooms`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const list = Array.isArray(res.data) ? res.data : res?.data?.rooms || res?.data?.data || [];
       setRooms(Array.isArray(list) ? list : []);
-    } catch (err) {
-      console.error('Error fetching rooms:', err);
+    } catch (e) {
+      console.error('Failed to load rooms', e);
+      setRooms([]);
     }
   };
 
@@ -236,6 +240,36 @@ const ManageBooking = () => {
     }
   };
 
+  // Helper: does this booking already have a room?
+  const isAssigned = (b) =>
+    !!(b?.room?.roomNumber || b?.roomNumber || (typeof b?.room === 'string' && b.room));
+
+  const handleAssignRoom = async (booking) => {
+    setSelectedBooking(booking);
+    setSelectedRoomNumber('');
+    if (rooms.length === 0) await fetchRooms();
+    setShowAssignModal(true);
+  };
+
+  const confirmAssignRoom = async () => {
+    if (!selectedBooking || !selectedRoomNumber) return;
+    try {
+      await axios.put(
+        `${API_BASE}/api/bookings/${selectedBooking._id}`,
+        { roomNumber: selectedRoomNumber },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setShowAssignModal(false);
+      setSelectedBooking(null);
+      setSelectedRoomNumber('');
+      // refresh list
+      if (typeof fetchBookings === 'function') await fetchBookings();
+    } catch (e) {
+      console.error('Assign room failed:', e);
+      alert(e?.response?.data?.message || e.message || 'Failed to assign room');
+    }
+  };
+
   return (
     <div className="booking-management">
       <div className="booking-header">
@@ -299,17 +333,25 @@ const ManageBooking = () => {
                       </span>
                     </td>
                     <td>
-                      <button className="activity-btn" onClick={() => handleViewActivity(booking)}>
-                        <FaHistory /> Activity
+                      <button
+                        className="activity-btn"    // keep existing class so styling stays the same
+                        title="More Info"
+                        onClick={() => handleViewActivity(booking)} // ...existing handler...
+                      >
+                        More Info
                       </button>
                     </td>
                     <td>
                       <div className="action-buttons">
-                        <button className="edit-btn" onClick={() => handleEditClick(booking)}>
-                          <FaEdit />
+                        <button
+                          className={`assign-btn ${isAssigned(booking) ? 'assigned' : ''}`}
+                          disabled={isAssigned(booking)}
+                          onClick={() => handleAssignRoom(booking)}
+                        >
+                          Assign Room
                         </button>
                         <button className="delete-btn" onClick={() => handleDelete(booking._id)}>
-                          <FaTrash />
+                          Delete
                         </button>
                       </div>
                     </td>
@@ -558,6 +600,40 @@ const ManageBooking = () => {
           <div className="success-content">
             <h3>Success!</h3>
             <p>Booking has been created successfully.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Assign Room Modal */}
+      {showAssignModal && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h3>Assign Room</h3>
+              <button onClick={() => setShowAssignModal(false)}>&times;</button>
+            </div>
+            <div className="modal-body">
+              <label>Select Room:</label>
+              <select
+                value={selectedRoomNumber}
+                onChange={(e) => setSelectedRoomNumber(e.target.value)}
+              >
+                <option value="">Select a room</option>
+                {rooms.map((r) => (
+                  <option key={r._id || r.roomNumber} value={r.roomNumber}>
+                    Room {r.roomNumber} — {r.roomType || r.type || 'Type'}
+                  </option>
+                ))}
+              </select>
+              <div className="form-actions" style={{ marginTop: 12 }}>
+                <button className="save-btn" onClick={confirmAssignRoom} disabled={!selectedRoomNumber}>
+                  Assign
+                </button>
+                <button className="cancel-btn" onClick={() => setShowAssignModal(false)}>
+                  Cancel
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

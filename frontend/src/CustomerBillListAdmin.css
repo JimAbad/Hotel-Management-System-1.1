@@ -163,3 +163,19 @@
 .customer-bill-list-container .customer-bill-table a:hover {
   text-decoration: underline;
 }
+
+/* Make actions hoverable and turn "Mark as Paid" green on hover */
+.action-buttons { display: flex; gap: 10px; align-items: center; }
+
+.action-buttons button {
+  transition: background-color .2s ease, color .2s ease, box-shadow .2s ease, transform .1s ease;
+}
+
+.action-buttons button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0,0,0,.12);
+}
+
+/* Ensure the Mark as Paid button has a class and hover turns green */
+.mark-paid-btn { background: #f3f4f6; color: #111827; border: 1px solid #d1d5db; }
+.mark-paid-btn:hover { background: #22c55e; border-color: #16a34a; color: #fff; }

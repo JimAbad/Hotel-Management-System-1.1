@@ -1,32 +1,13 @@
-const asyncHandler = require('express-async-handler');
-const Booking = require('../models/bookingModel');
+const asyncHandler = require('../middleware/async');
+const Billing = require('../models/Billing');
 
-// @desc    Get customer bill by booking ID
-// @route   GET /api/customer-bills/:bookingId
-// @access  Private/Admin
-const getCustomerBill = asyncHandler(async (req, res) => {
-  const booking = await Booking.findById(req.params.bookingId);
-
-  if (booking) {
-    res.json({
-      _id: booking._id,
-      customerName: booking.customerName,
-      customerEmail: booking.customerEmail,
-      contactNumber: booking.contactNumber,
-      guestName: booking.guestName,
-      roomNumber: booking.roomNumber,
-      checkInDate: booking.checkIn,
-      checkOutDate: booking.checkOut,
-      adults: booking.adults,
-      children: booking.children,
-      totalAmount: booking.totalAmount,
-      paymentStatus: booking.paymentStatus,
-      // Add more bill-related details as needed
-    });
-  } else {
-    res.status(404);
-    throw new Error('Booking not found');
-  }
+exports.getAllCustomerBills = asyncHandler(async (req, res) => {
+  const docs = await Billing.find({}).lean();
+  res.status(200).json({ success: true, count: docs.length, bills: docs });
 });
 
-module.exports = { getCustomerBill };
+exports.getCustomerBill = asyncHandler(async (req, res) => {
+  const bill = await Billing.findOne({ bookingId: req.params.bookingId }).lean();
+  if (!bill) return res.status(404).json({ success: false, message: 'Bill not found' });
+  res.status(200).json({ success: true, bill });
+});
