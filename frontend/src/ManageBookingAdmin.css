@@ -122,6 +122,16 @@ tr:hover {
   transition: background-color 0.3s;
 }
 
+/* Hover affordance for all action buttons */
+.action-buttons button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0,0,0,.12);
+}
+
+/* Specific hovers */
+.assign-btn:hover { background: #eab308; }   /* deeper yellow */
+.delete-btn:hover { background: #dc2626; }   /* deeper red */
+
 .edit-btn {
   background-color: #ffc107;
   color: #000;
@@ -331,3 +341,32 @@ tr:hover {
   text-decoration: none;
 }
 .booking-management table a:hover { text-decoration: underline; }
+
+/* Match Customer Bills-style action buttons */
+.action-buttons { display: flex; gap: 10px; align-items: center; }
+
+.assign-btn,
+.delete-btn,
+.save-btn,
+.cancel-btn {
+  padding: 8px 14px;
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.assign-btn { background: #facc15; color: #000; }           /* yellow */
+.assign-btn.assigned,
+.assign-btn:disabled { background: #9ca3af; color: #fff; cursor: not-allowed; } /* gray */
+
+.delete-btn { background: #ef4444; color: #fff; }           /* red */
+.delete-btn:hover { filter: brightness(0.95); }
+
+/* Optional: modal buttons */
+.save-btn { background: #16a34a; color: #fff; }
+.cancel-btn { background: #6b7280; color: #fff; }
+
+/* Ensure table text visible */
+.booking-management table th,
+.booking-management table td { color: #1f2937 !important; }
