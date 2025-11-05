@@ -74,10 +74,13 @@ const CustomerBillList = () => {
       ) || 0;
 
     const checkOutDate =
-      pickFirst(x, ['checkOutDate', 'checkoutDate']) ||
+      // Prefer explicit fields on the bill first
+      pickFirst(x, ['checkOutDate', 'checkoutDate', 'checkOut']) ||
+      // Then fall back to populated booking fields
       pickFirst(bookingObj, [
         'checkOutDate',
         'checkoutDate',
+        'checkOut',
         'departureDate',
         'endDate',
         'toDate',
@@ -116,7 +119,7 @@ const CustomerBillList = () => {
       Number(pickFirst(b, ['totalAmount', 'totalPrice', 'grandTotal', 'amount'])) || 0;
 
     const checkOutDate =
-      pickFirst(b, ['checkOutDate', 'checkoutDate', 'departureDate', 'endDate', 'toDate']);
+      pickFirst(b, ['checkOutDate', 'checkoutDate', 'checkOut', 'departureDate', 'endDate', 'toDate']);
 
     const paymentStatus =
       pickFirst(b, ['paymentStatus']) ||
@@ -199,7 +202,51 @@ const CustomerBillList = () => {
           billList = mapped;
         }
 
+        // Initial set
         setBills(billList || []);
+
+        // Enrich missing fields (customerName/checkOutDate) by fetching booking details
+        try {
+          const needDetails = (billList || []).filter(
+            (b) => (!b.customerName || b.customerName === '-') || !b.checkOutDate
+          );
+          const uniqueBookingIds = Array.from(
+            new Set(needDetails.map((b) => b.bookingId).filter(Boolean))
+          );
+          if (uniqueBookingIds.length > 0) {
+            const results = await Promise.all(
+              uniqueBookingIds.map(async (id) => {
+                try {
+                  const res = await axios.get(`${API_BASE}/api/bookings/${id}`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                  });
+                  return { id, data: res.data };
+                } catch {
+                  return { id, data: null };
+                }
+              })
+            );
+            const byId = Object.fromEntries(
+              results.map((r) => [r.id, r.data || {}])
+            );
+            setBills((prev) =>
+              prev.map((b) => {
+                const d = b.bookingId && byId[b.bookingId];
+                if (!d) return b;
+                const name = d.customerName || d.guestName || b.customerName;
+                const co = d.checkOut || d.checkOutDate || b.checkOutDate;
+                return {
+                  ...b,
+                  customerName: name || b.customerName,
+                  checkOutDate: co || b.checkOutDate,
+                };
+              })
+            );
+          }
+        } catch (joinErr) {
+          // Non-fatal enrichment failure — keep base list
+          console.warn('Bill enrichment skipped:', joinErr?.message || joinErr);
+        }
       } catch (err) {
         setBills([]);
         setError(err);
@@ -213,13 +260,30 @@ const CustomerBillList = () => {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return bills.filter((b) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const result = bills.filter((b) => {
       const status = (b.paymentStatus || "").toLowerCase();
       const name = (b.customerName || "").toLowerCase();
       const ref = (b.referenceNumber || "").toLowerCase();
       const passesStatus = statusFilter === "all" ? true : status === statusFilter;
       const passesSearch = !q || name.includes(q) || ref.includes(q);
-      return passesStatus && passesSearch;
+      // Exclude bills whose linked booking's check-out date has passed OR is missing
+      const coRaw = b.checkOutDate || (b.raw?.booking?.checkOut) || (b.raw?.booking?.checkOutDate);
+      const co = coRaw ? new Date(coRaw) : null;
+      const hasValidCheckout = co && !isNaN(co);
+      const isActive = hasValidCheckout && co >= today;
+      return passesStatus && passesSearch && isActive;
+    });
+    // Sort by most recent check-out first
+    return result.slice().sort((a, b) => {
+      const aRaw = a.checkOutDate || (a.raw?.booking?.checkOut) || (a.raw?.booking?.checkOutDate);
+      const bRaw = b.checkOutDate || (b.raw?.booking?.checkOut) || (b.raw?.booking?.checkOutDate);
+      const aDate = aRaw ? new Date(aRaw) : null;
+      const bDate = bRaw ? new Date(bRaw) : null;
+      const aTs = aDate && !isNaN(aDate) ? aDate.getTime() : -Infinity;
+      const bTs = bDate && !isNaN(bDate) ? bDate.getTime() : -Infinity;
+      return bTs - aTs;
     });
   }, [bills, search, statusFilter]);
 

@@ -28,7 +28,6 @@ function Rooms() {
   const [children, setChildren] = useState(0);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showLoginConfirmation, setShowLoginConfirmation] = useState(false); // New state for confirmation dialog
-  const [showQrCode, setShowQrCode] = useState(false); // Reset QR code visibility
   const [showPaymentForm, setShowPaymentForm] = useState(false); // New state for showing payment form
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(''); // 'gcash' or 'paymaya'
   const [modalPurpose, setModalPurpose] = useState('info'); // 'info' or 'book'
@@ -104,13 +103,20 @@ function Rooms() {
       setNumberOfHours(diffHours);
 
       const roomPrice = modalRoom.price || 0;
-      const calculatedSubtotal = diffHours * roomPrice;
+      let calculatedSubtotal = diffHours * roomPrice;
+      let calculatedTaxesAndFees = calculatedSubtotal * 0.12; // Assuming 12% tax
+      let calculatedTotal = calculatedSubtotal + calculatedTaxesAndFees;
+
+      // Test pricing override: Economy for exactly 3 hours totals ₱10 (no tax)
+      if (modalRoom?.roomType === 'Economy' && diffHours === 3) {
+        calculatedSubtotal = 10;
+        calculatedTaxesAndFees = 0;
+        calculatedTotal = 10;
+      }
+
       setSubtotal(calculatedSubtotal);
-
-      const calculatedTaxesAndFees = calculatedSubtotal * 0.12; // Assuming 12% tax
       setTaxesAndFees(calculatedTaxesAndFees);
-
-      setTotal(calculatedSubtotal + calculatedTaxesAndFees);
+      setTotal(calculatedTotal);
     }
   }, [checkInDate, checkOutDate, checkInTime, checkOutTime, modalRoom]);
 
@@ -457,7 +463,6 @@ function Rooms() {
     setShowModal(false);
     // setSelectedRoomType(null); // This state variable is not defined, so I'm commenting it out.
     setShowPaymentModal(false); // Close payment modal as well
-    setShowQrCode(false); // Reset QR code visibility
     setModalPurpose('info'); // Reset modal purpose
   };
 
@@ -470,6 +475,7 @@ function Rooms() {
       if (!guestName || !contactNumber || !email || !checkInDate || !checkOutDate) {
         setModalError('Please fill in all required fields.');
         setModalLoading(false);
+        <button className="logout-modal-close" onClick={() => setShowLogoutConfirm(false)}>×</button>
         return;
       }
 
@@ -507,12 +513,10 @@ function Rooms() {
 
       const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/bookings`, bookingData, config);
       const booking = response.data?.newBooking || response.data;
-
-      setBookingSuccessData(booking);
-      setShowSuccessPopup(true);
+      // Redirect to dedicated PayMongo QR page
       setShowModal(false);
-      
-      // Refresh booking count after successful booking
+      navigate(`/paymongo-qr/${booking._id}`);
+      // Optionally refresh booking count (only paid bookings will appear)
       fetchUserBookingCount();
     } catch (err) {
       const errorMessage = err?.response?.data?.message || err.message || 'Failed to create booking.';
@@ -591,7 +595,16 @@ function Rooms() {
             {modalLoading ? (
               <div className="modal-loading">Loading...</div>
             ) : modalError ? (
-              <div className="modal-error">{modalError}</div>
+              <div className="modal-error">
+                <button
+                  className="modal-error-close"
+                  aria-label="Close error"
+                  onClick={() => setModalError('')}
+                >
+                  ×
+                </button>
+                {modalError}
+              </div>
             ) : (
               <>
                 <div className="modal-header">
@@ -790,20 +803,30 @@ function Rooms() {
                         <p>Taxes and fees: ₱{taxesAndFees.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
                         <p>Total: ₱{total.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
                       </div>
-                      <div className={`overlay-content ${showQrCode ? 'show-qr' : ''}`}>
-                        
-                        <div className="modal-actions">
-                          <button
-                            className="book-now-btn"
-                            style={{ color: 'black', backgroundColor: '#B8860B' }}
-                            onClick={handleProceedToPayment}
-                            disabled={modalLoading}
-                          >
-                            {modalLoading ? 'Booking...' : 'Book Now'}
-                          </button>
-                          {modalError && <div className="modal-error">{modalError}</div>}
-                        </div>
-                      </div>
+      <div className="overlay-content">
+                          <div className="modal-actions">
+                            <button
+                              className="book-now-btn"
+                              style={{ color: 'black', backgroundColor: '#B8860B' }}
+                              onClick={handleProceedToPayment}
+                              disabled={modalLoading}
+                            >
+                              {modalLoading ? 'Booking...' : 'Book Now'}
+                            </button>
+                            {modalError && (
+                              <div className="modal-error">
+                                <button
+                                  className="modal-error-close"
+                                  aria-label="Close error"
+                                  onClick={() => setModalError('')}
+                                >
+                                  ×
+                                </button>
+                                {modalError}
+                              </div>
+                            )}
+                          </div>
+      </div>
                     </div>
                   </div>
                 )}
