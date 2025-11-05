@@ -170,120 +170,23 @@ exports.getAdminBillings = asyncHandler(async (req, res, next) => {
   });
 });
 
-// @desc    Get billings by room number with remaining balance calculation
+// @desc    Get billings by room number for the CURRENT active booking only
 // @route   GET /api/billings/room/:roomNumber
 // @access  Private
 exports.getRoomBillings = asyncHandler(async (req, res, next) => {
   const { roomNumber } = req.params;
-  
-  // Get all billings for the specific room number
-  // If user exists, filter by user, otherwise get all billings for the room
-  let billings = [];
-  if (req.user && req.user.id) {
-    billings = await Billing.find({ 
-      roomNumber: roomNumber,
-      user: req.user.id 
-    }).populate({
-      path: 'booking',
-      select: 'roomNumber checkIn checkOut totalAmount'
-    }).sort({ createdAt: -1 });
-  } else {
-    // If no valid user, still return room billings for display purposes
-    billings = await Billing.find({ 
-      roomNumber: roomNumber
-    }).populate({
-      path: 'booking',
-      select: 'roomNumber checkIn checkOut totalAmount'
-    }).sort({ createdAt: -1 });
-  }
 
-  // Get additional billing data that might be stored in a different format
-  // This handles the case where there are billing documents with items array
-  let additionalBillings = [];
-  try {
-    // Use MongoDB aggregation to find documents with the roomNumber and items
-    const BillingRaw = mongoose.model('Billing').collection;
-    const rawResults = await BillingRaw.find({ 
-      roomNumber: roomNumber,
-      items: { $exists: true, $ne: [] }
-    }).toArray();
-    
-    additionalBillings = rawResults.map(doc => ({
-      roomNumber: doc.roomNumber,
-      items: doc.items,
-      checkedOutAt: doc.checkedOutAt,
-      deliveredAt: doc.deliveredAt,
-      totalPrice: doc.totalPrice,
-      date: doc.deliveredAt || doc.checkedOutAt || doc.createdAt
-    }));
-  } catch (error) {
-    console.log('No additional billing format found, using standard format only');
-  }
+  // Ensure we only show bills for active (ongoing or upcoming) bookings
+  // Active = checkOut >= today AND status not in ['cancelled','completed']
+  const today = new Date();
 
-  // Recompute room charge using hourly pricing for this room
-  const roomDoc = await Room.findOne({ roomNumber });
-  const pricePerHour = roomDoc ? Number(roomDoc.price) : 0;
-
-  // Merge billing items
-  const mergedBillings = [];
-  
-  // Add regular billings first
-  billings.forEach(billing => {
-    const hours = billing?.booking ? Math.ceil((new Date(billing.booking.checkOut) - new Date(billing.booking.checkIn)) / (1000 * 60 * 60)) : null;
-    const recomputedAmount = (hours != null && pricePerHour > 0)
-      ? (() => {
-          const subtotal = hours * pricePerHour;
-          const taxesAndFees = subtotal * 0.12;
-          return subtotal + taxesAndFees;
-        })()
-      : (billing.amount || 0);
-
-    mergedBillings.push({
-      _id: billing._id,
-      roomNumber: billing.roomNumber || roomNumber,
-      description: (billing.description && billing.description.includes('Room booking charge'))
-        ? `Room booking charge for ${roomNumber} (${hours ?? 0} hours)`
-        : (billing.description || 'Room charge'),
-      amount: (billing.description && billing.description.includes('Room booking charge'))
-        ? recomputedAmount
-        : (billing.amount || 0),
-      status: billing.status || 'pending',
-      date: billing.createdAt || new Date(),
-      type: 'room_charge',
-      bookingData: billing.booking || null
-    });
-  });
-
-  // Add additional billing items as separate entries
-  additionalBillings.forEach(billing => {
-    if (billing.items && billing.items.length > 0) {
-      billing.items.forEach(item => {
-        mergedBillings.push({
-          roomNumber: billing.roomNumber,
-          description: `${item.name} (quantity: ${item.quantity || 1})`,
-          amount: (item.price || 0) * (item.quantity || 1),
-          status: 'pending', // Changed from 'completed' to 'pending'
-          date: billing.date,
-          type: 'item_charge',
-          bookingData: {
-            checkedOutAt: billing.checkedOutAt,
-            deliveredAt: billing.deliveredAt,
-            totalPrice: billing.totalPrice
-          }
-        });
-      });
-    }
-  });
-
-  // Sort by date (newest first)
-  mergedBillings.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-  if (mergedBillings.length === 0) {
+  // If we don't have a user context, we cannot safely scope bills — return empty
+  if (!req.user || !req.user.id) {
     return res.status(200).json({
       success: true,
       count: 0,
       data: [],
-      roomNumber: roomNumber,
+      roomNumber,
       totalRoomCharges: 0,
       totalExtraCharges: 0,
       remainingBalance: 0,
@@ -291,35 +194,138 @@ exports.getRoomBillings = asyncHandler(async (req, res, next) => {
     });
   }
 
-  // Calculate totals
+  // Find active bookings for this user and room
+  const activeBookings = await Booking.find({
+    user: req.user.id,
+    roomNumber,
+    status: { $nin: ['cancelled', 'completed'] },
+    checkOut: { $gte: today }
+  }).select('_id checkIn checkOut totalAmount');
+
+  // If there are no active bookings, there should be no current bill
+  if (!activeBookings || activeBookings.length === 0) {
+    return res.status(200).json({
+      success: true,
+      count: 0,
+      data: [],
+      roomNumber,
+      totalRoomCharges: 0,
+      totalExtraCharges: 0,
+      remainingBalance: 0,
+      paidAmount: 0
+    });
+  }
+
+  // Optionally scope to the most recent active booking (in case of multiple)
+  // We pick the booking with the latest checkIn date
+  const mostRecentActiveBooking = activeBookings.sort(
+    (a, b) => new Date(b.checkIn) - new Date(a.checkIn)
+  )[0];
+
+  // Fetch billing items tied ONLY to this active booking
+  const billings = await Billing.find({
+    booking: mostRecentActiveBooking._id,
+    user: req.user.id
+  })
+    .populate({
+      path: 'booking',
+      select: 'roomNumber checkIn checkOut totalAmount'
+    })
+    .sort({ createdAt: -1 });
+
+  // Recompute room charge using hourly pricing for this room (as before)
+  const roomDoc = await Room.findOne({ roomNumber });
+  const pricePerHour = roomDoc ? Number(roomDoc.price) : 0;
+
+  // Normalize billing items
+  const mergedBillings = [];
+  billings.forEach((billing) => {
+    const hours = billing?.booking
+      ? Math.ceil(
+          (new Date(billing.booking.checkOut) - new Date(billing.booking.checkIn)) /
+            (1000 * 60 * 60)
+        )
+      : null;
+    const recomputedAmount =
+      hours != null && pricePerHour > 0
+        ? (() => {
+            const subtotal = hours * pricePerHour;
+            const taxesAndFees = subtotal * 0.12;
+            return subtotal + taxesAndFees;
+          })()
+        : billing.amount || 0;
+
+    mergedBillings.push({
+      _id: billing._id,
+      roomNumber: billing.roomNumber || roomNumber,
+      description:
+        billing.description && billing.description.includes('Room booking charge')
+          ? `Room booking charge for ${roomNumber} (${hours ?? 0} hours)`
+          : billing.description || 'Room charge',
+      amount:
+        billing.description && billing.description.includes('Room booking charge')
+          ? recomputedAmount
+          : billing.amount || 0,
+      status: billing.status || 'pending',
+      date: billing.createdAt || new Date(),
+      type: 'room_charge',
+      bookingData: billing.booking || null
+    });
+  });
+
+  // Sort by date (newest first)
+  mergedBillings.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  // If no items, return empty response scoped to the room
+  if (mergedBillings.length === 0) {
+    return res.status(200).json({
+      success: true,
+      count: 0,
+      data: [],
+      roomNumber,
+      totalRoomCharges: 0,
+      totalExtraCharges: 0,
+      remainingBalance: 0,
+      paidAmount: 0
+    });
+  }
+
+  // Totals
   let totalRoomCharges = 0;
   let totalExtraCharges = 0;
   let paidAmount = 0;
 
-  mergedBillings.forEach(billing => {
-    if (billing && billing.type === 'room_charge' && billing.description && billing.description.includes('Room booking charge')) {
+  mergedBillings.forEach((billing) => {
+    if (
+      billing &&
+      billing.type === 'room_charge' &&
+      billing.description &&
+      billing.description.includes('Room booking charge')
+    ) {
       totalRoomCharges += billing.amount || 0;
     } else if (billing) {
       totalExtraCharges += billing.amount || 0;
     }
-    
+
     if (billing && (billing.status === 'paid' || billing.status === 'completed')) {
       paidAmount += billing.amount || 0;
     }
   });
 
-  // Calculate remaining balance (90% of room charges + total extra charges minus what's already paid)
-  const remainingBalance = Math.max(0, (totalRoomCharges * 0.9) + totalExtraCharges - paidAmount);
+  const remainingBalance = Math.max(
+    0,
+    totalRoomCharges * 0.9 + totalExtraCharges - paidAmount
+  );
 
-  res.status(200).json({
+  return res.status(200).json({
     success: true,
     count: mergedBillings.length,
     data: mergedBillings,
-    roomNumber: roomNumber,
-    totalRoomCharges: totalRoomCharges,
-    totalExtraCharges: totalExtraCharges,
-    remainingBalance: remainingBalance,
-    paidAmount: paidAmount
+    roomNumber,
+    totalRoomCharges,
+    totalExtraCharges,
+    remainingBalance,
+    paidAmount
   });
 });
 
