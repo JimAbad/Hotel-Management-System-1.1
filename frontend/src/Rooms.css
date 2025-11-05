@@ -694,7 +694,7 @@
   border: 2px solid #fecaca;
   border-left: 6px solid var(--danger-color);
   border-radius: 12px;
-  padding: 20px 24px;
+  padding: 20px 44px 20px 24px; /* Add right padding for the close button */
   margin: 20px 0;
   color: #991b1b;
   font-size: 15px;
@@ -704,6 +704,26 @@
   box-shadow: 0 4px 12px rgba(220, 53, 69, 0.1);
   position: relative;
   animation: errorSlideIn 0.3s ease-out;
+}
+
+/* Close button for error modal */
+.modal-error-close {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  background: transparent;
+  border: none;
+  color: #991b1b;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 2;
+  font-weight: 700;
+  appearance: none;
+}
+
+.modal-error-close:hover {
+  color: #7f1d1d;
 }
 
 .modal-error::before {

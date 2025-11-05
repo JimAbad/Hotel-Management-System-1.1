@@ -39,8 +39,8 @@ a:hover {
 
 body {
   margin: 0;
-  display: flex;
-  /* place-items: center; */
+  /* Use block layout to avoid full-page centering artifacts */
+  display: block;
   min-width: 320px;
   min-height: 100vh;
 }

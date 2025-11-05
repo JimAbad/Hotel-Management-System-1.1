@@ -1,4 +1,4 @@
-import React, { useContext } from 'react';
+import React, { useContext, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate, NavLink } from 'react-router-dom';
 import AuthContextAdmin from './AuthContextAdmin';
 import './LayoutAdmin.css';
@@ -8,10 +8,16 @@ const LayoutAdmin = () => {
   const { logout } = useContext(AuthContextAdmin);
   const location = useLocation();
   const navigate = useNavigate();
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
-  const handleLogout = () => {
+  const confirmLogout = () => {
+    setShowLogoutConfirm(false);
     logout();
-    navigate('/'); // Redirect to landing page
+    navigate('/');
+  };
+
+  const cancelLogout = () => {
+    setShowLogoutConfirm(false);
   };
 
   return (
@@ -34,11 +40,6 @@ const LayoutAdmin = () => {
               </Link>
             </li>
             <li>
-              <Link to="/admin/manage-rooms" className={location.pathname === '/admin/manage-rooms' ? 'active' : ''}>
-                <FaBook className="icon" /> Manage Rooms
-              </Link>
-            </li>
-            <li>
               <NavLink to="/admin/customer-bills">Customer Bills</NavLink>
             </li>
             <li>
@@ -49,7 +50,7 @@ const LayoutAdmin = () => {
           </ul>
         </nav>
         <div className="sidebar-footer">
-          <button onClick={handleLogout}>
+          <button onClick={() => setShowLogoutConfirm(true)}>
             <FaSignOutAlt className="icon" /> Logout
           </button>
         </div>
@@ -57,6 +58,24 @@ const LayoutAdmin = () => {
       <div className="main-content">
         <Outlet />
       </div>
+
+      {showLogoutConfirm && (
+        <div className="logout-modal-overlay">
+          <div className="logout-confirmation-modal">
+            <div className="logout-modal-header">
+              <h3 className="logout-modal-title">Confirm Logout</h3>
+              <button className="logout-modal-close" onClick={() => setShowLogoutConfirm(false)}>×</button>
+            </div>
+            <div className="logout-modal-body">
+              Are you sure you want to logout?
+            </div>
+            <div className="logout-modal-footer">
+              <button className="logout-cancel-btn" onClick={cancelLogout}>Cancel</button>
+              <button className="logout-confirm-btn" onClick={confirmLogout}>Logout</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

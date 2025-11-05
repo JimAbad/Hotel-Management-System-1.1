@@ -293,12 +293,18 @@ const ManageBooking = () => {
   const filtered = React.useMemo(() => {
     const q = (searchQuery || "").toLowerCase();
     const sf = (statusFilter || "").toLowerCase();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
     return (bookings || []).filter((b) => {
       const name = (b.guestName || b.customerName || b.name || "").toLowerCase();
       const status = String(getBookingStatus(b) || "").toLowerCase();
       const okSearch = !q || name.includes(q);
       const okStatus = !sf || status === sf;
-      return okSearch && okStatus;
+      // Exclude bookings whose check-out date has passed
+      const coRaw = getCheckOut(b);
+      const co = coRaw ? new Date(coRaw) : null;
+      const okDate = !co || isNaN(co) ? true : co >= today;
+      return okSearch && okStatus && okDate;
     });
   }, [bookings, searchQuery, statusFilter]);
 
