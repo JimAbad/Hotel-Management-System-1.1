@@ -51,7 +51,7 @@ function PayMongoQR() {
       const res = await axios.post(`${import.meta.env.VITE_API_URL}/api/payment/create-paymongo-source`, {
         bookingId,
         amount: paymentData?.totalAmount,
-        type: 'gcash', // default to gcash, adjust if needed
+        type: 'qrph',
       }, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
