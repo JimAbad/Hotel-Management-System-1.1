@@ -151,7 +151,7 @@ exports.confirmPayment = async (req, res) => {
 exports.getAllBillings = async (req, res) => {
   console.log('getAllBillings function reached');
   try {
-    const billings = await Booking.find({ user: req.user.id, paymentStatus: 'paid' }).populate('room');
+    const billings = await Booking.find({ user: req.user.id, paymentStatus: { $in: ['paid', 'partial'] } }).populate('room');
     res.status(200).json(billings);
   } catch (error) {
     console.error('Error fetching billings:', error);
@@ -429,7 +429,58 @@ async function createPayMongoSource(req, res, next) {
     const successUrl = `${baseUrl}/payment-success?bookingId=${bookingId}`;
     const failedUrl = `${baseUrl}/payment-failed?bookingId=${bookingId}`;
 
-    // Prepare payload per PayMongo API
+    // If type is QRPh, use Payment Intents API instead of Sources
+    const lowerType = String(type || '').toLowerCase();
+    if (lowerType === 'qrph') {
+      if (!process.env.PAYMONGO_SECRET_KEY) {
+        return next(new ErrorResponse('PayMongo secret key is not configured on the server', 500));
+      }
+
+      const intentPayload = {
+        data: {
+          attributes: {
+            amount: amountCentavos,
+            currency: 'PHP',
+            description: `Booking ${bookingId}`,
+            payment_method_allowed: ['qrph'],
+            capture_type: 'automatic',
+            metadata: { bookingId }
+          }
+        }
+      };
+
+      const intentAuth = Buffer.from(`${process.env.PAYMONGO_SECRET_KEY}:`).toString('base64');
+      const intentRes = await axios.post('https://api.paymongo.com/v1/payment_intents', intentPayload, {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Basic ${intentAuth}`,
+        },
+      });
+
+      const intentData = intentRes?.data?.data;
+      if (!intentData?.id) {
+        return next(new ErrorResponse('Failed to create PayMongo payment intent', 500));
+      }
+
+      // Persist identifiers to help webhook mapping
+      booking.paymentDetails = booking.paymentDetails || {};
+      booking.paymentDetails.paymentIntentId = intentData.id; // for backward search compatibility
+      booking.paymentDetails.paymongoPaymentIntentId = intentData.id;
+      booking.paymentStatus = 'pending';
+      await booking.save();
+
+      // Return a placeholder source id to avoid repeated creation on the client
+      return res.status(201).json({
+        success: true,
+        data: {
+          paymongoSourceId: intentData.id, // not a real source; used to stop client retries
+          paymentStatus: 'pending',
+          totalAmount: booking.totalAmount,
+        },
+      });
+    }
+
+    // Non-QRPh types use Sources API (e.g., gcash, paymaya, grab_pay)
     const payload = {
       data: {
         attributes: {
@@ -438,19 +489,14 @@ async function createPayMongoSource(req, res, next) {
             success: successUrl,
             failed: failedUrl,
           },
-          type: type.toLowerCase(), // e.g., 'qrph', 'gcash', 'paymaya'
+          type: lowerType, // e.g., 'gcash', 'paymaya', 'grab_pay'
           currency: 'PHP',
-          // Include metadata to carry bookingId through webhooks
-          metadata: {
-            bookingId: bookingId
-          }
+          metadata: { bookingId }
         },
       },
     };
 
-    // Basic auth uses the PUBLIC key for creating sources
     const authString = Buffer.from(`${process.env.PAYMONGO_PUBLIC_KEY}:`).toString('base64');
-
     const response = await axios.post('https://api.paymongo.com/v1/sources', payload, {
       headers: {
         'Content-Type': 'application/json',
@@ -459,12 +505,10 @@ async function createPayMongoSource(req, res, next) {
     });
 
     const sourceData = response.data?.data;
-
-    if (!sourceData || !sourceData.id) {
+    if (!sourceData?.id) {
       return next(new ErrorResponse('Failed to create PayMongo source', 500));
     }
 
-    // Save in booking
     booking.paymongoSourceId = sourceData.id;
     booking.paymentStatus = 'pending';
     await booking.save();

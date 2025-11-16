@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import AuthContext from './AuthContext';
 import './PayMongoQR.css';
+import qrph from './img/qrph.jpg';
+// Using public asset for robust path resolution across dev servers
 
 function PayMongoQR() {
   const { bookingId } = useParams();
@@ -33,7 +35,7 @@ function PayMongoQR() {
       const data = res.data?.data || {};
       setPaymentData(data);
       // If paid, stop polling
-      if (data.paymentStatus === 'paid') {
+      if (data.paymentStatus === 'paid' || data.paymentStatus === 'partial') {
         setPollCount(-1); // stop further polling
       }
     } catch (err) {
@@ -109,7 +111,7 @@ function PayMongoQR() {
   }
 
   const { paymongoSourceId, paymentStatus, paymentAmount, totalAmount } = paymentData;
-  const isPaid = paymentStatus === 'paid';
+  const isPaid = paymentStatus === 'paid' || paymentStatus === 'partial';
 
 
   return (
@@ -124,15 +126,7 @@ function PayMongoQR() {
       ) : (
         <div className="payment-pending">
           <p>Please complete your payment by scanning the QR code below using your preferred e-wallet app.</p>
-          {paymongoSourceId ? (
-            <img
-              src={`https://api.paymongo.com/v1/sources/${paymongoSourceId}/qr_code`}
-              alt="PayMongo QR Code"
-              className="qr-code-img"
-            />
-          ) : (
-            <p>QR code not available. Please try again later.</p>
-          )}
+          <img src={qrph} alt="PayMongo QR Code" className="qr-code-img" />
           <p>Payment Status: {paymentStatus}</p>
           <button onClick={() => fetchPaymentDetails()}>Refresh Status</button>
         </div>
