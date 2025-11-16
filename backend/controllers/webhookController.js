@@ -163,13 +163,15 @@ const handlePayMongoWebhook = async (req, res) => {
       await booking.save();
       console.log(`Booking ${bookingId} marked as paid via PayMongo`);
     } else if (evtType === 'payment.failed') {
-      booking.paymentStatus = 'failed';
+      // Keep as pending to allow retrial; schema doesn't include 'failed'
+      booking.paymentStatus = 'pending';
       await booking.save();
-      console.log(`Booking ${bookingId} marked as failed via PayMongo`);
+      console.log(`Booking ${bookingId} remains pending (payment failed)`);
     } else if (evtType === 'qrph.expired') {
-      booking.paymentStatus = 'failed';
+      // QRPh source expired; allow reattempt by keeping pending
+      booking.paymentStatus = 'pending';
       await booking.save();
-      console.log(`Booking ${bookingId} marked as failed (QRPh expired)`);
+      console.log(`Booking ${bookingId} remains pending (QRPh expired)`);
     } else if (evtType === 'source.chargeable') {
       // When a source becomes chargeable, attempt to create a payment
       try {
