@@ -163,11 +163,13 @@ const handlePayMongoWebhook = async (req, res) => {
       await booking.save();
       console.log(`Booking ${bookingId} marked as paid via PayMongo`);
     } else if (evtType === 'payment.failed') {
-      booking.paymentStatus = 'failed';
+      // Keep as pending to allow retry; record failure via logs
+      booking.paymentStatus = 'pending';
       await booking.save();
       console.log(`Booking ${bookingId} marked as failed via PayMongo`);
     } else if (evtType === 'qrph.expired') {
-      booking.paymentStatus = 'failed';
+      // QR expired; keep pending so user can regenerate a source
+      booking.paymentStatus = 'pending';
       await booking.save();
       console.log(`Booking ${bookingId} marked as failed (QRPh expired)`);
     } else if (evtType === 'source.chargeable') {
