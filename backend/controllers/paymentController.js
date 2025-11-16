@@ -5,6 +5,8 @@ const x = new Xendit({ secretKey: process.env.XENDIT_SECRET_API_KEY });
 const paymentIntentService = x.PaymentIntent;
 const { EWallet } = x;
 const ewalletService = new EWallet({});
+const ErrorResponse = require('../utils/errorResponse');
+const axios = require('axios');
 
 exports.createPaymentIntent = async (req, res) => {
   try {
@@ -337,27 +339,162 @@ exports.createEWalletPaymentSource = async (req, res, next) => {
   }
 };
 
-// New: return stored payment details for a booking (used by route /paymongo-details/:bookingId)
-exports.getPayMongoPaymentDetails = async (req, res) => {
+// @desc    Get PayMongo payment/source details for a booking
+// @route   GET /api/payment/paymongo-details/:bookingId
+// @access  Private (customer or admin)
+exports.getPayMongoPaymentDetails = async (req, res, next) => {
   try {
     const { bookingId } = req.params;
+
+    // Validate booking ID
     if (!bookingId) {
-      return res.status(400).json({ message: 'bookingId parameter is required' });
+      return next(new ErrorResponse('Booking ID is required', 400));
     }
 
-    const booking = await Booking.findById(bookingId).populate('room');
+    const booking = await Booking.findById(bookingId);
     if (!booking) {
-      return res.status(404).json({ message: 'Booking not found' });
+      return next(new ErrorResponse('Booking not found', 404));
     }
 
-    if (!booking.paymentDetails) {
-      return res.status(404).json({ message: 'Payment details not found for this booking' });
+    // Only allow the owner of the booking or an admin to access the details
+    if (booking.user.toString() !== req.user.id && req.user.role !== 'admin') {
+      return next(new ErrorResponse('Not authorized to view this booking', 401));
     }
 
-    return res.status(200).json({ paymentDetails: booking.paymentDetails, booking });
+    res.status(200).json({
+      success: true,
+      data: {
+        paymongoSourceId: booking.paymongoSourceId || null,
+        paymongoPaymentId: booking.paymongoPaymentId || null,
+        paymentStatus: booking.paymentStatus,
+        totalAmount: booking.totalAmount,
+        paymentAmount: booking.paymentAmount,
+      },
+    });
   } catch (error) {
-    console.error('Error in getPayMongoPaymentDetails:', error);
-    return res.status(500).json({ message: 'Server error', error: error.message });
+    console.error('Error fetching PayMongo payment details:', error);
+    next(new ErrorResponse('Failed to retrieve PayMongo payment details', 500));
   }
+};
+
+
+
+// @desc    Create PayMongo payment source for a booking
+// @route   POST /api/payment/create-paymongo-source
+// @access  Private (customer or admin)
+async function createPayMongoSource(req, res, next) {
+  try {
+    const { bookingId, type = 'gcash', amount } = req.body;
+
+    // Validate booking ID
+    if (!bookingId) {
+      return next(new ErrorResponse('Booking ID is required', 400));
+    }
+
+    const booking = await Booking.findById(bookingId);
+    if (!booking) {
+      return next(new ErrorResponse('Booking not found', 404));
+    }
+
+    // Ensure the user can only create a source for their own booking unless admin
+    if (booking.user.toString() !== req.user.id && req.user.role !== 'admin') {
+      return next(new ErrorResponse('Not authorized to create payment source for this booking', 401));
+    }
+
+    // If a source already exists and payment is pending/paid, just return existing data
+    if (booking.paymongoSourceId && booking.paymentStatus !== 'failed') {
+      return res.status(200).json({
+        success: true,
+        data: {
+          paymongoSourceId: booking.paymongoSourceId,
+          paymentStatus: booking.paymentStatus,
+          paymentAmount: booking.paymentAmount,
+          totalAmount: booking.totalAmount,
+        },
+      });
+    }
+
+    // Ensure PayMongo public key is configured
+    if (!process.env.PAYMONGO_PUBLIC_KEY) {
+      return next(new ErrorResponse('PayMongo public key is not configured on the server', 500));
+    }
+
+    // Calculate amount in centavos (PayMongo expects amount in the smallest currency unit)
+    const amountCentavos = Math.round(((amount || booking.totalAmount) * 100));
+
+    // Determine base URL for redirects
+    const baseUrl = process.env.FRONTEND_URL || process.env.APP_URL || 'http://localhost:5173';
+
+    // Build redirect URLs
+    const successUrl = `${baseUrl}/payment-success?bookingId=${bookingId}`;
+    const failedUrl = `${baseUrl}/payment-failed?bookingId=${bookingId}`;
+
+    // Prepare payload per PayMongo API
+    const payload = {
+      data: {
+        attributes: {
+          amount: amountCentavos,
+          redirect: {
+            success: successUrl,
+            failed: failedUrl,
+          },
+          type: type.toLowerCase(), // e.g., 'gcash', 'paymaya'
+          currency: 'PHP',
+          // Include metadata to carry bookingId through webhooks
+          metadata: {
+            bookingId: bookingId
+          }
+        },
+      },
+    };
+
+    // Basic auth uses the PUBLIC key for creating sources
+    const authString = Buffer.from(`${process.env.PAYMONGO_PUBLIC_KEY}:`).toString('base64');
+
+    const response = await axios.post('https://api.paymongo.com/v1/sources', payload, {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Basic ${authString}`,
+      },
+    });
+
+    const sourceData = response.data?.data;
+
+    if (!sourceData || !sourceData.id) {
+      return next(new ErrorResponse('Failed to create PayMongo source', 500));
+    }
+
+    // Save in booking
+    booking.paymongoSourceId = sourceData.id;
+    booking.paymentStatus = 'pending';
+    await booking.save();
+
+    res.status(201).json({
+      success: true,
+      data: {
+        paymongoSourceId: sourceData.id,
+        paymentStatus: 'pending',
+        totalAmount: booking.totalAmount,
+      },
+    });
+  } catch (error) {
+    console.error('Error creating PayMongo source:', error.response?.data || error.message);
+    // If PayMongo API returned an error, forward its message
+    if (error.response?.data) {
+      const message = error.response.data.errors?.[0]?.detail || 'PayMongo API error';
+      return next(new ErrorResponse(message, error.response.status || 500));
+    }
+    next(new ErrorResponse('Failed to create PayMongo payment source', 500));
+  }
+}
+
+module.exports = {
+  createPaymentIntent: exports.createPaymentIntent,
+  confirmPayment: exports.confirmPayment,
+  getAllBillings: exports.getAllBillings,
+  createPaymentMethod: exports.createPaymentMethod,
+  createEWalletPaymentSource: exports.createEWalletPaymentSource,
+  getPayMongoPaymentDetails: exports.getPayMongoPaymentDetails,
+  createPayMongoSource
 };
 

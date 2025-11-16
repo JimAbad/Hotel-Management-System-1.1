@@ -65,7 +65,14 @@ function MyBookings() {
           Authorization: `Bearer ${token}`,
         },
       });
-      setBookings(response.data);
+      // Show bookings that have at least been created; optionally filter out cancelled/deleted statuses
+      const allBookings = response.data || [];
+      // Include bookings with payment statuses that indicate user interest (e.g., paid, pending, or processing)
+      const visibleBookings = allBookings.filter(b => {
+        const status = (b.paymentStatus || '').toLowerCase();
+        return ['paid', 'pending', 'processing'].includes(status);
+      });
+      setBookings(visibleBookings);
     } catch (err) {
       setError(err);
     } finally {
@@ -196,10 +203,12 @@ function MyBookings() {
     return <div className="my-bookings-container">Error: {error.message}</div>;
   }
 
-if (bookings.length === 0) {
-    return <div className="no-bookings">
-          <p>You don't have any bookings yet.</p>
-        </div>
+  if (bookings.length === 0) {
+    return (
+      <div className="no-bookings">
+        <p>You don't have any bookings yet.</p>
+      </div>
+    );
   }
   // Check if there are any cancelled bookings
   const hasCancelledBookings = bookings.some(booking => 
@@ -219,7 +228,9 @@ if (bookings.length === 0) {
             <p>Check-in: {formatDateTime(booking.checkIn)}</p>
             <p>Check-out: {formatDateTime(booking.checkOut)}</p>
             <p>Total Price: ₱{formatPrice(booking.totalAmount)}</p>
-          
+            {booking.paymentStatus && (
+              <p>Payment Status: {booking.paymentStatus}</p>
+            )}
             <p>Booking Status: {booking.status || booking.bookingStatus}</p>
             <div className="booking-actions">
               {['pending', 'upcoming'].includes((booking.status || booking.bookingStatus)) && (

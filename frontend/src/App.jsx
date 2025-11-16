@@ -16,6 +16,7 @@ import { FaSignInAlt, FaSignOutAlt } from 'react-icons/fa';
 import { AuthProvider } from './AuthContext';
 import ViewCustomerBillAdmin from './ViewCustomerBillAdmin';
 import VerifyEmail from './VerifyEmail';
+import PayMongoQR from './PayMongoQR';
 
 function App() {
   return (
@@ -105,6 +106,7 @@ function AppContent() {
         <Route path="/verify-email" element={<VerifyEmail />} />
         <Route path="/room-details/:id" element={<RoomDetails />} />
         <Route path="/admin/viewcustomerbills" element={<ViewCustomerBillAdmin />} />
+        <Route path="/paymongo-qr/:bookingId" element={<PayMongoQR />} />
       </Routes>
     </div>
   );
