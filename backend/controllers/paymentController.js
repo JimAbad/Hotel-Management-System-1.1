@@ -5,9 +5,8 @@ const x = new Xendit({ secretKey: process.env.XENDIT_SECRET_API_KEY });
 const paymentIntentService = x.PaymentIntent;
 const { EWallet } = x;
 const ewalletService = new EWallet({});
+const ErrorResponse = require('../utils/errorResponse');
 const axios = require('axios');
-const PAYMONGO_SECRET_KEY = process.env.PAYMONGO_API_KEY || process.env.PAYMONGO_TEST_SECRET_KEY;
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 
 exports.createPaymentIntent = async (req, res) => {
   try {
@@ -340,187 +339,162 @@ exports.createEWalletPaymentSource = async (req, res, next) => {
   }
 };
 
-// New: return stored payment details for a booking (used by route /paymongo-details/:bookingId)
-exports.getPayMongoPaymentDetails = async (req, res) => {
+// @desc    Get PayMongo payment/source details for a booking
+// @route   GET /api/payment/paymongo-details/:bookingId
+// @access  Private (customer or admin)
+exports.getPayMongoPaymentDetails = async (req, res, next) => {
   try {
     const { bookingId } = req.params;
+
+    // Validate booking ID
     if (!bookingId) {
-      return res.status(400).json({ message: 'bookingId parameter is required' });
+      return next(new ErrorResponse('Booking ID is required', 400));
     }
 
-    const booking = await Booking.findById(bookingId).populate('room');
+    const booking = await Booking.findById(bookingId);
     if (!booking) {
-      return res.status(404).json({ message: 'Booking not found' });
+      return next(new ErrorResponse('Booking not found', 404));
     }
 
-    if (!booking.paymentDetails) {
-      return res.status(404).json({ message: 'Payment details not found for this booking' });
+    // Only allow the owner of the booking or an admin to access the details
+    if (booking.user.toString() !== req.user.id && req.user.role !== 'admin') {
+      return next(new ErrorResponse('Not authorized to view this booking', 401));
     }
 
-    // Fallback: if webhook hasn’t updated yet, query PayMongo intent status directly
-    try {
-      const currentStatus = booking.paymentStatus;
-      const piId = booking.paymentDetails?.paymentIntentId;
-      if (piId && currentStatus !== 'paid' && currentStatus !== 'failed' && currentStatus !== 'expired') {
-        const basicAuth = Buffer.from(`${PAYMONGO_SECRET_KEY}:`).toString('base64');
-        const headers = { 'Authorization': `Basic ${basicAuth}` };
-        const piGet = await axios.get(`https://api.paymongo.com/v1/payment_intents/${piId}`, { headers });
-        const piAttrs = piGet.data?.data?.attributes || {};
-        const piStatus = piAttrs.status;
-
-        if (piStatus === 'succeeded') {
-          const dp = booking.paymentDetails?.downpaymentAmount;
-          const total = booking.totalAmount || 0;
-          const isPartial = dp && total && dp < total;
-          booking.paymentStatus = isPartial ? 'partial' : 'paid';
-          booking.status = 'confirmed';
-          booking.paymentDetails = booking.paymentDetails || {};
-          booking.paymentDetails.paymongoStatus = 'payment.paid';
-          booking.paymentDetails.paymongoPaidAt = new Date();
-          booking.paymentDetails.paymongoPaymentIntentId = piId;
-
-          // Mark room occupied
-          try {
-            const Room = require('../models/roomModel');
-            const room = await Room.findById(booking.room);
-            if (room) {
-              room.status = 'occupied';
-              await room.save();
-            }
-          } catch (roomErr) {
-            console.error('Failed to set room occupied after PayMongo PI success:', roomErr);
-          }
-
-          await booking.save();
-        } else if (piStatus === 'cancelled') {
-          booking.paymentStatus = 'failed';
-          booking.paymentDetails = booking.paymentDetails || {};
-          booking.paymentDetails.paymongoStatus = 'payment.failed';
-          await booking.save();
-        } else if (piStatus === 'expired') {
-          booking.paymentStatus = 'expired';
-          booking.paymentDetails = booking.paymentDetails || {};
-          booking.paymentDetails.paymongoStatus = 'qrph.expired';
-          await booking.save();
-        }
-      }
-    } catch (fallbackErr) {
-      console.warn('PayMongo fallback status check failed:', fallbackErr?.response?.data || fallbackErr?.message);
-    }
-
-    return res.status(200).json({ paymentDetails: booking.paymentDetails, booking });
+    res.status(200).json({
+      success: true,
+      data: {
+        paymongoSourceId: booking.paymongoSourceId || null,
+        paymongoPaymentId: booking.paymongoPaymentId || null,
+        paymentStatus: booking.paymentStatus,
+        totalAmount: booking.totalAmount,
+        paymentAmount: booking.paymentAmount,
+      },
+    });
   } catch (error) {
-    console.error('Error in getPayMongoPaymentDetails:', error);
-    return res.status(500).json({ message: 'Server error', error: error.message });
+    console.error('Error fetching PayMongo payment details:', error);
+    next(new ErrorResponse('Failed to retrieve PayMongo payment details', 500));
   }
 };
 
-// Initiate PayMongo QRPh payment: creates payment intent + qrph payment method and attaches
-exports.initiatePaymongoQrPh = async (req, res) => {
+
+
+// @desc    Create PayMongo payment source for a booking
+// @route   POST /api/payment/create-paymongo-source
+// @access  Private (customer or admin)
+async function createPayMongoSource(req, res, next) {
   try {
-    const { bookingId } = req.body;
+    const { bookingId, type = 'gcash', amount } = req.body;
+
+    // Validate booking ID
     if (!bookingId) {
-      return res.status(400).json({ message: 'bookingId is required' });
+      return next(new ErrorResponse('Booking ID is required', 400));
     }
 
-    const booking = await Booking.findById(bookingId).populate('room');
+    const booking = await Booking.findById(bookingId);
     if (!booking) {
-      return res.status(404).json({ message: 'Booking not found' });
+      return next(new ErrorResponse('Booking not found', 404));
     }
 
-    const downpayment = booking.paymentDetails?.downpaymentAmount;
-    const chargeAmount = (downpayment != null && !isNaN(downpayment) && downpayment > 0)
-      ? downpayment
-      : (booking.totalAmount || 0);
-    const amountInCentavos = Math.round(chargeAmount * 100);
-    if (!amountInCentavos || amountInCentavos <= 0) {
-      return res.status(400).json({ message: 'Invalid booking amount' });
+    // Ensure the user can only create a source for their own booking unless admin
+    if (booking.user.toString() !== req.user.id && req.user.role !== 'admin') {
+      return next(new ErrorResponse('Not authorized to create payment source for this booking', 401));
     }
 
-    const basicAuth = Buffer.from(`${PAYMONGO_SECRET_KEY}:`).toString('base64');
-    const headers = {
-      'Content-Type': 'application/json',
-      'Authorization': `Basic ${basicAuth}`
-    };
+    // If a source already exists and payment is pending/paid, just return existing data
+    if (booking.paymongoSourceId && booking.paymentStatus !== 'failed') {
+      return res.status(200).json({
+        success: true,
+        data: {
+          paymongoSourceId: booking.paymongoSourceId,
+          paymentStatus: booking.paymentStatus,
+          paymentAmount: booking.paymentAmount,
+          totalAmount: booking.totalAmount,
+        },
+      });
+    }
 
-    // 1) Create Payment Intent allowing qrph
-    const piResp = await axios.post('https://api.paymongo.com/v1/payment_intents', {
+    // Ensure PayMongo public key is configured
+    if (!process.env.PAYMONGO_PUBLIC_KEY) {
+      return next(new ErrorResponse('PayMongo public key is not configured on the server', 500));
+    }
+
+    // Calculate amount in centavos (PayMongo expects amount in the smallest currency unit)
+    const amountCentavos = Math.round(((amount || booking.totalAmount) * 100));
+
+    // Determine base URL for redirects
+    const baseUrl = process.env.FRONTEND_URL || process.env.APP_URL || 'http://localhost:5173';
+
+    // Build redirect URLs
+    const successUrl = `${baseUrl}/payment-success?bookingId=${bookingId}`;
+    const failedUrl = `${baseUrl}/payment-failed?bookingId=${bookingId}`;
+
+    // Prepare payload per PayMongo API
+    const payload = {
       data: {
         attributes: {
-          amount: amountInCentavos,
+          amount: amountCentavos,
+          redirect: {
+            success: successUrl,
+            failed: failedUrl,
+          },
+          type: type.toLowerCase(), // e.g., 'gcash', 'paymaya'
           currency: 'PHP',
-          capture_type: 'automatic',
-          payment_method_allowed: ['qrph'],
-          description: `Booking ${bookingId} payment`,
-          metadata: { bookingId }
-        }
-      }
-    }, { headers });
-
-    const paymentIntent = piResp.data?.data?.attributes;
-    const paymentIntentId = piResp.data?.data?.id;
-
-    // 2) Create Payment Method type qrph
-    const pmResp = await axios.post('https://api.paymongo.com/v1/payment_methods', {
-      data: {
-        attributes: {
-          type: 'qrph',
-          billing: {
-            name: booking.customerName || booking.guestName || 'Guest',
-            email: booking.customerEmail || 'guest@example.com',
-            phone: booking.contactNumber || ''
+          // Include metadata to carry bookingId through webhooks
+          metadata: {
+            bookingId: bookingId
           }
-        }
-      }
-    }, { headers });
-
-    const paymentMethodId = pmResp.data?.data?.id;
-
-    // 3) Attach Payment Method to Intent and get QR
-    const attachResp = await axios.post(`https://api.paymongo.com/v1/payment_intents/${paymentIntentId}/attach`, {
-      data: {
-        attributes: {
-          payment_method: paymentMethodId,
-          return_url: `${FRONTEND_URL}/payment-status`
-        }
-      }
-    }, { headers });
-
-    const attached = attachResp.data?.data?.attributes;
-    const nextAction = attached?.next_action || {};
-    const qrDisplay = nextAction?.display_qr || {};
-    const imageUrl = qrDisplay?.image_url || null;
-    const qrExpiresAt = qrDisplay?.expires_at || attached?.expires_at || null;
-
-    // Update booking payment details
-    booking.paymentStatus = 'processing';
-    booking.paymentDetails = {
-      ...(booking.paymentDetails || {}),
-      paymentIntentId: paymentIntentId,
-      paymentMethodId,
-      paymongoStatus: attached?.status || 'PENDING',
-      qrImageUrl: imageUrl,
-      qrExpiresAt,
-      amount: amountInCentavos,
-      currency: 'PHP'
+        },
+      },
     };
+
+    // Basic auth uses the PUBLIC key for creating sources
+    const authString = Buffer.from(`${process.env.PAYMONGO_PUBLIC_KEY}:`).toString('base64');
+
+    const response = await axios.post('https://api.paymongo.com/v1/sources', payload, {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Basic ${authString}`,
+      },
+    });
+
+    const sourceData = response.data?.data;
+
+    if (!sourceData || !sourceData.id) {
+      return next(new ErrorResponse('Failed to create PayMongo source', 500));
+    }
+
+    // Save in booking
+    booking.paymongoSourceId = sourceData.id;
+    booking.paymentStatus = 'pending';
     await booking.save();
 
-    return res.status(200).json({
+    res.status(201).json({
       success: true,
-      bookingId: booking._id,
-      imageUrl,
-      expiresAt: qrExpiresAt,
-      paymentIntentId,
-      paymentMethodId
+      data: {
+        paymongoSourceId: sourceData.id,
+        paymentStatus: 'pending',
+        totalAmount: booking.totalAmount,
+      },
     });
   } catch (error) {
-    console.error('Error initiating PayMongo QRPh:', error.response?.data || error.message);
-    const status = error.response?.status || 500;
-    return res.status(status).json({
-      message: 'Failed to initiate PayMongo QRPh',
-      error: error.response?.data || error.message
-    });
+    console.error('Error creating PayMongo source:', error.response?.data || error.message);
+    // If PayMongo API returned an error, forward its message
+    if (error.response?.data) {
+      const message = error.response.data.errors?.[0]?.detail || 'PayMongo API error';
+      return next(new ErrorResponse(message, error.response.status || 500));
+    }
+    next(new ErrorResponse('Failed to create PayMongo payment source', 500));
   }
+}
+
+module.exports = {
+  createPaymentIntent: exports.createPaymentIntent,
+  confirmPayment: exports.confirmPayment,
+  getAllBillings: exports.getAllBillings,
+  createPaymentMethod: exports.createPaymentMethod,
+  createEWalletPaymentSource: exports.createEWalletPaymentSource,
+  getPayMongoPaymentDetails: exports.getPayMongoPaymentDetails,
+  createPayMongoSource
 };
 

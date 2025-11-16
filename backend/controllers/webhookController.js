@@ -1,10 +1,11 @@
 const crypto = require('crypto');
+const axios = require('axios');
 const Xendit = require('xendit-node');
 const Booking = require('../models/bookingModel');
-const PAYMONGO_WEBHOOK_SECRET = process.env.PAYMONGO_WEBHOOK_SECRET;
 
 const XENDIT_SECRET_API_KEY = process.env.XENDIT_SECRET_API_KEY;
 const XENDIT_WEBHOOK_TOKEN = process.env.XENDIT_WEBHOOK_TOKEN;
+const PAYMONGO_WEBHOOK_SECRET = process.env.PAYMONGO_WEBHOOK_SECRET;
 
 const xendit = new Xendit({ secretKey: XENDIT_SECRET_API_KEY });
 
@@ -68,21 +69,6 @@ const handleXenditWebhook = async (req, res) => {
         if (xenditPaidAt) {
           booking.paymentDetails.xenditPaidAt = xenditPaidAt;
         }
-
-        // If payment succeeded, confirm booking and mark room occupied
-        if (paymentStatus === 'paid') {
-          booking.status = 'confirmed';
-          try {
-            const room = await require('../models/roomModel').findById(booking.room);
-            if (room) {
-              room.status = 'occupied';
-              await room.save();
-            }
-          } catch (roomErr) {
-            console.error('Failed to set room occupied after Xendit payment:', roomErr);
-          }
-        }
-
         await booking.save();
         console.log(`Booking ${bookingId} updated to status: ${paymentStatus}`);
       } else {
@@ -97,129 +83,139 @@ const handleXenditWebhook = async (req, res) => {
   }
 };
 
-module.exports = { handleXenditWebhook };
-
-// PayMongo webhook handler
-const handlePaymongoWebhook = async (req, res) => {
+/**
+ * Handle PayMongo webhook events
+ * Docs: https://paymongo.com/docs/#webhooks (signature verification)
+ */
+const handlePayMongoWebhook = async (req, res) => {
   try {
-    const signatureHeader = req.get('Paymongo-Signature') || req.headers['paymongo-signature'];
+    console.log('PayMongo Webhook received. Headers:', req.headers);
+    const signatureHeader = req.headers['paymongo-signature'];
     if (!signatureHeader) {
       console.warn('PayMongo-Signature header missing');
-      return res.status(400).json({ message: 'Missing PayMongo-Signature header' });
+      return res.status(400).json({ message: 'Signature header missing' });
     }
 
-    // Parse header: e.g., "t=timestamp,te=signature" (test) or "li=" for live
-    const sigParts = signatureHeader.split(',').reduce((acc, part) => {
-      const [k, v] = part.split('=').map(s => s.trim());
-      if (k) acc[k] = v;
-      return acc;
-    }, {});
+    if (!PAYMONGO_WEBHOOK_SECRET) {
+      console.error('PAYMONGO_WEBHOOK_SECRET not configured');
+      return res.status(500).json({ message: 'Webhook secret not configured' });
+    }
 
-    const timestamp = sigParts.t;
-    const headerSignature = sigParts.li || sigParts.te; // Prefer live, fallback to test
-    if (!timestamp || !headerSignature) {
+    // Parse signature header format: "t=timestamp,v1=signature"
+    const parts = signatureHeader.split(',').map(p => p.trim());
+    let timestamp;
+    let signatures = [];
+    for (const part of parts) {
+      const [key, value] = part.split('=');
+      if (key === 't') {
+        timestamp = value;
+      } else if (key === 'v1') {
+        signatures.push(value);
+      }
+    }
+
+    if (!timestamp || signatures.length === 0) {
       console.warn('Invalid PayMongo-Signature header format');
-      return res.status(400).json({ message: 'Invalid PayMongo-Signature header' });
+      return res.status(400).json({ message: 'Invalid signature header' });
     }
 
-    // Use raw body captured by express.json verify hook
-    const rawBody = req.rawBody ? req.rawBody.toString('utf8') : JSON.stringify(req.body);
-    const signedPayload = `${timestamp}.${rawBody}`;
-    const expectedSignature = crypto
+    // Compute expected signature: HMAC_SHA256(timestamp + "." + rawBody)
+    const rawBody = req.rawBody ? req.rawBody.toString() : JSON.stringify(req.body);
+    const computedSignature = crypto
       .createHmac('sha256', PAYMONGO_WEBHOOK_SECRET)
-      .update(signedPayload)
+      .update(`${timestamp}.${rawBody}`)
       .digest('hex');
 
-    if (expectedSignature !== headerSignature) {
-      console.warn('PayMongo webhook signature mismatch');
+    // Validate signature
+    if (!signatures.includes(computedSignature)) {
+      console.warn('PayMongo signature mismatch');
       return res.status(401).json({ message: 'Invalid signature' });
     }
 
-    const event = req.body;
-    const eventType = event?.data?.attributes?.type || event?.type;
-    const resource = event?.data?.attributes?.data;
+    const envelope = req.body;
+    console.log('Verified PayMongo webhook event:', JSON.stringify(envelope, null, 2));
+
+    // PayMongo webhook structure: { data: { id, type: 'event', attributes: { type: '<event.type>', data: { ...resource } } } }
+    const evt = envelope?.data;
+    const evtType = evt?.attributes?.type; // e.g., 'payment.paid', 'source.chargeable', 'payment.failed', 'qrph.expired'
+    const resource = evt?.attributes?.data; // the underlying resource (payment or source)
     const attributes = resource?.attributes || {};
 
-    // Attempt to extract bookingId from payment metadata or intent metadata
-    let bookingId = attributes?.metadata?.bookingId
-      || event?.data?.attributes?.data?.attributes?.metadata?.bookingId
-      || event?.data?.attributes?.metadata?.bookingId;
+    // Determine bookingId - set via metadata when creating source/payment
+    const bookingId = attributes?.metadata?.bookingId || attributes?.source?.data?.attributes?.metadata?.bookingId;
 
-    let paymentStatusUpdate = null;
-    let paidAt = null;
-
-    switch (eventType) {
-      case 'payment.paid':
-      case 'payment.success':
-        paymentStatusUpdate = 'paid';
-        paidAt = new Date();
-        break;
-      case 'payment.failed':
-        paymentStatusUpdate = 'failed';
-        break;
-      case 'qrph.expired':
-        paymentStatusUpdate = 'expired';
-        break;
-      default:
-        console.log('Unhandled PayMongo event type:', eventType);
-        return res.status(200).json({ message: 'Unhandled event type' });
+    if (!bookingId) {
+      console.warn('Booking ID not found in webhook payload');
+      return res.status(200).json({ message: 'No bookingId in payload' });
     }
 
-    if (!bookingId && attributes?.payment_intent_id) {
-      // If bookingId not found, try resolve via PaymentIntent stored on a booking
-      const possibleBooking = await Booking.findOne({ 'paymentDetails.paymentIntentId': attributes.payment_intent_id });
-      if (possibleBooking) bookingId = possibleBooking._id;
+    const booking = await Booking.findById(bookingId);
+    if (!booking) {
+      console.warn(`Booking ${bookingId} not found`);
+      return res.status(200).json({ message: 'Booking not found' });
     }
 
-    if (bookingId && paymentStatusUpdate) {
-      const booking = await Booking.findById(bookingId);
-      if (booking) {
-        // If payment is paid but only a downpayment was charged, mark as partial
-        let resolvedStatus = paymentStatusUpdate;
-        if (paymentStatusUpdate === 'paid') {
-          const dp = booking.paymentDetails?.downpaymentAmount;
-          const total = booking.totalAmount || 0;
-          if (dp && total && dp < total) {
-            resolvedStatus = 'partial';
-          }
-        }
-        booking.paymentStatus = resolvedStatus;
-        booking.paymentDetails = booking.paymentDetails || {};
-        booking.paymentDetails.paymongoStatus = eventType;
-        booking.paymentDetails.paymongoPaymentId = resource?.id || attributes?.id;
-        booking.paymentDetails.paymongoAmount = attributes?.amount;
-        booking.paymentDetails.paymongoCurrency = attributes?.currency || 'PHP';
-        booking.paymentDetails.paymongoPaymentIntentId = attributes?.payment_intent_id || booking.paymentDetails?.paymentIntentId;
-        if (paidAt) booking.paymentDetails.paymongoPaidAt = paidAt;
+    // Handle specific event types
+    if (evtType === 'payment.paid') {
+      booking.paymentStatus = 'paid';
+      booking.paymongoPaymentId = resource?.id || booking.paymongoPaymentId;
+      booking.paymentAmount = (attributes?.amount ? attributes.amount / 100 : booking.paymentAmount);
+      await booking.save();
+      console.log(`Booking ${bookingId} marked as paid via PayMongo`);
+    } else if (evtType === 'payment.failed') {
+      booking.paymentStatus = 'failed';
+      await booking.save();
+      console.log(`Booking ${bookingId} marked as failed via PayMongo`);
+    } else if (evtType === 'qrph.expired') {
+      booking.paymentStatus = 'failed';
+      await booking.save();
+      console.log(`Booking ${bookingId} marked as failed (QRPh expired)`);
+    } else if (evtType === 'source.chargeable') {
+      // When a source becomes chargeable, attempt to create a payment
+      try {
+        const sourceId = resource?.id;
+        const amount = attributes?.amount;
+        const currency = attributes?.currency || 'PHP';
 
-        // If payment succeeded, confirm booking and mark room occupied
-        if (paymentStatusUpdate === 'paid') {
-          booking.status = 'confirmed';
-          try {
-            const room = await require('../models/roomModel').findById(booking.room);
-            if (room) {
-              room.status = 'occupied';
-              await room.save();
+        if (!process.env.PAYMONGO_SECRET_KEY) {
+          console.error('PAYMONGO_SECRET_KEY not configured');
+        } else if (sourceId && amount) {
+          const payload = {
+            data: {
+              attributes: {
+                amount,
+                currency,
+                description: `Booking ${bookingId}`,
+                source: { id: sourceId, type: 'source' },
+                metadata: { bookingId }
+              }
             }
-          } catch (roomErr) {
-            console.error('Failed to set room occupied after PayMongo payment:', roomErr);
+          };
+          const authString = Buffer.from(`${process.env.PAYMONGO_SECRET_KEY}:`).toString('base64');
+          const payRes = await axios.post('https://api.paymongo.com/v1/payments', payload, {
+            headers: { 'Content-Type': 'application/json', Authorization: `Basic ${authString}` }
+          });
+          const payData = payRes?.data?.data;
+          if (payData?.id) {
+            booking.paymongoPaymentId = payData.id;
+            booking.paymentAmount = (payData?.attributes?.amount ? payData.attributes.amount / 100 : booking.paymentAmount);
+            // keep status pending; will flip to paid on payment.paid event
+            await booking.save();
+            console.log(`Created PayMongo payment ${payData.id} for booking ${bookingId}`);
           }
         }
-
-        await booking.save();
-        console.log(`Booking ${bookingId} updated to status: ${booking.paymentStatus}`);
-      } else {
-        console.warn(`Booking ${bookingId} not found for PayMongo webhook event.`);
+      } catch (err) {
+        console.error('Error creating PayMongo payment from chargeable source:', err?.response?.data || err.message);
       }
     } else {
-      console.warn('BookingId not found in PayMongo event.');
+      console.log('Unhandled PayMongo event type:', evtType);
     }
 
-    return res.status(200).json({ message: 'PayMongo webhook processed' });
-  } catch (err) {
-    console.error('Error processing PayMongo webhook:', err);
-    return res.status(500).json({ message: 'Error processing PayMongo webhook' });
+    res.status(200).json({ message: 'PayMongo webhook processed' });
+  } catch (error) {
+    console.error('Error processing PayMongo webhook:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
-module.exports.handlePaymongoWebhook = handlePaymongoWebhook;
+module.exports = { handleXenditWebhook, handlePayMongoWebhook };
