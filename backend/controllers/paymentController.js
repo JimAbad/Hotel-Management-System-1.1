@@ -384,7 +384,7 @@ exports.getPayMongoPaymentDetails = async (req, res, next) => {
 // @access  Private (customer or admin)
 async function createPayMongoSource(req, res, next) {
   try {
-    const { bookingId, type = 'gcash', amount } = req.body;
+    const { bookingId, type = 'qrph', amount } = req.body;
 
     // Validate booking ID
     if (!bookingId) {
@@ -438,7 +438,7 @@ async function createPayMongoSource(req, res, next) {
             success: successUrl,
             failed: failedUrl,
           },
-          type: type.toLowerCase(), // e.g., 'gcash', 'paymaya'
+          type: type.toLowerCase(), // e.g., 'qrph', 'gcash', 'paymaya'
           currency: 'PHP',
           // Include metadata to carry bookingId through webhooks
           metadata: {
