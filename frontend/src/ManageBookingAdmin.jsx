@@ -4,7 +4,7 @@ import { FaEdit, FaTrash, FaHistory } from 'react-icons/fa';
 import { useAuthAdmin } from './AuthContextAdmin';
 import './ManageBookingAdmin.css';
 
-const ManageBooking = () => {
+const ManageBookingAdmin = () => {
   const { token } = useAuthAdmin();
   const API_BASE = (import.meta.env.VITE_API_URL || "").replace(/\/+$/, "");
 
@@ -194,31 +194,17 @@ const ManageBooking = () => {
   const handleAddBooking = () => setShowAddModal(true);
 
   const calculateReservationSummary = () => {
-<<<<<<< HEAD
-    const baseRate = 50;
-    const start = new Date(newBooking.checkInDate);
-    const end = new Date(newBooking.checkOutDate);
-    const nights = Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)));
-    const total = baseRate * nights;
-
-    return {
-      dates: `${start.toLocaleDateString()} - ${end.toLocaleDateString()}`,
-      guests: `${newBooking.adults} Adult${Number(newBooking.adults) > 1 ? 's' : ''}, ${newBooking.children} Child${Number(newBooking.children) > 1 ? 'ren' : ''}`,
-      rate: `$${baseRate} per night`,
-      total: `$${total}`
-=======
-    const rateByType = { Economy: 100, Deluxe: 150, Suite: 250 };
-    const baseRate = rateByType[newBooking.roomType] ?? 100;
+    const rateByType = { standard: 100, deluxe: 150, suite: 250 };
+    const baseRate = rateByType[String(newBooking.roomType || '').toLowerCase()] ?? 100;
     const hours = Math.ceil(
       (new Date(newBooking.checkOutDate) - new Date(newBooking.checkInDate)) / (1000 * 60 * 60)
     );
     const total = baseRate * Math.max(hours, 1);
     return {
       dates: `${new Date(newBooking.checkInDate).toLocaleDateString()} - ${new Date(newBooking.checkOutDate).toLocaleDateString()}`,
-      guests: `${newBooking.adults} Adult${newBooking.adults > 1 ? 's' : ''}, ${newBooking.children} Child${newBooking.children > 1 ? 'ren' : ''}`,
+      guests: `${newBooking.adults} Adult${Number(newBooking.adults) > 1 ? 's' : ''}, ${newBooking.children} Child${Number(newBooking.children) > 1 ? 'ren' : ''}`,
       rate: `₱${baseRate.toLocaleString()} per hour`,
       total: `₱${total.toLocaleString()}`
->>>>>>> e79bb3fdb16e71c1bb90f9294a91655ef284aa5b
     };
   };
 
@@ -674,16 +660,4 @@ const ManageBooking = () => {
     </div>
   );
 };
-// Add the ManageBookingAdmin component
-const ManageBookingAdmin = () => {
-  return (
-    <div className="manage-booking-admin">
-      <h2>Manage Bookings</h2>
-      <div className="booking-table">
-        {/* This placeholder referenced BookingTable which doesn't exist; keeping real component renders above */}
-      </div>
-    </div>
-  );
-};
-
-export default ManageBooking;
+export default ManageBookingAdmin;
