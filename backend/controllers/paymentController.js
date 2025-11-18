@@ -151,7 +151,7 @@ exports.confirmPayment = async (req, res) => {
 exports.getAllBillings = async (req, res) => {
   console.log('getAllBillings function reached');
   try {
-    const billings = await Booking.find({ user: req.user.id, paymentStatus: 'paid' }).populate('room');
+    const billings = await Booking.find({ user: req.user.id, paymentStatus: { $in: ['paid', 'partial'] } }).populate('room');
     res.status(200).json(billings);
   } catch (error) {
     console.error('Error fetching billings:', error);

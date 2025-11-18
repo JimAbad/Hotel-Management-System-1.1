@@ -4,7 +4,7 @@ import { FaEdit, FaTrash, FaHistory } from 'react-icons/fa';
 import { useAuthAdmin } from './AuthContextAdmin';
 import './ManageBookingAdmin.css';
 
-const ManageBooking = () => {
+const ManageBookingAdmin = () => {
   const { token } = useAuthAdmin();
   const API_BASE = (import.meta.env.VITE_API_URL || "").replace(/\/+$/, "");
 
