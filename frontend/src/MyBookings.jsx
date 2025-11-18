@@ -67,10 +67,10 @@ function MyBookings() {
       });
       // Show bookings that have at least been created; optionally filter out cancelled/deleted statuses
       const allBookings = response.data || [];
-      // Include bookings with payment statuses that indicate user interest (e.g., paid, partial, pending, or processing)
+      // Include bookings with payment statuses that indicate user interest (e.g., paid, pending, or processing)
       const visibleBookings = allBookings.filter(b => {
         const status = (b.paymentStatus || '').toLowerCase();
-        return ['paid', 'partial', 'pending', 'processing'].includes(status);
+        return ['paid', 'pending', 'processing'].includes(status);
       });
       setBookings(visibleBookings);
     } catch (err) {

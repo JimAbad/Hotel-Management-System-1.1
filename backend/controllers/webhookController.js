@@ -142,23 +142,7 @@ const handlePayMongoWebhook = async (req, res) => {
     const attributes = resource?.attributes || {};
 
     // Determine bookingId - set via metadata when creating source/payment
-    let bookingId = attributes?.metadata?.bookingId || attributes?.source?.data?.attributes?.metadata?.bookingId;
-
-    // Fallback: try to resolve booking via stored PayMongo Payment Intent ID
-    if (!bookingId) {
-      const piId = attributes?.payment_intent_id || resource?.attributes?.payment_intent_id;
-      if (piId) {
-        try {
-          const bk = await Booking.findOne({ $or: [
-            { 'paymentDetails.paymentIntentId': piId },
-            { 'paymentDetails.paymongoPaymentIntentId': piId }
-          ]});
-          bookingId = bk?._id?.toString?.();
-        } catch (err) {
-          console.warn('Error resolving booking by payment_intent_id:', err?.message);
-        }
-      }
-    }
+    const bookingId = attributes?.metadata?.bookingId || attributes?.source?.data?.attributes?.metadata?.bookingId;
 
     if (!bookingId) {
       console.warn('Booking ID not found in webhook payload');
@@ -173,30 +157,19 @@ const handlePayMongoWebhook = async (req, res) => {
 
     // Handle specific event types
     if (evtType === 'payment.paid') {
-      const paidAmount = attributes?.amount ? attributes.amount / 100 : booking.paymentAmount;
-      booking.paymentAmount = paidAmount;
+      booking.paymentStatus = 'paid';
       booking.paymongoPaymentId = resource?.id || booking.paymongoPaymentId;
-      
-      // Set payment status based on amount paid vs total amount
-      if (paidAmount < booking.totalAmount) {
-        booking.paymentStatus = 'partial';
-        console.log(`Booking ${bookingId} marked as paid (partial) via PayMongo - Amount: ₱${paidAmount}, Total: ₱${booking.totalAmount}`);
-      } else {
-        booking.paymentStatus = 'paid';
-        console.log(`Booking ${bookingId} marked as paid via PayMongo`);
-      }
-      
+      booking.paymentAmount = (attributes?.amount ? attributes.amount / 100 : booking.paymentAmount);
       await booking.save();
+      console.log(`Booking ${bookingId} marked as paid via PayMongo`);
     } else if (evtType === 'payment.failed') {
-      // Keep as pending to allow retrial; schema doesn't include 'failed'
-      booking.paymentStatus = 'pending';
+      booking.paymentStatus = 'failed';
       await booking.save();
-      console.log(`Booking ${bookingId} remains pending (payment failed)`);
+      console.log(`Booking ${bookingId} marked as failed via PayMongo`);
     } else if (evtType === 'qrph.expired') {
-      // QRPh source expired; allow reattempt by keeping pending
-      booking.paymentStatus = 'pending';
+      booking.paymentStatus = 'failed';
       await booking.save();
-      console.log(`Booking ${bookingId} remains pending (QRPh expired)`);
+      console.log(`Booking ${bookingId} marked as failed (QRPh expired)`);
     } else if (evtType === 'source.chargeable') {
       // When a source becomes chargeable, attempt to create a payment
       try {

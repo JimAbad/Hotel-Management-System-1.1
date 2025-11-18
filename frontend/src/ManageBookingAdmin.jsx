@@ -194,17 +194,17 @@ const ManageBookingAdmin = () => {
   const handleAddBooking = () => setShowAddModal(true);
 
   const calculateReservationSummary = () => {
-    const rateByType = { standard: 100, deluxe: 150, suite: 250 };
-    const baseRate = rateByType[String(newBooking.roomType || '').toLowerCase()] ?? 100;
-    const hours = Math.ceil(
-      (new Date(newBooking.checkOutDate) - new Date(newBooking.checkInDate)) / (1000 * 60 * 60)
+    const baseRate = 50;
+    const nights = Math.ceil(
+      (new Date(newBooking.checkOutDate) - new Date(newBooking.checkInDate)) / (1000 * 60 * 60 * 24)
     );
-    const total = baseRate * Math.max(hours, 1);
+    const total = baseRate * nights;
+    
     return {
       dates: `${new Date(newBooking.checkInDate).toLocaleDateString()} - ${new Date(newBooking.checkOutDate).toLocaleDateString()}`,
-      guests: `${newBooking.adults} Adult${Number(newBooking.adults) > 1 ? 's' : ''}, ${newBooking.children} Child${Number(newBooking.children) > 1 ? 'ren' : ''}`,
-      rate: `₱${baseRate.toLocaleString()} per hour`,
-      total: `₱${total.toLocaleString()}`
+      guests: `${newBooking.adults} Adult${newBooking.adults > 1 ? 's' : ''}, ${newBooking.children} Child${newBooking.children > 1 ? 'ren' : ''}`,
+      rate: `$${baseRate} per night`,
+      total: `$${total}`
     };
   };
 
@@ -660,4 +660,16 @@ const ManageBookingAdmin = () => {
     </div>
   );
 };
-export default ManageBookingAdmin;
+// Add the ManageBookingAdmin component
+const ManageBookingAdmin = () => {
+  return (
+    <div className="manage-booking-admin">
+      <h2>Manage Bookings</h2>
+      <div className="booking-table">
+        {/* This placeholder referenced BookingTable which doesn't exist; keeping real component renders above */}
+      </div>
+    </div>
+  );
+};
+
+export default ManageBooking;
