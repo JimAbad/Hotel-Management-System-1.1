@@ -163,7 +163,7 @@ const Signup = () => {
   return (
     <div className="signup-page">
       <div className="login-left">
-        <img src="../src/img/lumine login.png" alt="Logo" className="login-logo" />
+        <img src="/images/lumine login.png" alt="Logo" className="login-logo" />
       </div>
       <div className="signup-container">
         <div className="signup-form-card">

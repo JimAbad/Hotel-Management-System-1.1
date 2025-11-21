@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import AuthContext from './AuthContext';
 import './PayMongoQR.css';
-import qrph from './img/qrph.jpg';
+import qrph from '/images/qrph.jpg';
 // Using public asset for robust path resolution across dev servers
 
 function PayMongoQR() {

@@ -7,7 +7,7 @@
   padding-top: 5rem; /* Add padding to account for fixed navbar */
   height: calc(100vh - 4rem); /* Adjust height to account for navbar and padding */
   min-height: calc(100vh - 4rem); /* Ensure minimum height */
-  background-image: url('./img/loginbg.jpg'); /* Use the same background image as login */
+  background-image: url('/images/loginbg.jpg'); /* Use the same background image as login */
   background-size: cover;
   background-position: center;
   color: var(--text-color);

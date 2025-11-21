@@ -559,7 +559,7 @@ function Rooms() {
         {summary.filter(({ type }) => !type?.includes('Presidential')).map(({ type, total, available }) => (
            <div key={type} className="room-card">
              <div className="room-card-header">
-               <img src="/src/img/room1.jpg" alt={type} className="room-image" />
+               <img src="/images/room1.jpg" alt={type} className="room-image" />
                <div>
                  <button className="more-info-btn" onClick={() => handleMoreInfo(type)}>
                    More info
@@ -795,7 +795,7 @@ function Rooms() {
                     <div className="reservation-summary-section">
                       <h3>Reservation Summary</h3>
                       <div className="summary-card">
-                        <img src="/src/img/room1.jpg" alt="room" className="summary-room-image" />
+                        <img src="/images/room1.jpg" alt="room" className="summary-room-image" />
                         <p>Room: {modalRoom?.roomType || modalRoom?.type}</p>
                         <p>Dates: {checkInDate} - {checkOutDate}</p>
                         <p>Guests: {adults} Adults, {children} Children (0-5 years old)</p>

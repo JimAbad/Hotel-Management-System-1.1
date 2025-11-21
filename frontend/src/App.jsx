@@ -51,7 +51,7 @@ function AppContent() {
     <div className="App">
       <nav>
         <div className="logo">
-          <img src="/lumine-nav-bar.png" alt="Lumine Nav Bar Logo" onError={(e) => { e.target.src = '/src/img/logo.png'; }} />
+          <img src="/images/lumine nav bar.png" alt="Lumine Nav Bar Logo" onError={(e) => { e.target.src = '/images/logo.png'; }} />
         </div>
         <ul className="nav-links">
           <li><Link to="/" className={location.pathname === '/' ? 'active' : ''}>Home</Link></li>

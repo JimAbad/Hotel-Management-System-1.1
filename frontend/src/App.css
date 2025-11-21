@@ -175,7 +175,7 @@ nav ul li button:hover {
   justify-content: center;
   color: var(--text-color);
   overflow: hidden;
-  background-image: url('./img/room4main.jpg'); /* Bring back the background image */
+  background-image: url('/images/room4main.jpg'); /* Bring back the background image */
   background-color: transparent; /* Remove light background color */
   background-size: cover;
   background-position: center;
