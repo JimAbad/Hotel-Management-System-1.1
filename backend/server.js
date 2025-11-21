@@ -17,7 +17,7 @@ app.use(express.json({
   }
 }));
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:5176', 'https://hotel-management-system-1-1.onrender.com'],
+  origin: ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:5176', 'https://hotel-management-system-1-1.onrender.com', 'https://https-hotel-management-system-1-1.onrender.com'],
   credentials: true
 }));
 
