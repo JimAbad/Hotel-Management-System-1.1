@@ -108,7 +108,7 @@ const createBooking = asyncHandler(async (req, res) => {
   const numberOfGuests = adults + children;
 
   // Calculate total amount based on room price (per hour)
-  const roomPrice = room.price;
+  const roomPrice = room.roomType === 'Economy' ? 59.523 : room.price;
   console.log('Room price:', roomPrice, 'Type:', typeof roomPrice); // Log room price and type
   if (typeof roomPrice !== 'number' || isNaN(roomPrice)) {
     res.status(500);

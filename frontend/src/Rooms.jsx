@@ -107,12 +107,7 @@ function Rooms() {
       let calculatedTaxesAndFees = calculatedSubtotal * 0.12; // Assuming 12% tax
       let calculatedTotal = calculatedSubtotal + calculatedTaxesAndFees;
 
-      // Test pricing override: Economy for exactly 3 hours totals ₱10 (no tax)
-      if (modalRoom?.roomType === 'Economy' && diffHours === 3) {
-        calculatedSubtotal = 10;
-        calculatedTaxesAndFees = 0;
-        calculatedTotal = 10;
-      }
+      // Use actual room price and computed totals without test overrides
 
       setSubtotal(calculatedSubtotal);
       setTaxesAndFees(calculatedTaxesAndFees);
@@ -320,7 +315,7 @@ function Rooms() {
         setModalError('No room details found.');
       } else {
         const normalizedType = normalizeRoomType(room.roomType);
-        const combinedRoomDetails = { ...room, ...roomDetails[normalizedType] };
+        const combinedRoomDetails = { ...roomDetails[normalizedType], ...room };
         
         // Find availability information from summary data
         const roomSummary = summary.find(item => item.type === type);

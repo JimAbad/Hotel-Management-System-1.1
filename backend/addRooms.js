@@ -22,7 +22,7 @@ const TYPES = [
   },
   {
     type: 'Economy',
-    price: 120,
+    price: 59.523,
     amenities: ['Restaurant', 'Swimming Pool', 'Fitness Center', 'Parking', 'Garden', 'Playground'],
     description: 'Cozy economy room.',
   },

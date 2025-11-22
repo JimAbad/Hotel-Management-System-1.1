@@ -23,6 +23,11 @@ function MyBookings() {
     return Number(amount).toLocaleString('en-US');
   };
 
+  const displayPaymentStatus = (status) => {
+    if (!status) return '';
+    return String(status).toLowerCase() === 'partial' ? 'paid in partial' : status;
+  };
+
   // Utility function to format date and time
   const formatDateTime = (dateString) => {
     const date = new Date(dateString);
@@ -229,7 +234,7 @@ function MyBookings() {
             <p>Check-out: {formatDateTime(booking.checkOut)}</p>
             <p>Total Price: ₱{formatPrice(booking.totalAmount)}</p>
             {booking.paymentStatus && (
-              <p>Payment Status: {booking.paymentStatus}</p>
+              <p>Payment Status: {displayPaymentStatus(booking.paymentStatus)}</p>
             )}
             <p>Booking Status: {booking.status || booking.bookingStatus}</p>
             <div className="booking-actions">
