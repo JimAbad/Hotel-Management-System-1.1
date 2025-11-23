@@ -6,6 +6,7 @@ import roomDetails from './data/roomDetails';
 import './Rooms.css';
 
 function Rooms() {
+  const API_URL = import.meta.env.VITE_API_URL || 'https://hotel-management-system-1-1backend.onrender.com';
   console.log('Rooms component re-rendered.');
   const { token, user } = useContext(AuthContext);
   const navigate = useNavigate();
@@ -55,7 +56,7 @@ function Rooms() {
           Authorization: `Bearer ${token}`,
         },
       };
-      const { data } = await axios.get(`${import.meta.env.VITE_API_URL}/api/bookings/my-bookings`, config);
+      const { data } = await axios.get(`${API_URL}/api/bookings/my-bookings`, config);
       
       // Count active bookings (not cancelled or completed)
       const activeBookings = data.filter(booking => {
@@ -78,7 +79,7 @@ function Rooms() {
     const fetchSummary = async () => {
       try {
         setLoading(true);
-        const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/rooms/summary`);
+        const response = await axios.get(`${API_URL}/api/rooms/summary`);
         setSummary(response.data.summary);
         setLoading(false);
       } catch (err) {
@@ -263,7 +264,7 @@ function Rooms() {
     }
     try {
       // Find one available room of the selected type
-      const availableRooms = await axios.get(`${import.meta.env.VITE_API_URL}/api/rooms`, {
+      const availableRooms = await axios.get(`${API_URL}/api/rooms`, {
         params: { roomType: type, availableOnly: true, limit: 1 }
       });
       const room = availableRooms.data.rooms?.[0];
@@ -279,10 +280,10 @@ function Rooms() {
         checkOut: '2025-09-20',
         type
       };
-      const bookingResponse = await axios.post(`${import.meta.env.VITE_API_URL}/api/bookings`, bookingData, {
+      const bookingResponse = await axios.post(`${API_URL}/api/bookings`, bookingData, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      await axios.post(`${import.meta.env.VITE_API_URL}/api/payment/confirm`, {
+      await axios.post(`${API_URL}/api/payment/confirm`, {
         bookingId: bookingResponse.data.newBooking._id,
         paymentDetails: { amount: 500 }
       }, {
@@ -307,7 +308,7 @@ function Rooms() {
     try {
       setModalError(null);
       setModalLoading(true);
-      const { data } = await axios.get(`${import.meta.env.VITE_API_URL}/api/rooms`, {
+      const { data } = await axios.get(`${API_URL}/api/rooms`, {
         params: { roomType: type, limit: 1 }
       });
       const room = data.rooms?.[0];
@@ -348,7 +349,7 @@ function Rooms() {
     try {
       setModalError(null);
       setModalLoading(true);
-      const { data } = await axios.get(`${import.meta.env.VITE_API_URL}/api/rooms`, {
+      const { data } = await axios.get(`${API_URL}/api/rooms`, {
         params: { roomType: type, limit: 1 }
       });
       const room = data.rooms?.[0];

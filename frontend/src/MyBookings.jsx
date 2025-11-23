@@ -4,6 +4,7 @@ import AuthContext from './AuthContext';
 import './MyBookings.css';
 
 function MyBookings() {
+  const API_URL = import.meta.env.VITE_API_URL || 'https://hotel-management-system-1-1backend.onrender.com';
   const { user, token } = useContext(AuthContext);
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -65,7 +66,7 @@ function MyBookings() {
 
     try {
       setLoading(true);
-      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/bookings/my-bookings`, {
+      const response = await axios.get(`${API_URL}/api/bookings/my-bookings`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -151,7 +152,7 @@ function MyBookings() {
         cancellationElaboration: cancellationText.trim() || null
       };
 
-      const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/bookings/user-cancel/${selectedBooking._id}`, 
+      const response = await axios.post(`${API_URL}/api/bookings/user-cancel/${selectedBooking._id}`, 
         cancellationData,
         {
           headers: { Authorization: `Bearer ${token}` }
@@ -178,7 +179,7 @@ function MyBookings() {
     if (window.confirm("Are you sure you want to delete all cancelled bookings?")) {
       try {
         setDeletingCancelled(true);
-        await axios.delete(`${import.meta.env.VITE_API_URL}/api/bookings/user-cancelled`, {
+        await axios.delete(`${API_URL}/api/bookings/user-cancelled`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },

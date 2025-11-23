@@ -7,6 +7,7 @@ import qrph from '/images/qrph.jpg';
 // Using public asset for robust path resolution across dev servers
 
 function PayMongoQR() {
+  const API_URL = import.meta.env.VITE_API_URL || 'https://hotel-management-system-1-1backend.onrender.com';
   const { bookingId } = useParams();
   const navigate = useNavigate();
   const { token } = useContext(AuthContext);
@@ -29,7 +30,7 @@ function PayMongoQR() {
   // Poll PayMongo payment details to know when paid
   const fetchPaymentDetails = async (isInterval = false) => {
     try {
-      const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/payment/paymongo-details/${bookingId}`, {
+      const res = await axios.get(`${API_URL}/api/payment/paymongo-details/${bookingId}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       const data = res.data?.data || {};
@@ -51,7 +52,7 @@ function PayMongoQR() {
   const createPayMongoSource = async () => {
     try {
       const depositAmount = Math.max(20, Math.round((paymentData?.totalAmount || 0) * 0.10));
-      const res = await axios.post(`${import.meta.env.VITE_API_URL}/api/payment/create-paymongo-source`, {
+      const res = await axios.post(`${API_URL}/api/payment/create-paymongo-source`, {
         bookingId,
         amount: depositAmount,
         type: 'qrph',

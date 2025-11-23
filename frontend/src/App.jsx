@@ -27,6 +27,7 @@ function App() {
 }
 
 function AppContent() {
+  const API_URL = import.meta.env.VITE_API_URL || 'https://hotel-management-system-1-1backend.onrender.com';
   const navigate = useNavigate();
   const location = useLocation();
   const [rooms, setRooms] = useState([]);
@@ -36,7 +37,7 @@ function AppContent() {
 
   const fetchRooms = async () => {
     try {
-      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/rooms`);
+      const response = await axios.get(`${API_URL}/api/rooms`);
       setRooms(response.data);
     } catch (error) {
       console.error('Error fetching rooms:', error);

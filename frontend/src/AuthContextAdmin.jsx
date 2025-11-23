@@ -4,6 +4,7 @@ import axios from 'axios';
 const AuthContextAdmin = createContext();
 
 export const AuthProviderAdmin = ({ children }) => {
+    const API_URL = import.meta.env.VITE_API_URL || 'https://hotel-management-system-1-1backend.onrender.com';
     const [token, setToken] = useState(localStorage.getItem('tokenAdmin'));
     const [user, setUser] = useState(null);
 
@@ -23,7 +24,7 @@ export const AuthProviderAdmin = ({ children }) => {
 
     const login = async (username, password) => {
         try {
-            const res = await axios.post(`${import.meta.env.VITE_API_URL}/api/auth/login`, { username, password });
+            const res = await axios.post(`${API_URL}/api/auth/login`, { username, password });
             const { token: newToken, email, role } = res.data;
 
             if (role !== 'admin') {
@@ -43,7 +44,7 @@ export const AuthProviderAdmin = ({ children }) => {
 
     const register = async (fullName, email, username, password) => {
         try {
-            const registerUrl = `${import.meta.env.VITE_API_URL}/api/auth/register`;
+            const registerUrl = `${API_URL}/api/auth/register`;
             console.log('Register URL:', registerUrl);
             await axios.post(registerUrl, { fullName, email, username, password });
             return true;
