@@ -1,12 +1,13 @@
-import React, { useState, useContext } from 'react';
+import React, { useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import AuthContextAdmin from './AuthContextAdmin';
+import { useAuthAdmin } from './AuthContextAdmin';
 import roomDetails from './data/roomDetails';
 
 const AddRoom = () => {
   const navigate = useNavigate();
-  const { adminToken } = useContext(AuthContextAdmin);
+  const { token } = useAuthAdmin();
+  const API_URL = import.meta.env.VITE_API_URL || 'https://hotel-management-system-1-1backend.onrender.com';
   const [formData, setFormData] = useState({
     roomNumber: '',
     roomType: '',
@@ -40,10 +41,10 @@ const AddRoom = () => {
       const config = {
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${adminToken}`,
+          Authorization: `Bearer ${token}`,
         },
       };
-      await axios.post('/api/rooms', formData, config);
+      await axios.post(`${API_URL}/api/rooms`, formData, config);
       setSuccess(true);
       setError(null);
       setFormData({

@@ -19,7 +19,7 @@ const CustomerBillList = () => {
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [detailsError, setDetailsError] = useState(null);
 
-  const API_BASE = (import.meta.env.VITE_API_URL || "").replace(/\/+$/, "");
+  const API_BASE = (import.meta.env.VITE_API_URL || 'https://hotel-management-system-1-1backend.onrender.com').replace(/\/+$/, "");
   // Common endpoints used across this repo
   const BILL_ENDPOINTS = useMemo(
     () => ["/api/customer-bills", "/api/billing", "/api/billings"],

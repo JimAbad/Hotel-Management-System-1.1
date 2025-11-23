@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { FaEdit, FaTrash } from 'react-icons/fa';
+import { useAuthAdmin } from './AuthContextAdmin';
 
 const ReviewsManagementAdmin = () => {
   const [reviews, setReviews] = useState([]);
@@ -10,20 +11,22 @@ const ReviewsManagementAdmin = () => {
   const [editedComment, setEditedComment] = useState('');
   const [editedRating, setEditedRating] = useState(0);
 
+  const { token } = useAuthAdmin();
+  const API_URL = import.meta.env.VITE_API_URL || 'https://hotel-management-system-1-1backend.onrender.com';
+
   useEffect(() => {
     fetchReviews();
-  }, []);
+  }, [token]);
 
   const fetchReviews = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('tokenAdmin');
       const config = {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       };
-      const { data } = await axios.get('/api/reviews', config);
+      const { data } = await axios.get(`${API_URL}/api/reviews`, config);
       setReviews(data);
       setLoading(false);
     } catch (err) {
@@ -36,13 +39,12 @@ const ReviewsManagementAdmin = () => {
   const handleDelete = async (reviewId) => {
     if (window.confirm('Are you sure you want to delete this review?')) {
       try {
-        const token = localStorage.getItem('tokenAdmin');
-        const config = {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        };
-        await axios.delete(`/api/reviews/${reviewId}`, config);
+      const config = {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      };
+      await axios.delete(`${API_URL}/api/reviews/${reviewId}`, config);
         fetchReviews();
       } catch (err) {
         console.error("Error deleting review:", err);
@@ -59,13 +61,12 @@ const ReviewsManagementAdmin = () => {
 
   const handleUpdate = async () => {
     try {
-      const token = localStorage.getItem('tokenAdmin');
       const config = {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       };
-      await axios.put(`/api/reviews/${editingReview._id}`, { comment: editedComment, rating: editedRating }, config);
+      await axios.put(`${API_URL}/api/reviews/${editingReview._id}`, { comment: editedComment, rating: editedRating }, config);
       setEditingReview(null);
       setEditedComment('');
       setEditedRating(0);

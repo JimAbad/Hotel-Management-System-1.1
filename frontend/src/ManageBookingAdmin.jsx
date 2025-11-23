@@ -6,7 +6,7 @@ import './ManageBookingAdmin.css';
 
 const ManageBookingAdmin = () => {
   const { token } = useAuthAdmin();
-  const API_BASE = (import.meta.env.VITE_API_URL || "").replace(/\/+$/, "");
+  const API_BASE = (import.meta.env.VITE_API_URL || 'https://hotel-management-system-1-1backend.onrender.com').replace(/\/+$/, "");
 
   const [bookings, setBookings] = useState([]);
   const [activities, setActivities] = useState([]);

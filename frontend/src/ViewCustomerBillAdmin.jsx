@@ -5,7 +5,8 @@ import { useAuthAdmin } from './AuthContextAdmin';
 import './ViewCustomerBillAdmin.css';
 
 const ViewCustomerBillAdmin = () => {
-  const { tokenAdmin } = useAuthAdmin();
+  const { token } = useAuthAdmin();
+  const API_URL = import.meta.env.VITE_API_URL || 'https://hotel-management-system-1-1backend.onrender.com';
   const [bills, setBills] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -17,13 +18,12 @@ const ViewCustomerBillAdmin = () => {
     const fetchBills = async () => {
       try {
         setLoading(true);
-        const token = localStorage.getItem('tokenAdmin');
         const config = {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         };
-        const { data } = await axios.get('/api/customer-bills', config);
+        const { data } = await axios.get(`${API_URL}/api/customer-bills`, config);
         setBills(data);
       } catch (err) {
         setError(err.message);
@@ -46,11 +46,10 @@ const ViewCustomerBillAdmin = () => {
   // Handle mark as paid
   const handleMarkAsPaid = async (id) => {
     try {
-      const token = localStorage.getItem('tokenAdmin');
       const config = {
         headers: { Authorization: `Bearer ${token}` },
       };
-      await axios.put(`/api/customer-bills/${id}/mark-paid`, {}, config);
+      await axios.put(`${API_URL}/api/customer-bills/${id}/mark-paid`, {}, config);
       alert('Payment status updated to Paid!');
       setBills((prev) =>
         prev.map((bill) =>

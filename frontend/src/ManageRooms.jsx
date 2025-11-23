@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import AuthContextAdmin from './AuthContextAdmin';
+import { useAuthAdmin } from './AuthContextAdmin';
 import roomDetails from './data/roomDetails';
 import './ManageRooms.css';
 
@@ -10,17 +10,18 @@ const ManageRooms = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
-  const { adminToken } = useContext(AuthContextAdmin);
+  const { token } = useAuthAdmin();
+  const API_URL = import.meta.env.VITE_API_URL || 'https://hotel-management-system-1-1backend.onrender.com';
 
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this room?')) {
       try {
         const config = {
           headers: {
-            Authorization: `Bearer ${adminToken}`,
+            Authorization: `Bearer ${token}`,
           },
         };
-        await axios.delete(`/api/rooms/${id}`, config);
+        await axios.delete(`${API_URL}/api/rooms/${id}`, config);
         setRooms(rooms.filter((room) => room._id !== id));
       } catch (err) {
         setError(err.message);
@@ -33,10 +34,10 @@ const ManageRooms = () => {
       try {
         const config = {
           headers: {
-            Authorization: `Bearer ${adminToken}`,
+            Authorization: `Bearer ${token}`,
           },
         };
-        const response = await axios.get('/api/rooms', config);
+        const response = await axios.get(`${API_URL}/api/rooms`, config);
         setRooms(response.data.rooms);
       } catch (err) {
         setError(err.message);
@@ -45,10 +46,10 @@ const ManageRooms = () => {
       }
     };
 
-    if (adminToken) {
+    if (token) {
       fetchRooms();
     }
-  }, [adminToken]);
+  }, [token]);
 
   if (loading) {
     return <div className="container">Loading rooms...</div>;

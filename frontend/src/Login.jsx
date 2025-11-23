@@ -7,7 +7,7 @@ import './App.css';
 import FormGroup from './FormGroup';
 
 const Login = () => {
-  const apiBase = import.meta.env.VITE_API_URL;
+  const API_BASE = import.meta.env.VITE_API_URL || 'https://hotel-management-system-1-1backend.onrender.com';
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -71,7 +71,7 @@ const Login = () => {
 
     setForgotPasswordLoading(true);
     try {
-      const response = await fetch(`${apiBase}/api/auth/forgot-password`, {
+      const response = await fetch(`${API_BASE}/api/auth/forgot-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -102,7 +102,7 @@ const Login = () => {
 
     setForgotPasswordLoading(true);
     try {
-      const response = await fetch(`${apiBase}/api/auth/verify-reset-code`, {
+      const response = await fetch(`${API_BASE}/api/auth/verify-reset-code`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -146,7 +146,7 @@ const Login = () => {
 
     setForgotPasswordLoading(true);
     try {
-      const response = await fetch(`${apiBase}/api/auth/reset-password`, {
+      const response = await fetch(`${API_BASE}/api/auth/reset-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

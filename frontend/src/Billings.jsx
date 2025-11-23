@@ -6,6 +6,7 @@ import './Billings.css';
 
 function Billings() {
   const { user, token } = useContext(AuthContext);
+  const API_URL = import.meta.env.VITE_API_URL || 'https://hotel-management-system-1-1backend.onrender.com';
   const [billings, setBillings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -37,7 +38,7 @@ function Billings() {
       };
 
       // 1) Get current user's bookings
-      const bookingsRes = await axios.get(`${import.meta.env.VITE_API_URL}/api/bookings/my-bookings`, config);
+      const bookingsRes = await axios.get(`${API_URL}/api/bookings/my-bookings`, config);
       const today = new Date();
 
       // 2) Keep only active bookings and group by roomNumber
@@ -65,7 +66,7 @@ function Billings() {
       const roomResults = await Promise.all(
         activeRoomNumbers.map(async (roomNumber) => {
           try {
-            const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/billings/room/${roomNumber}`, config);
+            const res = await axios.get(`${API_URL}/api/billings/room/${roomNumber}`, config);
             const payload = res.data?.data;
             const items = Array.isArray(payload) ? payload : Array.isArray(payload?.items) ? payload.items : [];
             const summary = Array.isArray(payload) ? {} : (payload || {});
