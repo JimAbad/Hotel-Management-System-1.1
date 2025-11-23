@@ -49,13 +49,14 @@ const processExpiredBookings = async () => {
           }
         );
         
-        // Update room status to available if no other active bookings exist
+        // Update room status to available if no other active PAID bookings exist
         if (booking.room) {
           const otherActiveBookings = await Booking.findOne({
             room: booking.room._id,
             _id: { $ne: booking._id },
             status: { $nin: ['cancelled', 'completed'] },
-            checkOut: { $gte: currentDateTime }
+            checkOut: { $gte: currentDateTime },
+            paymentStatus: { $in: ['paid', 'partial'] } // Only consider paid bookings
           });
           
           if (!otherActiveBookings) {

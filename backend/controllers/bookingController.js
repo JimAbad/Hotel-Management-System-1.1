@@ -123,24 +123,31 @@ const createBooking = asyncHandler(async (req, res) => {
   let selectedRoom = room;
 
   console.log('Initial room status:', room.status);
-  // Check if the room is occupied but has no active booking
+  // Check if the room is occupied but has no active PAID booking
   if (room.status === 'occupied') {
-    const activeBooking = await Booking.findOne({
+    const activePaidBooking = await Booking.findOne({
       room: room._id,
       status: { $nin: ['cancelled', 'completed'] },
       checkOut: { $gte: new Date() },
+      paymentStatus: { $in: ['paid', 'partial'] } // Only consider paid bookings as valid occupation
     });
 
-    if (!activeBooking) {
-      console.log(`Room ${room.roomNumber} was occupied but no active booking found. Setting status to available.`);
+    if (!activePaidBooking) {
+      console.log(`Room ${room.roomNumber} was occupied but no active PAID booking found. Setting status to available.`);
       room.status = 'available';
       await room.save();
       console.log(`Room ${room.roomNumber} status after save: ${room.status}`);
     } else {
-      console.log(`Room ${room.roomNumber} is occupied and has an active booking.`);
+      console.log(`Room ${room.roomNumber} is occupied and has an active PAID booking.`);
     }
   }
   console.log('Room status before availability check:', room.status);
+  
+  // NEW LOGIC: Rooms are only marked as occupied AFTER payment confirmation
+  // - During booking creation: room stays available (no status change)
+  // - After QRPh payment (webhook): room.status = 'occupied' 
+  // - Payment failed/expired: room remains available
+  // - Only PAID bookings (paymentStatus: 'paid'/'partial') count as valid occupation
 
   if (room.status !== 'available') {
     // Find another available room on the same floor
@@ -160,9 +167,9 @@ const createBooking = asyncHandler(async (req, res) => {
   }
   console.log('Selected room before saving:', selectedRoom); // Log selected room before saving
 
-  // Update room status to reserved
-  selectedRoom.status = 'occupied';
-  await selectedRoom.save();
+  // Keep room available until payment is confirmed
+  // selectedRoom.status = 'occupied'; // Moved to payment confirmation
+  // await selectedRoom.save();
 
     const bookingData = {
       room: selectedRoom._id,
@@ -241,6 +248,7 @@ const updateBookingStatus = asyncHandler(async (req, res) => {
         _id: { $ne: booking._id }, // Exclude current booking
         status: { $nin: ['cancelled', 'completed'] },
         checkOut: { $gte: new Date() },
+        paymentStatus: { $in: ['paid', 'partial'] } // Only consider paid bookings
       });
       
       if (!otherActiveBooking) {
@@ -335,11 +343,12 @@ const getMyBookings = asyncHandler(async (req, res) => {
 const updateRoomStatus = asyncHandler(async (req, res) => {
   const { roomId } = req.params;
   
-  // Find active bookings for this room
+  // Find active PAID bookings for this room
   const activeBooking = await Booking.findOne({
     room: roomId,
     status: { $nin: ['cancelled', 'completed'] },
     checkOut: { $gte: new Date() },
+    paymentStatus: { $in: ['paid', 'partial'] } // Only consider paid bookings
   });
   
   const room = await Room.findById(roomId);
@@ -436,11 +445,12 @@ const cancelBooking = asyncHandler(async (req, res) => {
   // Permanently delete the booking
   await Booking.findByIdAndDelete(req.params.id);
   
-  // Update room status after cancellation
+  // Update room status after cancellation - only consider paid bookings
   const activeBooking = await Booking.findOne({
     room: roomId,
     status: { $nin: ['cancelled', 'completed'] },
     checkOut: { $gte: new Date() },
+    paymentStatus: { $in: ['paid', 'partial'] } // Only consider paid bookings
   });
   
   const room = await Room.findById(roomId);
