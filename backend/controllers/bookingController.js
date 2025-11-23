@@ -108,6 +108,7 @@ const createBooking = asyncHandler(async (req, res) => {
   const numberOfGuests = adults + children;
 
   // Calculate total amount based on room price (per hour)
+  // Economy: 3 hours = ₱200 total (₱59.523/hour) for ₱20 downpayment (10%)
   const roomPrice = room.roomType === 'Economy' ? 59.523 : room.price;
   console.log('Room price:', roomPrice, 'Type:', typeof roomPrice); // Log room price and type
   if (typeof roomPrice !== 'number' || isNaN(roomPrice)) {
@@ -315,6 +316,11 @@ const getMyBookings = asyncHandler(async (req, res) => {
       {
         // Only include bookings where checkout date is today or in the future
         checkOut: { $gte: currentDate }
+      },
+      {
+        // Only show bookings that have been paid (partial or full)
+        // Hide unpaid/pending bookings until QRPh payment is confirmed
+        paymentStatus: { $in: ['paid', 'partial'] }
       }
     ]
   }).sort({ createdAt: -1 });

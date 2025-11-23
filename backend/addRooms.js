@@ -22,7 +22,7 @@ const TYPES = [
   },
   {
     type: 'Economy',
-    price: 59.523,
+    price: 59.523, // Economy: 3 hours = ₱200 total for ₱20 downpayment (10%)
     amenities: ['Restaurant', 'Swimming Pool', 'Fitness Center', 'Parking', 'Garden', 'Playground'],
     description: 'Cozy economy room.',
   },
