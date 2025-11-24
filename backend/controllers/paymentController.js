@@ -361,16 +361,20 @@ exports.getPayMongoPaymentDetails = async (req, res, next) => {
       return next(new ErrorResponse('Not authorized to view this booking', 401));
     }
 
-    res.status(200).json({
-      success: true,
-      data: {
-        paymongoSourceId: booking.paymongoSourceId || null,
-        paymongoPaymentId: booking.paymongoPaymentId || null,
-        paymentStatus: booking.paymentStatus,
-        totalAmount: booking.totalAmount,
-        paymentAmount: booking.paymentAmount,
-      },
-    });
+  res.status(200).json({
+    success: true,
+    data: {
+      paymongoSourceId: booking.paymongoSourceId || null,
+      paymongoPaymentId: booking.paymongoPaymentId || null,
+      paymentStatus: booking.paymentStatus,
+      totalAmount: booking.totalAmount,
+      paymentAmount: booking.paymentAmount,
+      qrCodeUrl: (booking.paymentDetails?.qrphNextAction?.qr_code_url
+        || booking.paymentDetails?.qrphNextAction?.redirect?.url
+        || booking.paymentDetails?.qrphNextAction?.redirect?.checkout_url
+        || null),
+    },
+  });
   } catch (error) {
     console.error('Error fetching PayMongo payment details:', error);
     next(new ErrorResponse('Failed to retrieve PayMongo payment details', 500));
@@ -429,7 +433,7 @@ async function createPayMongoSource(req, res, next) {
     const successUrl = `${baseUrl}/payment-success?bookingId=${bookingId}`;
     const failedUrl = `${baseUrl}/payment-failed?bookingId=${bookingId}`;
 
-    // If type is QRPh, use Payment Intents API instead of Sources
+    // If type is QRPh, use Payment Intents API, create a Payment Method, and attach
     const lowerType = String(type || '').toLowerCase();
     if (lowerType === 'qrph') {
       if (!process.env.PAYMONGO_SECRET_KEY) {
@@ -462,20 +466,70 @@ async function createPayMongoSource(req, res, next) {
         return next(new ErrorResponse('Failed to create PayMongo payment intent', 500));
       }
 
-      // Persist identifiers to help webhook mapping
+      // Create QRPH payment method
+      const pmPayload = {
+        data: {
+          attributes: {
+            type: 'qrph',
+            billing: {
+              name: booking.customerName || booking.guestName || 'Guest',
+              email: booking.customerEmail || 'guest@example.com',
+              phone: booking.contactNumber || undefined,
+            },
+            metadata: { bookingId }
+          }
+        }
+      };
+      const pmRes = await axios.post('https://api.paymongo.com/v1/payment_methods', pmPayload, {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Basic ${intentAuth}`,
+        }
+      });
+      const pmData = pmRes?.data?.data;
+      if (!pmData?.id) {
+        return next(new ErrorResponse('Failed to create PayMongo payment method (qrph)', 500));
+      }
+
+      // Attach payment method to intent so PayMongo generates QR / checkout URL
+      const attachPayload = {
+        data: {
+          attributes: {
+            payment_method: pmData.id,
+            client_key: intentData?.attributes?.client_key,
+            return_url: `${baseUrl}/payment-status`
+          }
+        }
+      };
+      const attachRes = await axios.post(`https://api.paymongo.com/v1/payment_intents/${intentData.id}/attach`, attachPayload, {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Basic ${intentAuth}`,
+        }
+      });
+      const attached = attachRes?.data?.data;
+
+      // Persist identifiers and next action details
       booking.paymentDetails = booking.paymentDetails || {};
-      booking.paymentDetails.paymentIntentId = intentData.id; // for backward search compatibility
+      booking.paymentDetails.paymentIntentId = intentData.id;
       booking.paymentDetails.paymongoPaymentIntentId = intentData.id;
+      booking.paymentDetails.paymongoPaymentMethodId = pmData.id;
+      booking.paymentDetails.paymongoClientKey = intentData?.attributes?.client_key || null;
+      booking.paymentDetails.qrphNextAction = attached?.attributes?.next_action || null;
       booking.paymentStatus = 'pending';
       await booking.save();
 
-      // Return a placeholder source id to avoid repeated creation on the client
+      // Provide QR code / redirect URL to client
+      const next = attached?.attributes?.next_action || {};
+      const qrCodeUrl = next?.qr_code_url || next?.redirect?.url || next?.redirect?.checkout_url || null;
+
       return res.status(201).json({
         success: true,
         data: {
-          paymongoSourceId: intentData.id, // not a real source; used to stop client retries
+          paymongoSourceId: intentData.id,
           paymentStatus: 'pending',
           totalAmount: booking.totalAmount,
+          qrCodeUrl
         },
       });
     }

@@ -7,7 +7,13 @@ import qrph from '/images/qrph.jpg';
 // Using public asset for robust path resolution across dev servers
 
 function PayMongoQR() {
-  const API_URL = import.meta.env.VITE_API_URL || 'https://hotel-management-system-1-1backend.onrender.com';
+  const API_URL = (() => {
+    const fallback = 'https://hotel-management-system-1-1backend.onrender.com';
+    const env = import.meta.env.VITE_API_URL;
+    const envNorm = String(env || '').replace(/\/+$/, '');
+    const originNorm = typeof window !== 'undefined' ? window.location.origin.replace(/\/+$/, '') : '';
+    return envNorm && envNorm !== originNorm ? envNorm : fallback;
+  })();
   const { bookingId } = useParams();
   const navigate = useNavigate();
   const { token } = useContext(AuthContext);
@@ -60,7 +66,6 @@ function PayMongoQR() {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       const data = res.data?.data;
-      // Merge new source info into paymentData
       setPaymentData((prev) => ({ ...prev, ...data }));
     } catch (err) {
       console.error('Failed to create PayMongo source:', err?.response?.data || err.message);
@@ -112,7 +117,7 @@ function PayMongoQR() {
     );
   }
 
-  const { paymentStatus, paymentAmount, totalAmount } = paymentData;
+  const { paymentStatus, paymentAmount, totalAmount, qrCodeUrl } = paymentData;
   const isPaid = paymentStatus === 'paid' || paymentStatus === 'partial';
 
 
@@ -128,7 +133,7 @@ function PayMongoQR() {
       ) : (
         <div className="payment-pending">
           <p>Please complete your payment by scanning the QR code below using your preferred e-wallet app.</p>
-          <img src={qrph} alt="PayMongo QR Code" className="qr-code-img" />
+          <img src={qrCodeUrl || qrph} alt="PayMongo QR Code" className="qr-code-img" />
           <p>Payment Status: {paymentStatus}</p>
           <button onClick={() => fetchPaymentDetails()}>Refresh Status</button>
         </div>
