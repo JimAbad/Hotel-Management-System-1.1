@@ -96,6 +96,11 @@ function Rooms() {
       const checkOut = new Date(`${checkOutDate}T${checkOutTime}`);
       const diffTime = Math.abs(checkOut - checkIn);
       const diffHours = Math.ceil(diffTime / (1000 * 60 * 60));
+      const type = String(modalRoom?.roomType || modalRoom?.type || '').toLowerCase();
+      if (type === 'economy' && diffHours === 3) {
+        setTotal(200);
+        return;
+      }
       const roomPrice = modalRoom.price || 0;
       const calculatedTotal = (diffHours * roomPrice) * 1.12;
       setTotal(calculatedTotal);

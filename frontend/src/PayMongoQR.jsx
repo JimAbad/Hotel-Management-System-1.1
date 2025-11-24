@@ -51,7 +51,7 @@ function PayMongoQR() {
   // Create PayMongo source if none exists
   const createPayMongoSource = async () => {
     try {
-      const depositAmount = Math.max(20, Math.round((paymentData?.totalAmount || 0) * 0.10));
+      const depositAmount = 20;
       const res = await axios.post(`${API_URL}/api/payment/create-paymongo-source`, {
         bookingId,
         amount: depositAmount,
