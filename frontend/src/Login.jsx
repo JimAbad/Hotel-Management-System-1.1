@@ -6,8 +6,15 @@ import './Login.css';
 import './App.css';
 import FormGroup from './FormGroup';
 
-const Login = () => {
-  const API_BASE = import.meta.env.VITE_API_URL || 'https://hotel-management-system-1-1backend.onrender.com';
+  const Login = () => {
+  const API_BASE = (() => {
+    const fallback = 'https://hotel-management-system-1-1backend.onrender.com';
+    const env = import.meta.env.VITE_API_URL;
+    const envNorm = String(env || '').replace(/\/+$/, '');
+    const originNorm = typeof window !== 'undefined' ? window.location.origin.replace(/\/+$/, '') : '';
+    const base = envNorm && envNorm !== originNorm ? envNorm : fallback;
+    return base;
+  })();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -62,6 +69,14 @@ const Login = () => {
     setForgotPasswordModal(prev => ({ ...prev, step, message: '' }));
   };
 
+  const readJson = async (res) => {
+    const ct = res.headers?.get?.('content-type') || '';
+    if (ct.includes('application/json')) {
+      try { return await res.json(); } catch { return {}; }
+    }
+    return {};
+  };
+
   // API call functions for forgot password
   const sendResetCode = async () => {
     if (!forgotPasswordModal.email) {
@@ -79,7 +94,7 @@ const Login = () => {
         body: JSON.stringify({ email: forgotPasswordModal.email }),
       });
 
-      const data = await response.json();
+      const data = await readJson(response);
       
       if (response.ok) {
         setForgotPasswordMessage('Verification code sent to your email');
@@ -118,7 +133,7 @@ const Login = () => {
         setForgotPasswordMessage('Code verified successfully');
         nextForgotPasswordStep('newPassword');
       } else {
-        const data = await response.json();
+        const data = await readJson(response);
         setForgotPasswordMessage(data.message || 'Invalid code');
       }
     } catch (error) {
@@ -159,7 +174,7 @@ const Login = () => {
         }),
       });
 
-      const data = await response.json();
+      const data = await readJson(response);
       
       if (response.ok) {
         setForgotPasswordMessage('Password updated successfully!');

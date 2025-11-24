@@ -5,7 +5,13 @@ import { useNavigate } from 'react-router-dom';
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-    const API_URL = import.meta.env.VITE_API_URL || 'https://hotel-management-system-1-1backend.onrender.com';
+    const API_URL = (() => {
+        const fallback = 'https://hotel-management-system-1-1backend.onrender.com';
+        const env = import.meta.env.VITE_API_URL;
+        const envNorm = String(env || '').replace(/\/+$/, '');
+        const originNorm = typeof window !== 'undefined' ? window.location.origin.replace(/\/+$/, '') : '';
+        return envNorm && envNorm !== originNorm ? envNorm : fallback;
+    })();
     const [token, setToken] = useState(localStorage.getItem('token'));
     const [user, setUser] = useState(null);
     const navigate = useNavigate();

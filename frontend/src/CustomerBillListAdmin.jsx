@@ -19,7 +19,14 @@ const CustomerBillList = () => {
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [detailsError, setDetailsError] = useState(null);
 
-  const API_BASE = (import.meta.env.VITE_API_URL || 'https://hotel-management-system-1-1backend.onrender.com').replace(/\/+$/, "");
+  const API_BASE = (() => {
+    const fallback = 'https://hotel-management-system-1-1backend.onrender.com';
+    const env = import.meta.env.VITE_API_URL;
+    const envNorm = String(env || '').replace(/\/+$/, '');
+    const originNorm = typeof window !== 'undefined' ? window.location.origin.replace(/\/+$/, '') : '';
+    const base = envNorm && envNorm !== originNorm ? envNorm : fallback;
+    return base.replace(/\/+$/, '');
+  })();
   // Common endpoints used across this repo
   const BILL_ENDPOINTS = useMemo(
     () => ["/api/customer-bills", "/api/billing", "/api/billings"],

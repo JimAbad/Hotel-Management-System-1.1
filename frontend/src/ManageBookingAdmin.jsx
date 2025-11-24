@@ -6,7 +6,14 @@ import './ManageBookingAdmin.css';
 
 const ManageBookingAdmin = () => {
   const { token } = useAuthAdmin();
-  const API_BASE = (import.meta.env.VITE_API_URL || 'https://hotel-management-system-1-1backend.onrender.com').replace(/\/+$/, "");
+  const API_BASE = (() => {
+    const fallback = 'https://hotel-management-system-1-1backend.onrender.com';
+    const env = import.meta.env.VITE_API_URL;
+    const envNorm = String(env || '').replace(/\/+$/, '');
+    const originNorm = typeof window !== 'undefined' ? window.location.origin.replace(/\/+$/, '') : '';
+    const base = envNorm && envNorm !== originNorm ? envNorm : fallback;
+    return base.replace(/\/+$/, '');
+  })();
 
   const [bookings, setBookings] = useState([]);
   const [activities, setActivities] = useState([]);
