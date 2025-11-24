@@ -364,7 +364,7 @@ exports.getPayMongoPaymentDetails = async (req, res, next) => {
 
   try {
     const next = booking.paymentDetails?.qrphNextAction || {};
-    let qrCodeUrl = next?.qr_code_url || next?.redirect?.url || next?.redirect?.checkout_url || null;
+    let qrCodeUrl = next?.code?.image_url || next?.qr_code_url || next?.redirect?.url || next?.redirect?.checkout_url || null;
     if (!qrCodeUrl && next?.qr_string) {
       qrCodeUrl = await QRCode.toDataURL(next.qr_string, { width: 512, margin: 2 });
     }
@@ -535,7 +535,7 @@ async function createPayMongoSource(req, res, next) {
       await booking.save();
 
       const next = attached?.attributes?.next_action || {};
-      let qrCodeUrl = next?.qr_code_url || next?.redirect?.url || next?.redirect?.checkout_url || null;
+      let qrCodeUrl = next?.code?.image_url || next?.qr_code_url || next?.redirect?.url || next?.redirect?.checkout_url || null;
       if (!qrCodeUrl && next?.qr_string) {
         try {
           qrCodeUrl = await QRCode.toDataURL(next.qr_string, { width: 512, margin: 2 });
