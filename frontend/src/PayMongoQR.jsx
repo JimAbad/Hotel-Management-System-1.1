@@ -87,9 +87,9 @@ function PayMongoQR() {
     return () => clearInterval(interval);
   }, [pollCount]);
 
-  // Trigger source creation when initial details loaded
+  // Trigger source creation once if there is no QR yet and status is pending
   useEffect(() => {
-    if (!loading && paymentData && !paymentData.paymongoSourceId && paymentData.paymentStatus === 'pending') {
+    if (!loading && paymentData && !paymentData.qrCodeUrl && paymentData.paymentStatus === 'pending') {
       createPayMongoSource();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
