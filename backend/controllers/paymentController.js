@@ -368,6 +368,30 @@ exports.getPayMongoPaymentDetails = async (req, res, next) => {
     if (!qrCodeUrl && next?.qr_string) {
       qrCodeUrl = await QRCode.toDataURL(next.qr_string, { width: 512, margin: 2 });
     }
+
+    try {
+      const intentId = booking.paymentDetails?.paymongoPaymentIntentId || booking.paymentDetails?.paymentIntentId;
+      if (process.env.PAYMONGO_SECRET_KEY && intentId && booking.paymentStatus === 'pending') {
+        const auth = Buffer.from(`${process.env.PAYMONGO_SECRET_KEY}:`).toString('base64');
+        const resp = await axios.get(`https://api.paymongo.com/v1/payment_intents/${intentId}`, {
+          headers: { 'Content-Type': 'application/json', Authorization: `Basic ${auth}` }
+        });
+        const intent = resp?.data?.data?.attributes || {};
+        const status = intent?.status;
+        if (status === 'succeeded') {
+          const paidAmountCentavos = intent?.amount;
+          const paidAmount = typeof paidAmountCentavos === 'number' ? paidAmountCentavos / 100 : (booking.paymentDetails?.downpaymentAmount || booking.paymentAmount);
+          booking.paymentAmount = paidAmount;
+          const paymentId = Array.isArray(intent?.payments) && intent.payments.length > 0 ? intent.payments[0]?.id : booking.paymongoPaymentId;
+          if (paymentId) booking.paymongoPaymentId = paymentId;
+          booking.paymentStatus = paidAmount < booking.totalAmount ? 'partial' : 'paid';
+          await booking.save();
+        }
+      }
+    } catch (refreshErr) {
+      console.warn('PayMongo intent status refresh failed:', refreshErr?.response?.data || refreshErr.message);
+    }
+
     res.status(200).json({
       success: true,
       data: {
