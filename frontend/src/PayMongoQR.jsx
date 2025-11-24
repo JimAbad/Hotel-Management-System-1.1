@@ -66,6 +66,7 @@ function PayMongoQR() {
       });
       const data = res.data?.data;
       setPaymentData((prev) => (prev ? { ...prev, ...data } : data));
+      await fetchPaymentDetails();
     } catch (err) {
       console.error('Failed to create PayMongo source:', err?.response?.data || err.message);
       setError(err?.response?.data?.message || err.message || 'Failed to create PayMongo source');
