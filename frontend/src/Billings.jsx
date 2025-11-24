@@ -7,7 +7,7 @@ import './Billings.css';
 function Billings() {
   const { user, token } = useContext(AuthContext);
   const API_URL = import.meta.env.VITE_API_URL || 'https://hotel-management-system-1-1backend.onrender.com';
-  const [billings, setBillings] = useState([]);
+  
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedRoom, setSelectedRoom] = useState(null);
@@ -57,7 +57,6 @@ function Billings() {
       // 3) If no active rooms, clear and exit
       if (activeRoomNumbers.length === 0) {
         setBillsByRoom({});
-        setBillings([]);
         setLoading(false);
         return;
       }
@@ -85,7 +84,7 @@ function Billings() {
       });
 
       setBillsByRoom(grouped);
-      setBillings(roomResults.flatMap(r => r.items));
+      
       setLoading(false);
     } catch (err) {
       setError('Failed to fetch billing data. Please try again later.');

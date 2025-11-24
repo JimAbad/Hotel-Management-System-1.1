@@ -112,7 +112,7 @@ function PayMongoQR() {
     );
   }
 
-  const { paymongoSourceId, paymentStatus, paymentAmount, totalAmount } = paymentData;
+  const { paymentStatus, paymentAmount, totalAmount } = paymentData;
   const isPaid = paymentStatus === 'paid' || paymentStatus === 'partial';
 
 

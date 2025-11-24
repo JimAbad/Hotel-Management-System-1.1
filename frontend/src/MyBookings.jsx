@@ -10,7 +10,7 @@ function MyBookings() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [cancelingId, setCancelingId] = useState(null);
-  const [deletingCancelled, setDeletingCancelled] = useState(false);
+  
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showWarningModal, setShowWarningModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -152,7 +152,7 @@ function MyBookings() {
         cancellationElaboration: cancellationText.trim() || null
       };
 
-      const response = await axios.post(`${API_URL}/api/bookings/user-cancel/${selectedBooking._id}`, 
+      await axios.post(`${API_URL}/api/bookings/user-cancel/${selectedBooking._id}`, 
         cancellationData,
         {
           headers: { Authorization: `Bearer ${token}` }
@@ -175,32 +175,7 @@ function MyBookings() {
     setSelectedBooking(null);
   };
   
-  const deleteAllCancelledBookings = async () => {
-    if (window.confirm("Are you sure you want to delete all cancelled bookings?")) {
-      try {
-        setDeletingCancelled(true);
-        await axios.delete(`${API_URL}/api/bookings/user-cancelled`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-    
-        // Refresh bookings after successful deletion
-        await fetchMyBookings();
-    
-        alert("All cancelled bookings have been deleted.");
-      } catch (error) {
-        console.error("Error deleting cancelled bookings:", error);
-        if (error.response?.status === 404) {
-          alert(error.response.data.message || "No cancelled bookings found.");
-        } else {
-          alert("Failed to delete cancelled bookings. Please try again.");
-        }
-      } finally {
-        setDeletingCancelled(false);
-      }
-    }
-  };
+  
 
   if (loading) {
     return <div className="my-bookings-container">Loading bookings...</div>;
@@ -217,10 +192,7 @@ function MyBookings() {
       </div>
     );
   }
-  // Check if there are any cancelled bookings
-  const hasCancelledBookings = bookings.some(booking => 
-    booking.status === 'cancelled' || booking.bookingStatus === 'cancelled'
-  );
+  
 
   return (
     <div className="my-bookings-container">

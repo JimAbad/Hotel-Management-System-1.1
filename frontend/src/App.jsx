@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Routes, Route, Link, useNavigate, useLocation } from 'react-router-dom';
-import axios from 'axios';
+ 
 import RoomDetails from './RoomDetails';
 import Home from './Home';
 import Rooms from './Rooms';
@@ -30,23 +30,14 @@ function AppContent() {
   const API_URL = import.meta.env.VITE_API_URL || 'https://hotel-management-system-1-1backend.onrender.com';
   const navigate = useNavigate();
   const location = useLocation();
-  const [rooms, setRooms] = useState([]);
+  
   const { user, logout } = useAuth();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   console.log('User state in App.jsx:', user);
 
-  const fetchRooms = async () => {
-    try {
-      const response = await axios.get(`${API_URL}/api/rooms`);
-      setRooms(response.data);
-    } catch (error) {
-      console.error('Error fetching rooms:', error);
-    }
-  };
+  
 
-  useEffect(() => {
-    fetchRooms();
-  }, []);
+  
 
   return (
     <div className="App">

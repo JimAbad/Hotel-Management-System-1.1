@@ -27,7 +27,7 @@ function VerifyEmail() {
     }
 
     verify();
-  }, [location.search]);
+  }, [location.search, API_URL]);
 
   return (
     <div style={{ paddingTop: '8rem', minHeight: 'calc(100vh - 6rem)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

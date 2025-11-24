@@ -11,10 +11,9 @@ import AddRoom from './AddRoom';
 import CustomerBillListAdmin from './CustomerBillListAdmin';
 import ProtectedRouteAdmin from './ProtectedRouteAdmin';
 // import AdminLogin from './AdminLogin'; // AdminLogin is now handled in main.jsx
-import { useAuthAdmin } from './AuthContextAdmin'; // Import useAuthAdmin
+ 
 
 function AppAdmin() {
-  const { user } = useAuthAdmin();
 
   return (
     <Routes>

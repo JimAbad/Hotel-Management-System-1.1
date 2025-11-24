@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import { useAuthAdmin } from './AuthContextAdmin';
@@ -88,6 +88,7 @@ const Login = () => {
         setForgotPasswordMessage(data.message || 'Failed to send reset code');
       }
     } catch (error) {
+      console.error('Forgot password error:', error);
       setForgotPasswordMessage('Network error. Please try again.');
     } finally {
       setForgotPasswordLoading(false);
@@ -112,16 +113,16 @@ const Login = () => {
           code: forgotPasswordModal.verificationCode 
         }),
       });
-
-      const data = await response.json();
       
       if (response.ok) {
         setForgotPasswordMessage('Code verified successfully');
         nextForgotPasswordStep('newPassword');
       } else {
-        setForgotPasswordMessage('Invalid code');
+        const data = await response.json();
+        setForgotPasswordMessage(data.message || 'Invalid code');
       }
     } catch (error) {
+      console.error('Verify reset code error:', error);
       setForgotPasswordMessage('Network error. Please try again.');
     } finally {
       setForgotPasswordLoading(false);
@@ -169,6 +170,7 @@ const Login = () => {
         setForgotPasswordMessage(data.message || 'Failed to update password');
       }
     } catch (error) {
+      console.error('Reset password error:', error);
       setForgotPasswordMessage('Network error. Please try again.');
     } finally {
       setForgotPasswordLoading(false);

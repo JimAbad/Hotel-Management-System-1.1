@@ -47,16 +47,7 @@ const ManageBookingAdmin = () => {
     }
   }, [statusFilter, searchQuery, token]);
 
-  const parseList = (payload) => {
-    if (Array.isArray(payload)) return payload;
-    return (
-      payload?.data?.bookings ||
-      payload?.bookings ||
-      payload?.data ||
-      payload?.results ||
-      []
-    );
-  };
+  
 
   // Helper: pick the first existing field name from your API result
   const pick = (obj, keys) => keys.find((k) => obj?.[k] !== undefined && obj?.[k] !== null) && obj[keys.find((k) => obj?.[k] !== undefined && obj?.[k] !== null)];
@@ -154,16 +145,7 @@ const ManageBookingAdmin = () => {
     setShowActivityModal(true);
   };
 
-  const handleEditClick = (booking) => {
-    setSelectedBooking(booking);
-    const co = booking.checkOutDate ? new Date(booking.checkOutDate) : null;
-    setEditForm({
-      bookingStatus: booking.bookingStatus || '',
-      checkOutDate: co && !isNaN(co) ? co.toISOString().slice(0, 10) : '',
-      roomNumber: booking?.room?.roomNumber ?? booking?.roomNumber ?? ''
-    });
-    setShowEditModal(true);
-  };
+  
 
   const handleEditSubmit = async (e) => {
     e.preventDefault();

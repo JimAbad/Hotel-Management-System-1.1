@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useCallback } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import AuthContext from './AuthContext';
@@ -27,30 +27,21 @@ function Rooms() {
   const [checkOutTime, setCheckOutTime] = useState('');
   const [adults, setAdults] = useState(1);
   const [children, setChildren] = useState(0);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [showLoginConfirmation, setShowLoginConfirmation] = useState(false); // New state for confirmation dialog
-  const [showPaymentForm, setShowPaymentForm] = useState(false); // New state for showing payment form
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(''); // 'gcash' or 'paymaya'
-  const [modalPurpose, setModalPurpose] = useState('info'); // 'info' or 'book'
-  const [numberOfHours, setNumberOfHours] = useState(0);
-  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
-  const [bookingSuccessData, setBookingSuccessData] = useState(null);
-  const [subtotal, setSubtotal] = useState(0);
-  const [taxesAndFees, setTaxesAndFees] = useState(0);
+  
+  const [showLoginConfirmation, setShowLoginConfirmation] = useState(false);
+  const [modalPurpose, setModalPurpose] = useState('info');
   const [total, setTotal] = useState(0);
-  const [bookingType, setBookingType] = useState('myself'); // 'myself' or 'someone'
-  const [userBookingCount, setUserBookingCount] = useState(0); // New state for user's booking count
-  const [bookingCountLoading, setBookingCountLoading] = useState(false); // Loading state for booking count
+  const [bookingType, setBookingType] = useState('myself');
+  const [userBookingCount, setUserBookingCount] = useState(0);
 
   // Function to fetch user's current booking count
-  const fetchUserBookingCount = async () => {
+  const fetchUserBookingCount = useCallback(async () => {
     if (!user || !token) {
       setUserBookingCount(0);
       return;
     }
 
     try {
-      setBookingCountLoading(true);
       const config = {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -70,10 +61,8 @@ function Rooms() {
     } catch (err) {
       console.error('Error fetching user booking count:', err);
       setUserBookingCount(0);
-    } finally {
-      setBookingCountLoading(false);
     }
-  };
+  }, [API_URL, user, token]);
 
   useEffect(() => {
     const fetchSummary = async () => {
@@ -88,12 +77,12 @@ function Rooms() {
       }
     };
     fetchSummary();
-  }, []);
+  }, [API_URL]);
 
   // Fetch user's booking count when user or token changes
   useEffect(() => {
     fetchUserBookingCount();
-  }, [user, token]);
+  }, [fetchUserBookingCount]);
 
   useEffect(() => {
     if (checkInDate && checkOutDate && checkInTime && checkOutTime && modalRoom) {
@@ -101,17 +90,8 @@ function Rooms() {
       const checkOut = new Date(`${checkOutDate}T${checkOutTime}`);
       const diffTime = Math.abs(checkOut - checkIn);
       const diffHours = Math.ceil(diffTime / (1000 * 60 * 60));
-      setNumberOfHours(diffHours);
-
       const roomPrice = modalRoom.price || 0;
-      let calculatedSubtotal = diffHours * roomPrice;
-      let calculatedTaxesAndFees = calculatedSubtotal * 0.12; // Assuming 12% tax
-      let calculatedTotal = calculatedSubtotal + calculatedTaxesAndFees;
-
-      // Use actual room price and computed totals without test overrides
-
-      setSubtotal(calculatedSubtotal);
-      setTaxesAndFees(calculatedTaxesAndFees);
+      const calculatedTotal = (diffHours * roomPrice) * 1.12;
       setTotal(calculatedTotal);
     }
   }, [checkInDate, checkOutDate, checkInTime, checkOutTime, modalRoom]);
@@ -124,49 +104,11 @@ function Rooms() {
     return { date, time };
   };
 
-  const isDateTimeInPast = (date, time) => {
-    if (!date || !time) return false;
-    const selectedDateTime = new Date(`${date}T${time}`);
-    const now = new Date();
-    return selectedDateTime < now;
-  };
+  
 
-  const getMinimumCheckOutTime = (checkInDate, checkInTime) => {
-    if (!checkInDate || !checkInTime) return '';
-    
-    const checkInDateTime = new Date(`${checkInDate}T${checkInTime}`);
-    const minCheckOutDateTime = new Date(checkInDateTime.getTime() + (3 * 60 * 60 * 1000)); // Add 3 hours
-    
-    return minCheckOutDateTime.toTimeString().slice(0, 5);
-  };
+  
 
-  const validateDateTime = () => {
-    // Validate check-in date/time
-    if (isDateTimeInPast(checkInDate, checkInTime)) {
-      alert('Check-in date and time cannot be in the past.');
-      return false;
-    }
-    
-    // Validate check-out date/time
-    if (isDateTimeInPast(checkOutDate, checkOutTime)) {
-      alert('Check-out date and time cannot be in the past.');
-      return false;
-    }
-    
-    // Validate minimum 3-hour duration
-    if (checkInDate && checkInTime && checkOutDate && checkOutTime) {
-      const checkInDateTime = new Date(`${checkInDate}T${checkInTime}`);
-      const checkOutDateTime = new Date(`${checkOutDate}T${checkOutTime}`);
-      const diffHours = (checkOutDateTime - checkInDateTime) / (1000 * 60 * 60);
-      
-      if (diffHours < 3) {
-        alert('Minimum booking duration is 3 hours.');
-        return false;
-      }
-    }
-    
-    return true;
-  };
+  
 
   const generateTimeOptions = (isCheckOut = false, checkInDate = null, checkInTime = null) => {
     const times = [];
@@ -222,13 +164,7 @@ function Rooms() {
     return times;
   };
 
-  const renderStars = (rating) => {
-    const stars = [];
-    for (let i = 0; i < 5; i++) {
-      stars.push(<span key={i} className={i < rating ? 'star filled' : 'star'}>{i < rating ? '★' : '☆'}</span>);
-    }
-    return <div className="star-rating">{stars}</div>;
-  };
+  
 
   const normalizeRoomType = (type) => {
     if (!type) return '';
@@ -256,53 +192,7 @@ function Rooms() {
     return itemFloor ?? 'N/A';
   };
 
-  const handleBookType = async (type) => {
-    if (!user || !user.name) {
-      alert('Please log in to book.');
-      navigate('/login');
-      return;
-    }
-    try {
-      // Find one available room of the selected type
-      const availableRooms = await axios.get(`${API_URL}/api/rooms`, {
-        params: { roomType: type, availableOnly: true, limit: 1 }
-      });
-      const room = availableRooms.data.rooms?.[0];
-      if (!room) {
-        alert(`${type} is not available.`);
-        return;
-      }
-      const bookingData = {
-        roomNumber: room.roomNumber,
-        customerName: user.name,
-        customerEmail: user.email,
-        checkIn: '2025-09-17',
-        checkOut: '2025-09-20',
-        type
-      };
-      const bookingResponse = await axios.post(`${API_URL}/api/bookings`, bookingData, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      await axios.post(`${API_URL}/api/payment/confirm`, {
-        bookingId: bookingResponse.data.newBooking._id,
-        paymentDetails: { amount: 500 }
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      navigate('/payment-status', { state: { success: true, booking: bookingResponse.data, customerAccountId: bookingResponse.data.customerAccountId } });
-    } catch (err) {
-      console.error(err);
-      const errorMessage = err?.response?.data?.message || err.message || 'Failed to create booking.';
-      
-      // Check if it's a booking limit error
-      if (errorMessage.includes('Booking limit reached')) {
-        alert('You have reached the maximum limit of 3 active bookings. Please cancel or complete existing bookings before making a new one.');
-        setShowModal(false);
-      } else {
-        navigate('/payment-status', { state: { success: false, error: errorMessage } });
-      }
-    }
-  };
+  
 
   const handleMoreInfo = async (type) => {
     try {
@@ -403,62 +293,11 @@ function Rooms() {
     setShowLoginConfirmation(false);
   };
 
-  const handleBookSelectedRoom = async () => {
-    if (!modalRoom) return;
-    if (!user || !user.name) {
-      alert('Please log in to book.');
-      navigate('/login');
-      return;
-    }
-
-    // Validate all required fields
-    if (!checkInDate || !checkInTime || !checkOutDate || !checkOutTime) {
-      alert('Please fill in all date and time fields.');
-      return;
-    }
-
-    // Validate date/time constraints
-    if (!validateDateTime()) {
-      return;
-    }
-
-    try {
-      const checkInDateTime = `${checkInDate}T${checkInTime}`;
-      const checkOutDateTime = `${checkOutDate}T${checkOutTime}`;
-
-      const bookingData = {
-        roomNumber: modalRoom.roomNumber,
-        customerName: user.name,
-        customerEmail: user.email,
-        checkIn: checkInDateTime,
-        checkOut: checkOutDateTime,
-        adults: adults,
-        children: children,
-        guestName: guestName,
-        contactNumber: contactNumber,
-        specialRequests: '',
-      };
-      const bookingResponse = await axios.post(`${import.meta.env.VITE_API_URL}/api/bookings`, bookingData, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      await axios.post(`${import.meta.env.VITE_API_URL}/api/payment/confirm`, {
-        bookingId: bookingResponse.data.newBooking._id,
-        paymentDetails: { amount: modalRoom.price }
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setShowModal(false);
-      navigate('/payment-status', { state: { success: true, booking: bookingResponse.data.newBooking, customerAccountId: bookingResponse.data.customerAccountId } });
-    } catch (err) {
-      console.error(err);
-      navigate('/payment-status', { state: { success: false, error: err.message } });
-    }
-  };
+  
 
   const handleCloseModal = () => {
     setShowModal(false);
-    // setSelectedRoomType(null); // This state variable is not defined, so I'm commenting it out.
-    setShowPaymentModal(false); // Close payment modal as well
+    
     setModalPurpose('info'); // Reset modal purpose
   };
 
@@ -471,7 +310,6 @@ function Rooms() {
       if (!guestName || !contactNumber || !email || !checkInDate || !checkOutDate) {
         setModalError('Please fill in all required fields.');
         setModalLoading(false);
-        <button className="logout-modal-close" onClick={() => setShowLogoutConfirm(false)}>×</button>
         return;
       }
 
@@ -507,7 +345,7 @@ function Rooms() {
         totalAmount: total
       };
 
-      const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/bookings`, bookingData, config);
+      const response = await axios.post(`${API_URL}/api/bookings`, bookingData, config);
       const booking = response.data?.newBooking || response.data;
       // Redirect to dedicated PayMongo QR page
       setShowModal(false);
@@ -796,7 +634,7 @@ function Rooms() {
                         <p>Dates: {checkInDate} - {checkOutDate}</p>
                         <p>Guests: {adults} Adults, {children} Children (0-5 years old)</p>
                         <p>Rate: ₱{modalRoom?.price?.toLocaleString()} per hour</p>
-                        <p>Taxes and fees: ₱{taxesAndFees.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+                        
                         <p>Total: ₱{total.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
                       </div>
       <div className="overlay-content">
@@ -832,60 +670,7 @@ function Rooms() {
         </div>
       )}
       
-      {/* Success Popup Modal */}
-      {showSuccessPopup && bookingSuccessData && (
-        <div className="success-popup-overlay">
-          <div className="success-popup-content">
-            <div className="success-popup-header">
-              <span className="success-icon"></span>
-              <h2 style={{ marginTop: "-30px" }}>Booking Successful!</h2>
-            </div>
-            <div className="success-popup-body">
-              <p className="success-message">Your room has been successfully booked!</p>
-              <div className="booking-details">
-                <div className="detail-item">
-                  <strong>Booking Reference:</strong>
-                  <span className="booking-ref">{bookingSuccessData.referenceNumber || bookingSuccessData._id}</span>
-                </div>
-                <div className="detail-item">
-                  <strong>Room Number:</strong>
-                  <span>{bookingSuccessData.roomNumber}</span>
-                </div>
-                <div className="detail-item">
-                  <strong>Check-in Date:</strong>
-                  <span>{new Date(bookingSuccessData.checkIn).toLocaleDateString()}</span>
-                </div>
-                <div className="detail-item">
-                  <strong>Check-out Date:</strong>
-                  <span>{new Date(bookingSuccessData.checkOut).toLocaleDateString()}</span>
-                </div>
-                <div className="detail-item">
-                  <strong>Total Amount:</strong>
-                  <span className="amount">{bookingSuccessData.totalAmount ? `₱${bookingSuccessData.totalAmount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : 'N/A'}</span>
-                </div>
-              </div>
-              <p className="success-note">You can view all your bookings in the "My Bookings" section.</p>
-            </div>
-            <div className="success-popup-footer">
-              <button 
-                className="view-bookings-btn" 
-                onClick={() => {
-                  setShowSuccessPopup(false);
-                  navigate('/my-bookings');
-                }}
-              >
-                View My Bookings
-              </button>
-              <button 
-                className="close-popup-btn" 
-                onClick={() => setShowSuccessPopup(false)}
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      
     </div>
   );
 }
