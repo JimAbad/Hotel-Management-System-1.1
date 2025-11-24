@@ -530,6 +530,7 @@ async function createPayMongoSource(req, res, next) {
       booking.paymentDetails.paymongoPaymentMethodId = pmData.id;
       booking.paymentDetails.paymongoClientKey = intentData?.attributes?.client_key || null;
       booking.paymentDetails.qrphNextAction = attached?.attributes?.next_action || null;
+      booking.paymentDetails.downpaymentAmount = amount;
       booking.paymentStatus = 'pending';
       await booking.save();
 
@@ -584,6 +585,8 @@ async function createPayMongoSource(req, res, next) {
     }
 
     booking.paymongoSourceId = sourceData.id;
+    booking.paymentDetails = booking.paymentDetails || {};
+    booking.paymentDetails.downpaymentAmount = amount;
     booking.paymentStatus = 'pending';
     await booking.save();
 
