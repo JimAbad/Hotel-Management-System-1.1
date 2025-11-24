@@ -2,6 +2,7 @@ const express = require('express');
 const connectDB = require('./config/db');
 const cors = require('cors');
 const { startBookingExpirationUpdater } = require('./utils/bookingExpirationUpdater');
+const { startPaymongoStatusRefresher } = require('./utils/paymongoStatusRefresher');
 require('dotenv').config();
 
 const app = express();
@@ -77,4 +78,6 @@ app.listen(PORT, () => {
   
   // Start the booking expiration updater service
   startBookingExpirationUpdater();
+  // Start PayMongo status refresher to guard against missing webhooks
+  startPaymongoStatusRefresher();
 });
