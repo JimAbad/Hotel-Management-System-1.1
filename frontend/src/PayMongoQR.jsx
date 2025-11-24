@@ -65,7 +65,7 @@ function PayMongoQR() {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       const data = res.data?.data;
-      setPaymentData((prev) => ({ ...prev, ...data }));
+      setPaymentData((prev) => (prev ? { ...prev, ...data } : data));
     } catch (err) {
       console.error('Failed to create PayMongo source:', err?.response?.data || err.message);
       setError(err?.response?.data?.message || err.message || 'Failed to create PayMongo source');
