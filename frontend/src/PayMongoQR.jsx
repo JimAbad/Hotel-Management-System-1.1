@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import AuthContext from './AuthContext';
 import './PayMongoQR.css';
-import qrph from '/images/qrph.jpg';
 // Using public asset for robust path resolution across dev servers
 
 function PayMongoQR() {
@@ -133,7 +132,11 @@ function PayMongoQR() {
       ) : (
         <div className="payment-pending">
           <p>Please complete your payment by scanning the QR code below using your preferred e-wallet app.</p>
-          <img src={qrCodeUrl || qrph} alt="PayMongo QR Code" className="qr-code-img" />
+          {qrCodeUrl ? (
+            <img src={qrCodeUrl} alt="PayMongo QR Code" className="qr-code-img" />
+          ) : (
+            <button onClick={() => createPayMongoSource()}>Generate QR</button>
+          )}
           <p>Payment Status: {paymentStatus}</p>
           <button onClick={() => fetchPaymentDetails()}>Refresh Status</button>
         </div>

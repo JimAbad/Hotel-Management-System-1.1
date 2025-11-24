@@ -7,6 +7,7 @@ const { EWallet } = x;
 const ewalletService = new EWallet({});
 const ErrorResponse = require('../utils/errorResponse');
 const axios = require('axios');
+const QRCode = require('qrcode');
 
 exports.createPaymentIntent = async (req, res) => {
   try {
@@ -361,20 +362,36 @@ exports.getPayMongoPaymentDetails = async (req, res, next) => {
       return next(new ErrorResponse('Not authorized to view this booking', 401));
     }
 
-  res.status(200).json({
-    success: true,
-    data: {
-      paymongoSourceId: booking.paymongoSourceId || null,
-      paymongoPaymentId: booking.paymongoPaymentId || null,
-      paymentStatus: booking.paymentStatus,
-      totalAmount: booking.totalAmount,
-      paymentAmount: booking.paymentAmount,
-      qrCodeUrl: (booking.paymentDetails?.qrphNextAction?.qr_code_url
-        || booking.paymentDetails?.qrphNextAction?.redirect?.url
-        || booking.paymentDetails?.qrphNextAction?.redirect?.checkout_url
-        || null),
-    },
-  });
+  try {
+    const next = booking.paymentDetails?.qrphNextAction || {};
+    let qrCodeUrl = next?.qr_code_url || next?.redirect?.url || next?.redirect?.checkout_url || null;
+    if (!qrCodeUrl && next?.qr_string) {
+      qrCodeUrl = await QRCode.toDataURL(next.qr_string, { width: 512, margin: 2 });
+    }
+    res.status(200).json({
+      success: true,
+      data: {
+        paymongoSourceId: booking.paymongoSourceId || null,
+        paymongoPaymentId: booking.paymongoPaymentId || null,
+        paymentStatus: booking.paymentStatus,
+        totalAmount: booking.totalAmount,
+        paymentAmount: booking.paymentAmount,
+        qrCodeUrl: qrCodeUrl || null,
+      },
+    });
+  } catch (e) {
+    res.status(200).json({
+      success: true,
+      data: {
+        paymongoSourceId: booking.paymongoSourceId || null,
+        paymongoPaymentId: booking.paymongoPaymentId || null,
+        paymentStatus: booking.paymentStatus,
+        totalAmount: booking.totalAmount,
+        paymentAmount: booking.paymentAmount,
+        qrCodeUrl: null,
+      },
+    });
+  }
   } catch (error) {
     console.error('Error fetching PayMongo payment details:', error);
     next(new ErrorResponse('Failed to retrieve PayMongo payment details', 500));
@@ -466,7 +483,6 @@ async function createPayMongoSource(req, res, next) {
         return next(new ErrorResponse('Failed to create PayMongo payment intent', 500));
       }
 
-      // Create QRPH payment method
       const pmPayload = {
         data: {
           attributes: {
@@ -491,7 +507,6 @@ async function createPayMongoSource(req, res, next) {
         return next(new ErrorResponse('Failed to create PayMongo payment method (qrph)', 500));
       }
 
-      // Attach payment method to intent so PayMongo generates QR / checkout URL
       const attachPayload = {
         data: {
           attributes: {
@@ -509,7 +524,6 @@ async function createPayMongoSource(req, res, next) {
       });
       const attached = attachRes?.data?.data;
 
-      // Persist identifiers and next action details
       booking.paymentDetails = booking.paymentDetails || {};
       booking.paymentDetails.paymentIntentId = intentData.id;
       booking.paymentDetails.paymongoPaymentIntentId = intentData.id;
@@ -519,9 +533,15 @@ async function createPayMongoSource(req, res, next) {
       booking.paymentStatus = 'pending';
       await booking.save();
 
-      // Provide QR code / redirect URL to client
       const next = attached?.attributes?.next_action || {};
-      const qrCodeUrl = next?.qr_code_url || next?.redirect?.url || next?.redirect?.checkout_url || null;
+      let qrCodeUrl = next?.qr_code_url || next?.redirect?.url || next?.redirect?.checkout_url || null;
+      if (!qrCodeUrl && next?.qr_string) {
+        try {
+          qrCodeUrl = await QRCode.toDataURL(next.qr_string, { width: 512, margin: 2 });
+        } catch (e) {
+          console.warn('Failed to generate QR image from qr_string:', e?.message);
+        }
+      }
 
       return res.status(201).json({
         success: true,
