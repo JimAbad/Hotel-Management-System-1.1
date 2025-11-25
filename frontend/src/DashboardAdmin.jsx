@@ -28,7 +28,7 @@ const DashboardAdmin = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const API_BASE = (import.meta.env.VITE_API_URL || 'https://hotel-management-system-1-1backend.onrender.com').replace(/\/+$/, '');
+  const API_BASE = (import.meta.env.VITE_API_URL || 'https://hotel-management-system-1-1-backend.onrender.com').replace(/\/+$/, '');
 
   useEffect(() => {
     const fetchDashboardData = async () => {

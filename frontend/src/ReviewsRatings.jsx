@@ -12,7 +12,7 @@ function ReviewsRatings() {
   const [searchReference, setSearchReference] = useState('');
   const [filterStar, setFilterStar] = useState(0);
   const [activeTab, setActiveTab] = useState('toReview'); // 'toReview' or 'reviewed'
-  const API_URL = import.meta.env.VITE_API_URL || 'https://hotel-management-system-1-1backend.onrender.com';
+  const API_URL = import.meta.env.VITE_API_URL || 'https://hotel-management-system-1-1-backend.onrender.com';
 
   useEffect(() => {
     const fetchReviews = async () => {

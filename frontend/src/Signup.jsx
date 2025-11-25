@@ -28,7 +28,7 @@ const Signup = () => {
   const { register } = useContext(AuthContext);
   const navigate = useNavigate();
 
-  const API_BASE = import.meta.env.VITE_API_URL || 'https://hotel-management-system-1-1backend.onrender.com';
+  const API_BASE = import.meta.env.VITE_API_URL || 'https://hotel-management-system-1-1-backend.onrender.com';
 
   // Helper function to capitalize first letter of each word
   const capitalizeWords = (str) => {
