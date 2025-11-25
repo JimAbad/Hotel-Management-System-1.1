@@ -1,0 +1,436 @@
+.login-page-wrapper {
+  display: flex;
+  /* height: 100vh; */ /* Removed to allow navbar to be visible */
+  background-color: transparent;
+  background-image: url('/images/loginbg.jpg'); /* Ensure this path is correct */
+  background-size: cover;
+  background-position: center;
+  padding-top: 5rem; /* Add padding to match the height of the navbar */
+  color: var(--text-color);
+}
+
+.login-page {
+  display: flex;
+  justify-content: flex-end; /* Align to the right */
+  align-items: center;
+  padding: 5rem;
+  padding-right: 10%; /* Adjust as needed to match the image */
+  padding-left: 10%; /* Add padding to match the image */
+  padding-top: 8rem; /* Increased padding to account for fixed navbar */
+  height: calc(100vh - 6rem); /* Adjust height to account for navbar */
+  min-height: calc(100vh - 6rem); /* Ensure minimum height */
+  background-image: url('./img/loginbg.jpg'); /* Use the same background image as login */
+  background-size: cover;
+  background-position: center;
+  color: var(--text-color);
+  position: relative; /* Ensure proper positioning */
+  z-index: 1; /* Lower z-index than navigation bar */
+}
+
+.login-left {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem;
+}
+
+.login-logo {
+  width: 300px;
+  height: auto;
+  margin-bottom: 1rem;
+  padding-right: 15%;
+}
+
+.login-container {
+  
+  /* This container will hold the form card */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 400%;
+  max-width: 400px; /* Adjusted from 300px */
+}
+
+.login-form-card {
+  background-color: var(--dark-surface);
+  padding: 3rem;
+  border-radius: 10px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+  width: 100%;
+  max-width: 400px; /* Adjusted from 300px */
+  text-align: center;
+}
+
+.login-form-card h2 {
+  font-size: 2rem;
+  color: var(--golden-accent); /* Ensure the title is golden */
+  margin-bottom: 2rem;
+}
+
+.form-group label {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  color: var(--golden-accent);
+  font-size: 1rem;
+}
+
+.form-group label i {
+  margin-right: 0.5rem;
+  color: var(--golden-accent); /* Ensure icon color matches label */
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+  text-align: left;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: var(--golden-accent); /* Changed from var(--light-text-color) */
+  font-size: 1rem;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 0.8rem 10px;
+  border-radius: 5px;
+  background-color: #fff; /* Changed from #3a3a3a */
+  color: #333; /* Changed from var(--text-color) */
+  font-size: 1rem;
+}
+
+.login-form-card button {
+  background-color: var(--golden-accent);
+  color: var(--dark-surface);
+  padding: 0.8rem 1.5rem;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 1.1rem;
+  font-weight: bold;
+  transition: background-color 0.3s ease;
+  margin-top: 1.5rem;
+}
+
+.login-form-card button:hover {
+  background-color: #ffd700;
+}
+
+.forgot-password {
+  margin-top: 1rem;
+  font-size: 0.9rem;
+}
+
+.forgot-password a {
+  color: var(--golden-accent);
+  text-decoration: none;
+}
+
+.forgot-password a:hover {
+  text-decoration: underline;
+}
+
+.signup-link {
+  margin-top: 1.5rem;
+  font-size: 1rem;
+}
+
+.signup-link a {
+  color: var(--golden-accent);
+  text-decoration: none;
+  font-weight: bold;
+}
+
+.signup-link a:hover {
+  text-decoration: underline;
+}
+
+/* Forgot Password Link Styling */
+.forgot-password-link {
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.forgot-link {
+  color: var(--golden-accent);
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.3s ease;
+}
+
+.forgot-link:hover {
+  text-decoration: underline;
+  color: #ffd700;
+}
+
+/* Forgot Password Modal Styling */
+.forgot-password-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.forgot-password-modal {
+  background-color: var(--dark-surface);
+  border-radius: 15px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  width: 90%;
+  max-width: 450px;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+  animation: slideIn 0.3s ease-out;
+}
+
+.forgot-password-close {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: var(--golden-accent);
+  cursor: pointer;
+  width: 35px;
+  height: 35px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  z-index: 1001;
+}
+
+.forgot-password-close:hover {
+  background-color: rgba(255, 215, 0, 0.1);
+  color: #ffd700;
+  transform: rotate(90deg);
+}
+
+.forgot-password-content {
+  padding: 3rem 2.5rem 2.5rem;
+  text-align: center;
+}
+
+.forgot-password-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--golden-accent), #ffd700);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1.5rem;
+  animation: pulse 2s infinite;
+}
+
+.forgot-password-icon i {
+  font-size: 2rem;
+  color: var(--dark-surface);
+}
+
+.forgot-password-title {
+  font-size: 1.8rem;
+  color: var(--golden-accent);
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.forgot-password-subtitle {
+  color: var(--text-color);
+  margin-bottom: 2rem;
+  font-size: 1rem;
+  line-height: 1.5;
+  opacity: 0.9;
+}
+
+.forgot-password-message {
+  margin: 1rem 0;
+  padding: 0.8rem 1rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-align: center;
+  animation: slideDown 0.3s ease-out;
+}
+
+.forgot-password-message.success {
+  background-color: rgba(76, 175, 80, 0.1);
+  color: #4caf50;
+  border: 1px solid rgba(76, 175, 80, 0.3);
+}
+
+.forgot-password-message.error {
+  background-color: rgba(244, 67, 54, 0.1);
+  color: #f44336;
+  border: 1px solid rgba(244, 67, 54, 0.3);
+}
+
+.forgot-password-button {
+  width: 100%;
+  background: linear-gradient(135deg, var(--golden-accent), #ffd700);
+  color: var(--dark-surface);
+  padding: 1rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1.1rem;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  margin-top: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.forgot-password-button:hover:not(:disabled) {
+  background: linear-gradient(135deg, #ffd700, var(--golden-accent));
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(255, 215, 0, 0.3);
+}
+
+.forgot-password-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.forgot-password-back {
+  width: 100%;
+  background: transparent;
+  color: var(--golden-accent);
+  padding: 0.8rem 1.5rem;
+  border: 2px solid var(--golden-accent);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  margin-top: 1rem;
+}
+
+.forgot-password-back:hover {
+  background-color: var(--golden-accent);
+  color: var(--dark-surface);
+  transform: translateY(-1px);
+}
+
+/* Form Group Overrides for Modal */
+.forgot-password-modal .form-group {
+  margin-bottom: 1.5rem;
+  text-align: left;
+}
+
+.forgot-password-modal .form-group label {
+  color: var(--golden-accent);
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+}
+
+.forgot-password-modal .form-group label i {
+  margin-right: 0.5rem;
+  color: var(--golden-accent);
+}
+
+.forgot-password-modal .form-group input {
+  width: 100%;
+  padding: 1rem;
+  border-radius: 8px;
+  background-color: #fff;
+  color: #333;
+  font-size: 1rem;
+  border: 2px solid transparent;
+  transition: all 0.3s ease;
+}
+
+.forgot-password-modal .form-group input:focus {
+  border-color: var(--golden-accent);
+  box-shadow: 0 0 0 3px rgba(255, 215, 0, 0.1);
+  outline: none;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-50px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .forgot-password-modal {
+    width: 95%;
+    margin: 1rem;
+  }
+  
+  .forgot-password-content {
+    padding: 2rem 1.5rem 1.5rem;
+  }
+  
+  .forgot-password-icon {
+    width: 60px;
+    height: 60px;
+  }
+  
+  .forgot-password-icon i {
+    font-size: 1.5rem;
+  }
+  
+  .forgot-password-title {
+    font-size: 1.5rem;
+  }
+  
+  .forgot-password-subtitle {
+    font-size: 0.9rem;
+  }
+}
+

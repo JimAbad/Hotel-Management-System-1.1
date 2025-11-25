@@ -1,0 +1,40 @@
+const roomDetails = {
+  Deluxe: {
+    roomSize: '35-40 sqm (377-430 sq ft)',
+    bedType: '1 King Bed or 2 Queen Beds',
+    capacity: '3 Adults',
+    view: 'Partial Ocean View or Garden View',
+    floor: '4',
+    accessibility: 'Limited accessibility',
+    smoking: 'Non-smoking',
+    pets: 'Allowed (extra charge)',
+    quietHours: '11 PM - 6 AM',
+    price: 150,
+  },
+  Suite: {
+    roomSize: '55-65 sqm (592-700 sq ft)',
+    bedType: '1 King Bed + Separate Seating Area',
+    capacity: '3 Adults',
+    view: 'Full Ocean View or Pool View',
+    floor: '2-5',
+    accessibility: 'Wheelchair accessible',
+    smoking: 'Non-smoking',
+    pets: 'Not allowed',
+    quietHours: '10 PM - 7 AM',
+    price: 250,
+  },
+  Economy: {
+    roomSize: '25-30 sqm (269-323 sq ft)',
+    bedType: '1 Queen Bed or 2 Twin Beds',
+    capacity: '2 Adults',
+    view: 'City View or Courtyard View',
+    floor: '2',
+    accessibility: 'Wheelchair accessible (on request)',
+    smoking: 'Non-smoking',
+    pets: 'Not allowed',
+    quietHours: '10 PM - 7 AM',
+    price: 100,
+  },
+};
+
+export default roomDetails;
