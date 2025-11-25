@@ -10,12 +10,14 @@ const cancelledBookingSchema = new mongoose.Schema({
   room: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Room',
-    required: true
+    required: false,
+    default: null
   },
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true
+    required: false,
+    default: null
   },
   referenceNumber: {
     type: String,

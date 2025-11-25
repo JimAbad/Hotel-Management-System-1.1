@@ -62,7 +62,7 @@
 }
 
 .filter-group input[type="range"] {
-  width: 150px;
+  width: 300px;
 }
 
 .filter-group span {
@@ -207,7 +207,7 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  align-items: center;
+  align-items: stretch;
   z-index: 1000;
   backdrop-filter: blur(4px);
 }
@@ -216,9 +216,9 @@
 .modal-content {
   background-color: #ffffff;
   border-radius: 12px;
-  padding: 20px; /* Reduced padding */
-  width: 90%;
-  max-width: 1400px; /* Increased max-width for wider modal */
+  padding: 20px;
+  width: 100%;
+  max-width: none;
   max-height: 95vh;
   overflow-y: auto;
   position: relative;
@@ -226,7 +226,14 @@
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
   display: flex;
   flex-direction: column;
-  gap: 15px; /* Increased gap for better spacing */
+  gap: 15px;
+  box-sizing: border-box;
+  margin: 0; /* remove side margins to use full width */
+}
+
+.rooms-modal {
+  width: 50vw !important;
+  max-width: 98vw !important;
 }
 
 .modal-header {
@@ -246,21 +253,37 @@
   width: 100%;
 }
 
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.form-row .form-group select,
+.form-row .form-group input[type="date"] {
+  width: 100% !important;
+}
+
 .guest-info-section {
-  flex: 3; /* Give more space to the guest info section */
-  padding-right: 20px; /* Increased padding */
+  flex: 4;
+  padding-right: 20px;
   border-right: 1px solid #eee;
 }
 
 .reservation-summary-section {
-  flex: 1; /* Give less space to the reservation summary */
+  flex: 0 0 auto;
+  width: 420px;
+  min-height: 560px;
+  align-self: flex-start;
+  position: sticky;
+  top: 12px;
   background-color: #f9f9f9;
   border: 1px solid #eee;
   border-radius: 8px;
-  padding: 25px;
+  padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: 16px;
 }
 
 .modal-back {
@@ -427,34 +450,20 @@
   font-size: 13px;
 }
 
-.reservation-summary-section {
-  color: black;
-  flex: 1;
-  background-color: #f9f9f9;
-  border: 1px solid #eee;
-  border-radius: 8px;
-  padding: 25px;
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-  position: relative;
-  justify-content: flex-end; /* Push content to the bottom */
-}
+
 
 .summary-card {
-  z-index: 1;
+  background: #ffffff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .overlay-content {
-  position: relative;
-  background-color: rgba(0, 0, 0, 0); /* Transparent by default */
-  display: flex;
-  flex-direction: column-reverse;
-  align-items: center;
-  justify-content: flex-start; /* Align items to the start (bottom) of the reversed column */
-  transition: background-color 0.3s ease-in-out;
-  z-index: 1;
-  width: 100%; /* Ensure it takes full width */
+  width: 100%;
 }
 
 .overlay-content.show-qr {
@@ -462,13 +471,8 @@
 }
 
 .overlay-content .modal-actions {
-  display: flex; /* Show by default */
-  flex-direction: column;
-  align-items: center;
-  justify-content: center; /* Center the button within its own flex container */
+  display: block;
   width: 100%;
-  height: auto; /* Allow height to adjust */
-  z-index: 2;
 }
 
 .overlay-content .cancellation-note {
@@ -494,9 +498,11 @@
 }
 
 .reservation-summary-section img {
-  max-width: 100%;
-  height: auto;
-  display: block; /* Remove extra space below image */
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 6px;
+  display: block;
 }
 
 .qr-code-section p {
@@ -584,6 +590,9 @@
   background-color: #f9f9f9;
   border-radius: 8px;
   border: 1px solid #ddd;
+  max-width: 880px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .modal-amenities h3 {
@@ -596,6 +605,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+  justify-content: center;
 }
 
 .amenity-item {
@@ -614,6 +624,9 @@
   border-radius: 8px;
   justify-content: left;
   text-align: left; /* Ensure Room Details section is left-aligned */
+  max-width: 880px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .modal-room-details h3 {

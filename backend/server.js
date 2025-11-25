@@ -41,6 +41,8 @@ try {
   console.error('Error loading auth routes:', error);
 }
 app.use('/api/bookings', require('./routes/bookingRoutes'));
+app.use('/api/requests', require('./routes/requestRoutes'));
+app.use('/api/tasks', require('./routes/taskRoutes'));
 console.log('Loading payment routes...');
 app.use('/api/payment', require('./routes/paymentRoutes'));
 console.log('Payment routes loaded');

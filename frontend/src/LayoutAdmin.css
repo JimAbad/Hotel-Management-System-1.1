@@ -26,14 +26,54 @@ body {
 .sidebar-header {
   padding: 0 20px 20px;
   text-align: center;
-  border-bottom: 1px solid #472607;
+  border-bottom: none;
   height: 80px; /* Explicitly set height */
   display: flex; /* Use flexbox for alignment */
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  overflow: hidden; /* Hide overflowing content */
+  overflow: visible;
+  position: relative;
+  z-index: 1100;
 }
+
+.admin-bell {
+  position: absolute;
+  left: 16px;
+  top: 14px;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: #ffd700;
+  cursor: pointer;
+}
+.admin-bell:hover { background: rgba(255,255,255,0.1); }
+.admin-notif-dropdown {
+  position: fixed;
+  left: 12px;
+  top: 54px;
+  width: 280px;
+  background: #fff;
+  color: #111;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 10px 24px rgba(0,0,0,0.15);
+  max-height: 320px;
+  overflow-y: auto;
+  z-index: 10000;
+}
+.notif-badge { position: absolute; top: -4px; right: -4px; background: #dc3545; color: #fff; border-radius: 9999px; font-size: 10px; padding: 2px 6px; }
+.notif-header { padding: 10px 12px; font-weight: 700; border-bottom: 1px solid #e5e7eb; }
+.notif-header { display: flex; align-items: center; justify-content: space-between; }
+.notif-markall { background: transparent; border: 0; color: #000000; cursor: pointer; font-weight: 600; }
+.notif-item { display: flex; align-items: center; justify-content: space-between; }
+.notif-close { background: transparent; border: 0; color: #6b7280; cursor: pointer; font-size: 18px; line-height: 1; }
+.notif-close:hover { color: #111827; }
+.notif-item { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; }
+.notif-empty { padding: 14px; color: #6b7280; }
 
 .sidebar-header h2 {
     margin: 0;
@@ -55,12 +95,13 @@ body {
 }
 
 .sidebar-nav {
-  flex-grow: 1; /* Allow navigation to take available space */
+  position: relative;
+  z-index: 1;
+  flex-grow: 1;
   display: flex;
-  flex-direction: column; /* Ensure vertical stacking */
-  /* Removed justify-content: center; */ /* Align navigation block to the top */
-  align-items: self-start; /* Horizontally center the navigation items */
-  padding-top: 10%;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 20px;
 }
 
 .sidebar-nav ul {
@@ -79,22 +120,23 @@ body {
 }
 
 .sidebar-nav a {
-  display: inline-flex; /* Limit highlight width to content, use inline-flex */
-  width: 200px; /* Set a fixed width for consistent sizing */
+  display: inline-flex;
+  width: 200px;
   align-items: center;
   padding: 10px 20px;
   color: white;
   text-decoration: none;
   border-radius: 5px;
-  transition: background-color 0.3s ease;
+  transition: background-color 0.3s ease, color 0.3s ease;
   box-sizing: border-box; /* Include padding in width calculation */
-  border: 1px solid black; /* Added border for each navigation item */
+  border: none;
+  margin: 0 auto;
 }
 
 .sidebar-nav a:hover,
 .sidebar-nav a.active {
-  background-color: white;
-  color: black;
+  background-color: #f0d78a;
+  color: #000;
 }
 
 .sidebar-nav a .icon {
@@ -128,9 +170,8 @@ body {
 .main-content {
   margin-left: 250px; /* Offset main content by sidebar width */
   flex-grow: 1;
-  background-color: #ffffff; /* Explicitly set background to white for clarity */
+  background-color: #f4f7fa;
   padding: 20px;
-  /* Removed border: 2px solid purple; */ /* Removed temporary border for debugging */
 }
 
 .header {

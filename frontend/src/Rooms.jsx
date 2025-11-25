@@ -39,6 +39,7 @@ function Rooms() {
   const [total, setTotal] = useState(0);
   const [bookingType, setBookingType] = useState('myself');
   const [userBookingCount, setUserBookingCount] = useState(0);
+  const [showAmenitiesModal, setShowAmenitiesModal] = useState(false);
 
   // Function to fetch user's current booking count
   const fetchUserBookingCount = useCallback(async () => {
@@ -419,8 +420,7 @@ function Rooms() {
                
                <p>Room Type: {type}</p>  
                <p>Floor: {getDisplayFloor(type)}</p>
-               <p>Total Rooms: {total}</p>
-               <p>Available: {available}</p>
+               
              </div>
              <div className="room-card-footer">
                <button 
@@ -436,7 +436,7 @@ function Rooms() {
       </div>
       {showModal && (
         <div className="modal-overlay">
-          <div className="modal-content">
+          <div className="modal-content rooms-modal">
             {modalLoading ? (
               <div className="modal-loading">Loading...</div>
             ) : modalError ? (
@@ -453,41 +453,36 @@ function Rooms() {
             ) : (
               <>
                 <div className="modal-header">
-                  <button className="modal-back" style={{ color: 'white', background: '#B8860B', }} onClick={() => handleCloseModal()}>Back</button>
-                  <h2 
-  className="modal-title" 
-  style={{ textAlign: "center" }}
->
-  {modalRoom?.roomType || modalRoom?.type}
-</h2>
-
+                  <button className="modal-back" style={{ color: 'white', background: '#B8860B' }} onClick={() => handleCloseModal()}>Back</button>
+                  <h2 className="modal-title" style={{ textAlign: 'center' }}>{modalRoom?.roomType || modalRoom?.type}</h2>
                 </div>
-                <div className="modal-amenities">
-                  <h3>Amenities</h3>
-                  <div className="amenities-list">
-                    {modalRoom?.amenities?.map((amenity, index) => (
-                      <span key={index} className="amenity-item">{amenity}</span>
-                    ))}
-                  </div>
-                </div>
-                <div className="modal-room-details">
-                  <h3 style={{ textAlign: 'center' }}>Room Details</h3>
-
-                  <div className="room-details-grid">
-                    <div className="room-detail-item">
-                      <p><strong>Room size:</strong> {modalRoom?.roomSize || 'N/A'}</p>
-                      <p><strong>Bed type:</strong> {modalRoom?.bedType || 'N/A'}</p>
-                      <p><strong>Capacity:</strong> {modalRoom?.capacity || 'N/A'}</p>
-                      <p><strong>View:</strong> {modalRoom?.view || 'N/A'}</p>
-                      <p><strong>Floor:</strong> {deriveFloorFromRoomNumber(modalRoom?.roomNumber) ?? modalRoom?.floor ?? roomDetails[normalizeRoomType(modalRoom?.roomType || modalRoom?.type)]?.floor ?? 'N/A'}</p>
-                      <p><strong>Accessibility:</strong> {modalRoom?.accessibility || 'N/A'}</p>
-                    </div>
-                    <div className="room-detail-item">
-                      <p><strong>Smoking:</strong> {modalRoom?.smoking || 'N/A'}</p>
-                      <p><strong>Pets:</strong> {modalRoom?.pets || 'N/A'}</p>
+                {modalPurpose === 'info' && (
+                  <>
+                  <div className="modal-amenities">
+                    <h3>Amenities</h3>
+                    <div className="amenities-list">
+                      {(modalRoom?.amenities || []).map((amenity, idx) => (
+                        <span key={idx} className="amenity-item">{amenity}</span>
+                      ))}
                     </div>
                   </div>
-                  {modalPurpose === 'info' && (
+                  <div className="modal-room-details">
+                    <h3 style={{ textAlign: 'center' }}>Room Details</h3>
+
+                    <div className="room-details-grid">
+                      <div className="room-detail-item">
+                        <p><strong>Room size:</strong> {modalRoom?.roomSize || 'N/A'}</p>
+                        <p><strong>Bed type:</strong> {modalRoom?.bedType || 'N/A'}</p>
+                        <p><strong>Capacity:</strong> {modalRoom?.capacity || 'N/A'}</p>
+                        <p><strong>View:</strong> {modalRoom?.view || 'N/A'}</p>
+                        <p><strong>Floor:</strong> {deriveFloorFromRoomNumber(modalRoom?.roomNumber) ?? modalRoom?.floor ?? roomDetails[normalizeRoomType(modalRoom?.roomType || modalRoom?.type)]?.floor ?? 'N/A'}</p>
+                        <p><strong>Accessibility:</strong> {modalRoom?.accessibility || 'N/A'}</p>
+                      </div>
+                      <div className="room-detail-item">
+                        <p><strong>Smoking:</strong> {modalRoom?.smoking || 'N/A'}</p>
+                        <p><strong>Pets:</strong> {modalRoom?.pets || 'N/A'}</p>
+                      </div>
+                    </div>
                     <div className="modal-actions">
                       <button 
                         className="book-room-btn" 
@@ -497,8 +492,9 @@ function Rooms() {
                         {modalRoomAvailability === 0 ? 'Not available' : userBookingCount >= 3 ? '3 rooms per account' : 'Book this room'}
                       </button>
                     </div>
-                  )}
-                </div>
+                  </div>
+                  </>
+                )}
                 {modalPurpose === 'book' && (
                   <div className="modal-body-content">
                     <div className="guest-info-section">
@@ -568,65 +564,70 @@ function Rooms() {
                       </div>
 
                       <h3>Stay Details</h3>
-                      <div className="form-group date-group">
-                        <label htmlFor="checkInDate" style={{color: 'black'}}>Check-in Date</label>
-                        <input
-                          type="date"
-                          id="checkInDate"
-                          value={checkInDate}
-                          onChange={(e) => setCheckInDate(e.target.value)}
-                          min={getCurrentDateTime().date}
-                        />
+                      <div className="form-row">
+                        <div className="form-group date-group">
+                          <label htmlFor="checkInDate" style={{color: 'black'}}>Check-in Date</label>
+                          <input
+                            type="date"
+                            id="checkInDate"
+                            value={checkInDate}
+                            onChange={(e) => setCheckInDate(e.target.value)}
+                            min={getCurrentDateTime().date}
+                          />
+                        </div>
+                        <div className="form-group date-group">
+                          <label htmlFor="checkOutDate" style={{color: 'black'}}>Check-out Date</label>
+                          <input
+                            type="date"
+                            id="checkOutDate"
+                            value={checkOutDate}
+                            onChange={(e) => setCheckOutDate(e.target.value)}
+                            min={checkInDate || getCurrentDateTime().date}
+                          />
+                        </div>
                       </div>
-                      <div className="form-group date-group">
-                        <label htmlFor="checkInTime" style={{color: 'black'}}>Check-in Time</label>
-                        <select
-                          id="checkInTime"
-                          value={checkInTime}
-                          onChange={(e) => setCheckInTime(e.target.value)}
-                        >
-                          <option value="">Select time</option>
-                          {generateTimeOptions(false, checkInDate).map(time => (
-                            <option key={time.value} value={time.value}>{time.display}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="form-group date-group">
-                        <label htmlFor="checkOutDate" style={{color: 'black'}}>Check-out Date</label>
-                        <input
-                          type="date"
-                          id="checkOutDate"
-                          value={checkOutDate}
-                          onChange={(e) => setCheckOutDate(e.target.value)}
-                          min={checkInDate || getCurrentDateTime().date}
-                        />
-                      </div>
-
-                      <div className="form-group date-group">
-                        <label htmlFor="checkOutTime" style={{color: 'black'}}>Check-out Time</label>
-                        <select
-                          id="checkOutTime"
-                          value={checkOutTime}
-                          onChange={(e) => setCheckOutTime(e.target.value)}
-                        >
-                          <option value="">Select time</option>
-                          {generateTimeOptions(true, checkInDate, checkInTime).map(time => (
-                            <option key={time.value} value={time.value}>{time.display}</option>
-                          ))}
-                        </select>
+                      <div className="form-row">
+                        <div className="form-group date-group">
+                          <label htmlFor="checkInTime" style={{color: 'black'}}>Check-in Time</label>
+                          <select
+                            id="checkInTime"
+                            value={checkInTime}
+                            onChange={(e) => setCheckInTime(e.target.value)}
+                          >
+                            <option value="">Select time</option>
+                            {generateTimeOptions(false, checkInDate).map(time => (
+                              <option key={time.value} value={time.value}>{time.display}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="form-group date-group">
+                          <label htmlFor="checkOutTime" style={{color: 'black'}}>Check-out Time</label>
+                          <select
+                            id="checkOutTime"
+                            value={checkOutTime}
+                            onChange={(e) => setCheckOutTime(e.target.value)}
+                          >
+                            <option value="">Select time</option>
+                            {generateTimeOptions(true, checkInDate, checkInTime).map(time => (
+                              <option key={time.value} value={time.value}>{time.display}</option>
+                            ))}
+                          </select>
+                        </div>
                       </div>
                       <h3>Number of Guests</h3>
-                      <div className="form-group guest-count-group">
-                        <label htmlFor="adults" style={{color: 'black'}}>Adults</label>
-                        <select id="adults" value={adults} onChange={(e) => setAdults(Number(e.target.value))}>
-                          {[...Array(10).keys()].map(i => <option key={i + 1} value={i + 1}>{i + 1}</option>)}
-                        </select>
-                      </div>
-                      <div className="form-group guest-count-group">
-                        <label htmlFor="children" style={{color: 'black'}}>Children (0-5 years old)</label>
-                        <select id="children" value={children} onChange={(e) => setChildren(Number(e.target.value))}>
-                          {[...Array(5).keys()].map(i => <option key={i} value={i}>{i}</option>)}
-                        </select>
+                      <div className="form-row">
+                        <div className="form-group guest-count-group">
+                          <label htmlFor="adults" style={{color: 'black'}}>Adults</label>
+                          <select id="adults" value={adults} onChange={(e) => setAdults(Number(e.target.value))}>
+                            {[...Array(10).keys()].map(i => <option key={i + 1} value={i + 1}>{i + 1}</option>)}
+                          </select>
+                        </div>
+                        <div className="form-group guest-count-group">
+                          <label htmlFor="children" style={{color: 'black'}}>Children (0-5 y/o)</label>
+                          <select id="children" value={children} onChange={(e) => setChildren(Number(e.target.value))}>
+                            {[...Array(5).keys()].map(i => <option key={i} value={i}>{i}</option>)}
+                          </select>
+                        </div>
                       </div>
 
                       <h3>Special Request</h3>
@@ -672,6 +673,43 @@ function Rooms() {
                             )}
                           </div>
       </div>
+                    </div>
+                  </div>
+                )}
+                {showAmenitiesModal && (
+                  <div className="modal-overlay">
+                    <div className="modal-content">
+                      <div className="modal-header">
+                        <h3 style={{ textAlign: 'center' }}>Room Info</h3>
+                        <button className="modal-close" onClick={() => setShowAmenitiesModal(false)}>×</button>
+                      </div>
+                      <div className="modal-body">
+                        <div className="modal-amenities">
+                          <h3>Amenities</h3>
+                          <div className="amenities-list">
+                            {(modalRoom?.amenities || []).map((amenity, idx) => (
+                              <span key={idx} className="amenity-item">{amenity}</span>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="modal-room-details">
+                          <h3 style={{ textAlign: 'center' }}>Room Details</h3>
+                          <div className="room-details-grid">
+                            <div className="room-detail-item">
+                              <p><strong>Room size:</strong> {modalRoom?.roomSize || 'N/A'}</p>
+                              <p><strong>Bed type:</strong> {modalRoom?.bedType || 'N/A'}</p>
+                              <p><strong>Capacity:</strong> {modalRoom?.capacity || 'N/A'}</p>
+                              <p><strong>View:</strong> {modalRoom?.view || 'N/A'}</p>
+                              <p><strong>Floor:</strong> {deriveFloorFromRoomNumber(modalRoom?.roomNumber) ?? modalRoom?.floor ?? roomDetails[normalizeRoomType(modalRoom?.roomType || modalRoom?.type)]?.floor ?? 'N/A'}</p>
+                              <p><strong>Accessibility:</strong> {modalRoom?.accessibility || 'N/A'}</p>
+                            </div>
+                            <div className="room-detail-item">
+                              <p><strong>Smoking:</strong> {modalRoom?.smoking || 'N/A'}</p>
+                              <p><strong>Pets:</strong> {modalRoom?.pets || 'N/A'}</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}

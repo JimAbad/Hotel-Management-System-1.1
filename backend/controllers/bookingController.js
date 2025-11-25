@@ -198,7 +198,7 @@ const createBooking = asyncHandler(async (req, res) => {
     // Create booking activity
     await BookingActivity.create({
       booking: booking._id,
-      activity: 'Booking created',
+      activity: 'Booking created: needs room assignment',
       status: 'pending'
     });
 
@@ -242,10 +242,46 @@ const updateBookingStatus = asyncHandler(async (req, res) => {
     if (!isNaN(d)) booking.checkOut = d;
   }
 
+  const prevRoomNumber = booking.roomNumber;
   if (roomNumber != null && roomNumber !== '') {
     booking.roomNumber = roomNumber;
     const room = await Room.findOne({ roomNumber });
     if (room) booking.room = room._id;
+    if (!bookingStatus && !status) {
+      booking.status = 'occupied';
+    }
+
+    try {
+      const Billing = require('../models/Billing');
+      const BookingActivity = require('../models/bookingActivityModel');
+      const billings = await Billing.find({ booking: booking._id });
+      for (const b of billings) {
+        const needsUpdate = String(b.roomNumber || '') === String(prevRoomNumber || '') || (b.description || '').includes('Room booking charge');
+        if (needsUpdate) {
+          b.roomNumber = roomNumber;
+          if ((b.description || '').includes('Room booking charge')) {
+            const hours = booking.checkIn && booking.checkOut
+              ? Math.ceil((new Date(booking.checkOut) - new Date(booking.checkIn)) / (1000 * 60 * 60))
+              : null;
+            b.description = hours != null
+              ? `Room booking charge for ${roomNumber} (${hours} hours)`
+              : `Room booking charge for ${roomNumber}`;
+          }
+          await b.save();
+        }
+      }
+
+      // Log activity for notifications
+      const prevRn = prevRoomNumber ? String(prevRoomNumber) : '';
+      const newRn = String(roomNumber);
+      const isReassign = prevRn && prevRn !== newRn;
+      const activityText = isReassign
+        ? `Room reassigned: ${prevRn} → ${newRn}`
+        : `Room assigned: ${newRn}`;
+      await BookingActivity.create({ booking: booking._id, activity: activityText, status: 'pending' });
+    } catch (e) {
+      console.warn('Room/billing sync or activity log failed:', e?.message);
+    }
   }
   const updatedBooking = await booking.save();
   
@@ -271,10 +307,20 @@ const updateBookingStatus = asyncHandler(async (req, res) => {
   }
   
   // Create booking activity
+  let activityText = `Booking ${booking.status}`;
+  if (roomNumber != null && roomNumber !== '') {
+    activityText = prevRoomNumber && prevRoomNumber !== roomNumber
+      ? `Room reassigned: ${prevRoomNumber} → ${roomNumber}`
+      : `Room assigned: ${roomNumber}`;
+  }
+  const allowedStatuses = ['pending', 'confirmed', 'cancelled', 'completed'];
+  const normalizedStatus = allowedStatuses.includes(String(booking.status || '').toLowerCase())
+    ? String(booking.status).toLowerCase()
+    : 'pending';
   await BookingActivity.create({
     booking: booking._id,
-    activity: `Booking ${status}`,
-    status
+    activity: activityText,
+    status: normalizedStatus
   });
   
   res.json(updatedBooking);
@@ -409,14 +455,15 @@ const cancelBooking = asyncHandler(async (req, res) => {
   }
   
   // Calculate cancellation fee (10% of total amount)
-  const cancellationFee = booking.totalAmount * 0.10;
-  const refundAmount = booking.totalAmount - cancellationFee;
+  const total = Number(booking.totalAmount || 0);
+  const cancellationFee = Number((total * 0.10).toFixed(2));
+  const refundAmount = Number((total - cancellationFee).toFixed(2));
   
   // Store cancelled booking data
   const cancelledBookingData = {
     originalBookingId: booking._id,
-    room: booking.room._id,
-    user: booking.user._id,
+    room: booking.room ? booking.room._id : null,
+    user: booking.user ? booking.user._id : (req.user ? req.user._id : null),
     referenceNumber: booking.referenceNumber,
     customerName: booking.customerName,
     customerEmail: booking.customerEmail,
@@ -438,11 +485,15 @@ const cancelBooking = asyncHandler(async (req, res) => {
     cancelledBy: req.user && req.user.role === 'admin' ? 'admin' : 'user'
   };
   
-  // Create cancelled booking record
-  await CancelledBooking.create(cancelledBookingData);
+  // Create cancelled booking record (best-effort)
+  try {
+    await CancelledBooking.create(cancelledBookingData);
+  } catch (e) {
+    console.warn('CancelledBooking create failed, proceeding with deletion:', e && e.message);
+  }
   
   // Get the room ID before deleting the booking
-  const roomId = booking.room._id;
+  const roomId = booking.room ? booking.room._id : null;
   
   // Create booking activity before deletion
   await BookingActivity.create({
@@ -465,14 +516,14 @@ const cancelBooking = asyncHandler(async (req, res) => {
   }
   
   // Update room status after cancellation - only consider paid bookings
-  const activeBooking = await Booking.findOne({
+  const activeBooking = roomId ? await Booking.findOne({
     room: roomId,
     status: { $nin: ['cancelled', 'completed'] },
     checkOut: { $gte: new Date() },
-    paymentStatus: { $in: ['paid', 'partial'] } // Only consider paid bookings
-  });
+    paymentStatus: { $in: ['paid', 'partial'] }
+  }) : null;
   
-  const room = await Room.findById(roomId);
+  const room = roomId ? await Room.findById(roomId) : null;
   if (room) {
     if (activeBooking) {
       room.status = 'occupied';
