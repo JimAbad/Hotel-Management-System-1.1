@@ -336,7 +336,9 @@ const getMyBookings = asyncHandler(async (req, res) => {
         paymentStatus: { $in: ['paid', 'partial'] }
       }
     ]
-  }).sort({ createdAt: -1 });
+  })
+  .populate({ path: 'room', select: 'roomType roomNumber' })
+  .sort({ createdAt: -1 });
   console.log('Backend: Bookings found (excluding past bookings):', bookings);
   
   res.json(bookings);

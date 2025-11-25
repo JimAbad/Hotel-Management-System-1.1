@@ -218,7 +218,7 @@ function MyBookings() {
                 </div>
               )}
               <div className="booking-main">
-                <h2>Room: {'N/A'}</h2>
+                <h2>Room: {getRoomType(booking)}</h2>
                 <p>Check-in: {formatDateTime(booking.checkIn)}</p>
                 <p>Check-out: {formatDateTime(booking.checkOut)}</p>
                 <p>Total Price: ₱{formatPrice(booking.totalAmount)}</p>
@@ -392,3 +392,10 @@ function MyBookings() {
 }
 
 export default MyBookings;
+  const getRoomType = (b) => {
+    if (!b) return 'N/A';
+    const roomObj = b.room;
+    if (roomObj && typeof roomObj === 'object' && roomObj.roomType) return roomObj.roomType;
+    if (b.roomType) return b.roomType;
+    return 'N/A';
+  };
