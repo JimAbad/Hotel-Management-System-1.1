@@ -5,7 +5,7 @@ import axios from 'axios';
 function VerifyEmail() {
   const location = useLocation();
   const [status, setStatus] = useState({ loading: true, success: null, message: '' });
-  const API_URL = import.meta.env.VITE_API_URL || 'https://hotel-management-system-1-1backend.onrender.com';
+  const API_URL = import.meta.env.VITE_API_URL || 'https://hotel-management-system-1-1-backend.onrender.com';
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
