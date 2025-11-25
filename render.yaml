@@ -57,7 +57,7 @@ services:
     autoDeploy: true
     envVars:
       - key: VITE_API_URL
-        value: https://hotel-management-system-1-1backend.onrender.com
+        value: https://hotel-management-system-1-1-backend.onrender.com
       - key: VITE_XENDIT_PUBLIC_KEY
         sync: false
       - key: VITE_PAYMONGO_PUBLIC_KEY

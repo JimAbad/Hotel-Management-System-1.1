@@ -8,7 +8,7 @@ import FormGroup from './FormGroup';
 
   const Login = () => {
   const API_BASE = (() => {
-    const fallback = 'https://hotel-management-system-1-1backend.onrender.com';
+    const fallback = 'https://hotel-management-system-1-1-backend.onrender.com';
     const env = import.meta.env.VITE_API_URL;
     const envNorm = String(env || '').replace(/\/+$/, '');
     const originNorm = typeof window !== 'undefined' ? window.location.origin.replace(/\/+$/, '') : '';
@@ -100,7 +100,7 @@ import FormGroup from './FormGroup';
         setForgotPasswordMessage('Verification code sent to your email');
         nextForgotPasswordStep('verification');
       } else {
-        setForgotPasswordMessage(data.message || 'Failed to send reset code');
+        setForgotPasswordMessage(data.msg || data.message || 'Failed to send reset code');
       }
     } catch (error) {
       console.error('Forgot password error:', error);
@@ -134,7 +134,7 @@ import FormGroup from './FormGroup';
         nextForgotPasswordStep('newPassword');
       } else {
         const data = await readJson(response);
-        setForgotPasswordMessage(data.message || 'Invalid code');
+        setForgotPasswordMessage(data.msg || data.message || 'Invalid code');
       }
     } catch (error) {
       console.error('Verify reset code error:', error);
@@ -182,7 +182,7 @@ import FormGroup from './FormGroup';
           closeForgotPasswordModal();
         }, 2000);
       } else {
-        setForgotPasswordMessage(data.message || 'Failed to update password');
+        setForgotPasswordMessage(data.msg || data.message || 'Failed to update password');
       }
     } catch (error) {
       console.error('Reset password error:', error);

@@ -6,7 +6,7 @@ const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
     const API_URL = (() => {
-        const fallback = 'https://hotel-management-system-1-1backend.onrender.com';
+        const fallback = 'https://hotel-management-system-1-1-backend.onrender.com';
         const env = import.meta.env.VITE_API_URL;
         const envNorm = String(env || '').replace(/\/+$/, '');
         const originNorm = typeof window !== 'undefined' ? window.location.origin.replace(/\/+$/, '') : '';
