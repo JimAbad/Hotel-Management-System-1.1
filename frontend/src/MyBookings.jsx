@@ -168,7 +168,7 @@ function MyBookings() {
       // Show success modal instead of alert
       setShowCancelModal(false);
       setShowSuccessModal(true);
-      setBookings((prev) => prev.filter((b) => b._id !== selectedBooking._id));
+      setBookings((prev) => prev.map((b) => b._id === selectedBooking._id ? { ...b, status: 'cancelled' } : b));
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to cancel booking.');
     } finally {
@@ -207,28 +207,39 @@ function MyBookings() {
       {/* Removed the "Delete All Cancelled Bookings" button */}
       
       <div className="bookings-list">
-        {bookings.map(booking => (
-          <div key={booking._id} className="booking-card">
-            <h2>Room: {booking.roomNumber || 'N/A'}</h2>
-            <p>Check-in: {formatDateTime(booking.checkIn)}</p>
-            <p>Check-out: {formatDateTime(booking.checkOut)}</p>
-            <p>Total Price: ₱{formatPrice(booking.totalAmount)}</p>
-            {booking.paymentStatus && (
-              <p>Payment Status: {displayPaymentStatus(booking.paymentStatus)}</p>
-            )}
-            <p>Booking Status: {booking.status || booking.bookingStatus}</p>
-            <div className="booking-actions">
-              {['pending', 'upcoming'].includes((booking.status || booking.bookingStatus)) && (
-                <button
-                  onClick={() => handleCancelClick(booking)}
-                  disabled={cancelingId === booking._id}
-                >
-                  {cancelingId === booking._id ? 'Cancelling...' : 'Cancel booking'}
-                </button>
+        {bookings.map(booking => {
+          const ended = new Date(booking.checkOut) < new Date();
+          return (
+            <div key={booking._id} className="booking-card">
+              {ended && (
+                <div className="ended-warning">
+                  <div className="warning-triangle"></div>
+                  <div className="warning-label">time to checkout!</div>
+                </div>
               )}
+              <div className="booking-main">
+                <h2>Room: {'N/A'}</h2>
+                <p>Check-in: {formatDateTime(booking.checkIn)}</p>
+                <p>Check-out: {formatDateTime(booking.checkOut)}</p>
+                <p>Total Price: ₱{formatPrice(booking.totalAmount)}</p>
+                {booking.paymentStatus && (
+                  <p>Payment Status: {displayPaymentStatus(booking.paymentStatus)}</p>
+                )}
+                <p>Booking Status: {booking.status || booking.bookingStatus}</p>
+                <div className="booking-actions">
+                  {['pending', 'upcoming'].includes((booking.status || booking.bookingStatus)) && (
+                    <button
+                      onClick={() => handleCancelClick(booking)}
+                      disabled={cancelingId === booking._id}
+                    >
+                      {cancelingId === booking._id ? 'Cancelling...' : 'Cancel booking'}
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* 48-Hour Warning Modal */}

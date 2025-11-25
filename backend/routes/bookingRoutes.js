@@ -11,7 +11,6 @@ router.use(protect);
 // User routes
 router.post('/', createBooking);
 router.get('/my-bookings', getMyBookings);
-router.delete('/user-cancelled', authorize(['user']), deleteCancelledBookings);
 router.post('/user-cancel/:id', cancelBooking);
 
 // Admin routes

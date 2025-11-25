@@ -30,7 +30,7 @@ const bookingSchema = new mongoose.Schema({
   },
   roomNumber: {
     type: String,
-    required: true
+    default: null
   },
   checkIn: {
     type: Date,

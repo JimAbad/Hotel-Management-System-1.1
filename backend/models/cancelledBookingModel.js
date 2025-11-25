@@ -58,7 +58,7 @@ const cancelledBookingSchema = new mongoose.Schema({
   },
   roomNumber: {
     type: String,
-    required: true
+    default: null
   },
   numberOfGuests: {
     type: Number,

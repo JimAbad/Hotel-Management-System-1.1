@@ -29,6 +29,7 @@
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
   transition: transform 0.2s;
   padding: 15px;
+  position: relative;
 }
 
 .booking-card:hover {
@@ -530,4 +531,42 @@
 }
 
 
+.ended-warning {
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
 
+.warning-triangle {
+  width: 0;
+  height: 0;
+  border-left: 12px solid transparent;
+  border-right: 12px solid transparent;
+  border-bottom: 22px solid #dc3545;
+  position: relative;
+}
+
+.warning-triangle::after {
+  content: '!';
+  position: absolute;
+  top: 2px;
+  left: -3px;
+  color: #fff;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.warning-label {
+  color: #dc3545;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.booking-main {
+  margin-left: 44px;
+}
