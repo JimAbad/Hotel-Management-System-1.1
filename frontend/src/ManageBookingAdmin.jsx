@@ -4,7 +4,7 @@ import { FaEdit, FaTrash, FaHistory } from 'react-icons/fa';
 import { useAuthAdmin } from './AuthContextAdmin';
 import './ManageBookingAdmin.css';
 
-const ManageBookingAdmin = () => {
+const ManageBookingsAdmin = () => {
   const { token } = useAuthAdmin();
   const API_BASE = (import.meta.env.VITE_API_URL || "").replace(/\/+$/, "");
 
@@ -660,16 +660,5 @@ const ManageBookingAdmin = () => {
     </div>
   );
 };
-// Add the ManageBookingAdmin component
-const ManageBookingAdmin = () => {
-  return (
-    <div className="manage-booking-admin">
-      <h2>Manage Bookings</h2>
-      <div className="booking-table">
-        {/* This placeholder referenced BookingTable which doesn't exist; keeping real component renders above */}
-      </div>
-    </div>
-  );
-};
 
-export default ManageBooking;
+export default ManageBookingsAdmin;
