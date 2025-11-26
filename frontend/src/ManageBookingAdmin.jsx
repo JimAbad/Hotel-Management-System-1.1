@@ -385,8 +385,8 @@ const ManageBookingsAdmin = () => {
     return {
       dates: `${new Date(newBooking.checkInDate).toLocaleDateString()} - ${new Date(newBooking.checkOutDate).toLocaleDateString()}`,
       guests: `${newBooking.adults} Adult${newBooking.adults > 1 ? 's' : ''}, ${newBooking.children} Child${newBooking.children > 1 ? 'ren' : ''}`,
-      rate: `$${baseRate} per night`,
-      total: `$${total}`
+      rate: `₱${baseRate} per night`, // CHANGED to peso
+      total: `₱${total}` // CHANGED to peso
     };
   };
 
@@ -912,4 +912,4 @@ const ManageBookingsAdmin = () => {
     </div>
   );
 };
-export default ManageBookingAdmin;
+export default ManageBookingsAdmin;

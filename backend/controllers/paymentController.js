@@ -474,9 +474,6 @@ async function createPayMongoSource(req, res, next) {
     const successUrl = `${baseUrl}/payment-success?bookingId=${bookingId}`;
     const failedUrl = `${baseUrl}/payment-failed?bookingId=${bookingId}`;
 
-<<<<<<< HEAD
-    // Prepare payload per PayMongo API
-=======
     // If type is QRPh, use Payment Intents API, create a Payment Method, and attach
     const lowerType = String(type || '').toLowerCase();
     if (lowerType === 'qrph') {
@@ -583,7 +580,6 @@ async function createPayMongoSource(req, res, next) {
     }
 
     // Non-QRPh types use Sources API (e.g., gcash, paymaya, grab_pay)
->>>>>>> 1abe72853d0e5c6c225e325b11c672065259d39a
     const payload = {
       data: {
         attributes: {

@@ -120,7 +120,11 @@ const ViewCustomerBillAdmin = () => {
                 <td>{bill.customerName}</td>
                 <td>{bill.customerEmail}</td>
                 <td>{bill.room}</td>
-                <td>{bill.totalAmount?.toFixed(2)}</td>
+                <td>
+                  <p><strong>Total:</strong> ₱{Number(bill.total || 0).toLocaleString()}</p>
+                  <p><strong>Room Rate:</strong> ₱{Number(bill.roomRate || 0).toLocaleString()}</p>
+                  <p><strong>Extras:</strong> ₱{Number(bill.extrasTotal || 0).toLocaleString()}</p>
+                </td>
                 <td>
                   <span
                     className={`status-badge ${

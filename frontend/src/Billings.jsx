@@ -206,7 +206,7 @@ function Billings() {
                       {roomData.items.map((item, idx) => (
                         <tr key={item._id || idx}>
                           <td>{item.description || '—'}</td>
-                          <td>{formatCurrency(item.amount ?? item.price ?? item.totalPrice ?? 0)}</td>
+                          <td className="amount">₱{Number(item.amount || 0).toLocaleString()}</td>
                           <td><span className={getStatusClass(item.status)}>{item.status || 'pending'}</span></td>
                           <td>{formatDate(item.date || item.createdAt || roomData.summary.deliveredAt || roomData.summary.checkedOutAt || new Date())}</td>
                         </tr>
@@ -348,7 +348,7 @@ Back
                       {selectedRoomItems.map((item, idx) => (
                         <tr key={item._id || idx}>
                           <td>{item.description || '—'}</td>
-                          <td>{formatCurrency(item.amount ?? item.price ?? item.totalPrice ?? 0)}</td>
+                          <td className="amount">₱{Number(item.amount || 0).toLocaleString()}</td>
                           <td><span className={getStatusClass(item.status)}>{item.status || 'pending'}</span></td>
                           <td>{formatDate(item.date || item.createdAt || selectedRoomSummary.deliveredAt || selectedRoomSummary.checkedOutAt || new Date())}</td>
                         </tr>
