@@ -48,7 +48,7 @@ app.use('/api/payment', require('./routes/paymentRoutes'));
 console.log('Payment routes loaded');
 app.use('/api/billings', require('./routes/billingRoutes'));
 app.use('/api/test', require('./routes/testRoutes'));
-app.use('/api/debug', require('./routes/debugRoutes'));
+app.use('/api/debug', debugRoutes);
 
 app.use('/api/reviews', require('./routes/reviewRoutes'));
 

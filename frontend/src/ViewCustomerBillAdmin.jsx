@@ -69,6 +69,8 @@ const ViewCustomerBillAdmin = () => {
     }
   };
 
+  const peso = v => '₱' + Number(v || 0).toLocaleString('en-PH');
+
   if (loading) return <div className="view-customer-bill-container">Loading bills...</div>;
   if (error) return <div className="view-customer-bill-container">Error: {error}</div>;
 
@@ -121,7 +123,7 @@ const ViewCustomerBillAdmin = () => {
                 <td>{bill.customerEmail}</td>
                 <td>{bill.room}</td>
                 <td>
-                  <p><strong>Total:</strong> ₱{Number(bill.total || 0).toLocaleString()}</p>
+                  <p><strong>Total:</strong> {peso(bill.total || bill.totalAmount)}</p>
                   <p><strong>Room Rate:</strong> ₱{Number(bill.roomRate || 0).toLocaleString()}</p>
                   <p><strong>Extras:</strong> ₱{Number(bill.extrasTotal || 0).toLocaleString()}</p>
                 </td>

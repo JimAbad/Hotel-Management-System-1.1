@@ -307,6 +307,8 @@ const CustomerBillList = () => {
     return "unpaid";
   };
 
+  const peso = v => '₱' + Number(v || 0).toLocaleString('en-PH');
+
   // View Bill (modal) — tries bill endpoints, then booking endpoint
   const openBillModal = async (bill) => {
     setActiveBill(bill);
@@ -442,7 +444,7 @@ const CustomerBillList = () => {
                     <tr key={b._id}>
                       <td>{b.referenceNumber}</td>
                       <td>{b.customerName || "-"}</td>
-                      <td>{prettyAmt(b.totalAmount)}</td>
+                      <td>{peso(b.totalAmount ?? b.total ?? b.amount ?? 0)}</td>
                       <td>
                         <span className={`status-badge ${badge}`}>{b.paymentStatus}</span>
                       </td>
