@@ -119,6 +119,20 @@ async function updateBookingFromWebhook(ids, eventType, resourceAttributes) {
       console.warn('[PayMongo] Failed to mark room occupied:', err?.message);
     }
   }
+  
+  // If payment failed or expired, release room back to available
+  if (eventType === 'payment.failed' || eventType === 'qrph.expired') {
+    try {
+      const room = await Room.findById(booking.room);
+      if (room) {
+        room.status = 'available';
+        await room.save();
+        console.log(`[PayMongo] Room ${room.roomNumber} released to available due to ${eventType}`);
+      }
+    } catch (err) {
+      console.warn('[PayMongo] Failed to release room:', err?.message);
+    }
+  }
 
   await booking.save();
   return { found: true, booking };

@@ -5,7 +5,7 @@ import './PaymentStatus.css'; // Import the CSS file
 const PaymentStatus = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { success, error, booking, customerAccountId } = location.state || {};
+  const { success, error, booking } = location.state || {};
 
   const handleDoneClick = () => {
     navigate('/');

@@ -4,6 +4,7 @@ import AuthContext from './AuthContext';
 
 function DeleteCancelledBookings() {
   const { token } = useContext(AuthContext);
+  const API_URL = import.meta.env.VITE_API_URL || 'https://hotel-management-system-1-1backend.onrender.com';
 
   const handleDeleteCancelled = async () => {
     if (!token) {
@@ -15,7 +16,7 @@ function DeleteCancelledBookings() {
     if (!confirmed) return;
 
     try {
-      const response = await axios.delete(`${import.meta.env.VITE_API_URL}/api/bookings/cancelled`, {
+      const response = await axios.delete(`${API_URL}/api/bookings/cancelled`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },

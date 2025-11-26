@@ -1,4 +1,5 @@
 const nodemailer = require('nodemailer');
+const axios = require('axios');
 
 // Email configuration
 const SMTP_HOST = process.env.SMTP_HOST;
@@ -9,6 +10,8 @@ const SMTP_PASS = process.env.SMTP_PASS;
 const FROM_EMAIL = process.env.FROM_EMAIL || process.env.EMAIL_FROM || 'no-reply@example.com';
 const FROM_NAME = process.env.FROM_NAME || 'Lumine Hotel';
 const DISABLE_EMAIL_SEND = process.env.DISABLE_EMAIL_SEND === 'true';
+const EMAIL_PROVIDER = process.env.EMAIL_PROVIDER || 'smtp';
+const BREVO_API_KEY = process.env.BREVO_API_KEY || '';
 
 let transporter = null;
 
@@ -64,7 +67,7 @@ async function sendEmail({ to, subject, text, html }) {
   console.log('[Email] messageData:', { ...messageData, text: !!messageData.text, html: !!messageData.html });
 
   // Use mock email service if disabled or not configured
-  if (DISABLE_EMAIL_SEND || !transporter) {
+  if (DISABLE_EMAIL_SEND || (!transporter && EMAIL_PROVIDER !== 'brevo')) {
     console.log('\n=== MOCK EMAIL SERVICE ===');
     console.log('📧 Email would be sent:');
     console.log(`From: ${messageData.from}`);
@@ -85,20 +88,37 @@ async function sendEmail({ to, subject, text, html }) {
     };
   }
 
-  // Use real SMTP service
-  try {
-    const info = await transporter.sendMail(messageData);
-    console.log('[Email] Sent successfully:', { 
-      to, 
-      subject, 
-      messageId: info.messageId,
-      response: info.response 
-    });
-    return info;
-  } catch (err) {
-    console.error('[Email] Send failed:', err);
-    throw err;
+  if (EMAIL_PROVIDER === 'brevo' && BREVO_API_KEY) {
+    try {
+      const payload = {
+        sender: { email: FROM_EMAIL, name: FROM_NAME },
+        to: [{ email: recipient }],
+        subject: messageData.subject,
+        htmlContent: messageData.html || messageData.text || ''
+      };
+      const resp = await axios.post('https://api.brevo.com/v3/smtp/email', payload, {
+        headers: { 'api-key': BREVO_API_KEY, 'Content-Type': 'application/json' }
+      });
+      console.log('[Email] Brevo sent successfully:', { status: resp.status });
+      return { messageId: resp.data?.messageId || 'brevo', response: 'Brevo API' };
+    } catch (err) {
+      console.error('[Email] Brevo send failed:', err?.response?.data || err.message);
+      throw err;
+    }
   }
+
+  if (transporter) {
+    try {
+      const info = await transporter.sendMail(messageData);
+      console.log('[Email] Sent successfully:', { to, subject, messageId: info.messageId, response: info.response });
+      return info;
+    } catch (err) {
+      console.error('[Email] Send failed:', err);
+      throw err;
+    }
+  }
+
+  throw new Error('No email transport available');
 }
 
 module.exports = { sendEmail };

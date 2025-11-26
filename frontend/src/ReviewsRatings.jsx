@@ -12,6 +12,7 @@ function ReviewsRatings() {
   const [searchReference, setSearchReference] = useState('');
   const [filterStar, setFilterStar] = useState(0);
   const [activeTab, setActiveTab] = useState('toReview'); // 'toReview' or 'reviewed'
+  const API_URL = import.meta.env.VITE_API_URL || 'https://hotel-management-system-1-1backend.onrender.com';
 
   useEffect(() => {
     const fetchReviews = async () => {
@@ -22,7 +23,7 @@ function ReviewsRatings() {
       }
 
       try {
-        const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/reviews/myreviews`, {
+        const response = await axios.get(`${API_URL}/api/reviews/myreviews`, {
           headers: {
             Authorization: `Bearer ${user.token}`,
           },

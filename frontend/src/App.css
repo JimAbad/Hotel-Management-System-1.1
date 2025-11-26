@@ -74,15 +74,16 @@ body {
   width: 100%; /* Ensure App takes full width */
   overflow-x: hidden; /* Prevent horizontal scrolling */
   /* text-align: center; */ /* Remove center alignment to allow content to expand */
+  padding-top: 40px;
 }
 
 /* Navigation Bar */
-nav {
+.top-nav {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 1rem 20px;
-  background-color: transparent;
+  background-color: white;
   color: var(--text-color);
   position: fixed;
   width: 100%;
@@ -93,7 +94,7 @@ nav {
    /* Add a subtle borderline */
 }
 
-nav .logo {
+.top-nav .logo {
   font-size: 1.8rem;
   font-weight: bold;
   color: var(--golden-accent);
@@ -104,14 +105,14 @@ nav .logo {
   gap: 10px;
 }
 
-nav .logo img {
+.top-nav .logo img {
   height: 30px;
   vertical-align: middle;
   margin-left: 20px;
 }
 
 
-nav ul {
+.top-nav ul {
   list-style: none;
   margin: 0;
   padding: 0; /* Remove padding from ul */
@@ -123,13 +124,13 @@ nav ul {
   /* Remove flex-grow: 1; */
 }
 
-nav ul li {
+.top-nav ul li {
   margin-left: 1.5rem;
 }
 
-nav ul li a,
-nav ul li button,
-.auth-controls a {
+.top-nav ul li a,
+.top-nav ul li button,
+.top-nav .auth-controls a {
   color: #000000; /* Explicitly set to black */
   text-decoration: none;
   padding: 0.5rem 1rem;
@@ -137,7 +138,7 @@ nav ul li button,
   transition: background-color 0.3s ease;
 }
 
-nav ul li button {
+.top-nav ul li button {
   background: #B8860B; /* Solid background for button */
   -webkit-background-clip: unset; /* Clip background to text */
   background-clip: unset;
@@ -146,9 +147,9 @@ nav ul li button {
   color: var(--dark-background);
 }
 
-nav ul li a:hover,
-nav ul li button:hover,
-.auth-controls a:hover {
+.top-nav ul li a:hover,
+.top-nav ul li button:hover,
+.top-nav .auth-controls a:hover {
   background-color: rgba(255, 255, 255, 0.1); /* Light background on hover */
   color: var(--golden-accent); /* Solid color on hover */
   -webkit-background-clip: initial; /* Reset for hover */
@@ -156,13 +157,13 @@ nav ul li button:hover,
   -webkit-text-fill-color: var(--golden-accent); /* Reset for hover */
 }
 
-nav ul li button {
+.top-nav ul li button {
   background-color: var(--golden-accent);
-  color: var(--dark-background);
+  color: #000000;
   font-weight: bold;
 }
 
-nav ul li button:hover {
+.top-nav ul li button:hover {
   opacity: 0.9;
 }
 
@@ -175,7 +176,7 @@ nav ul li button:hover {
   justify-content: center;
   color: var(--text-color);
   overflow: hidden;
-  background-image: url('./img/room4main.jpg'); /* Bring back the background image */
+  background-image: url('/images/room4main.jpg'); /* Bring back the background image */
   background-color: transparent; /* Remove light background color */
   background-size: cover;
   background-position: center;
@@ -441,29 +442,32 @@ nav ul li button:hover {
 
 .logout-btn {
   background-color: transparent;
-  color: var black;
+  color: #000000;
   border: none;
   cursor: pointer;
   font-size: 1rem;
-  transition: background-color 0.3s ease;
+  transition: none;
   padding: 0.5rem 1rem;
   border-radius: 5px;
+  box-shadow: none;
 }
 
 .logout-btn:hover {
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: transparent;
+  color: #000000;
+  opacity: 1;
 }
 
 .logout-btn {
   border: none;
   cursor: pointer;
   font-size: 1rem;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transition: none;
+  box-shadow: none;
 }
 
 .logout-btn:hover {
-  opacity: 0.9;
+  opacity: 1;
 }
 
 .auth-controls a {
@@ -491,12 +495,12 @@ nav ul li button:hover {
   border: none;
   cursor: pointer;
   font-size: 1rem;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transition: none;
+  box-shadow: none;
 }
 
 .logout-btn:hover {
-  opacity: 0.9;
+  opacity: 1;
 }
 
 .auth-controls {
@@ -605,3 +609,48 @@ nav ul li button:hover {
 .logout-confirm-btn:hover {
   background-color: #cf9709;
 }
+.notif-bell {
+  position: relative;
+  margin-right: 12px;
+  cursor: pointer;
+  color: #000;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+}
+.notif-bell:hover { background: rgba(0,0,0,0.06); }
+.notif-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: #dc3545;
+  color: #fff;
+  border-radius: 9999px;
+  font-size: 11px;
+  padding: 2px 6px;
+}
+.notif-dropdown {
+  position: fixed;
+  right: 24px;
+  top: 64px;
+  background: #fff;
+  color: #111;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 10px 24px rgba(0,0,0,0.12);
+  width: 300px;
+  max-height: 360px;
+  overflow-y: auto;
+  z-index: 10000;
+}
+.notif-header { padding: 10px 12px; font-weight: 700; border-bottom: 1px solid #e5e7eb; }
+.notif-header { display: flex; align-items: center; justify-content: space-between; }
+.notif-markall { background: transparent; border: 0; color: #000000; cursor: pointer; font-weight: 600; }
+.notif-markall:hover { text-decoration: underline; }
+.notif-item { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; justify-content: space-between; }
+.notif-close { background: transparent; border: 0; color: #6b7280; cursor: pointer; font-size: 18px; line-height: 1; }
+.notif-close:hover { color: #111827; }
+.notif-empty { padding: 14px; color: #6b7280; }

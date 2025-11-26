@@ -22,6 +22,22 @@ exports.createBilling = asyncHandler(async (req, res, next) => {
     paymentMethod
   });
 
+  try {
+    if (bookingId) {
+      const BookingActivity = require('../models/bookingActivityModel');
+      const msg = description && description.includes('Room booking charge')
+        ? `Room booking charge created for ${roomNumber}`
+        : `New order: ${description} (${Number(amount || 0).toLocaleString('en-US')})`;
+      await BookingActivity.create({
+        booking: bookingId,
+        activity: msg,
+        status: 'pending'
+      });
+    }
+  } catch (e) {
+    console.warn('Failed to log billing activity:', e?.message);
+  }
+
   res.status(201).json({
     success: true,
     data: billing
@@ -194,13 +210,30 @@ exports.getRoomBillings = asyncHandler(async (req, res, next) => {
     });
   }
 
+  // Resolve room by number so we can match bookings even when booking.roomNumber is null
+  const roomDoc = await Room.findOne({ roomNumber }).select('_id roomNumber');
+
   // Find active bookings for this user and room
-  const activeBookings = await Booking.find({
-    user: req.user.id,
-    roomNumber,
-    status: { $nin: ['cancelled', 'completed'] },
-    checkOut: { $gte: today }
-  }).select('_id checkIn checkOut totalAmount');
+  let activeBookings = [];
+  if (roomDoc) {
+    activeBookings = await Booking.find({
+      user: req.user.id,
+      room: roomDoc._id,
+      status: { $nin: ['cancelled', 'completed'] },
+      checkOut: { $gte: today },
+      paymentStatus: { $in: ['paid', 'partial'] }
+    }).select('_id checkIn checkOut totalAmount');
+  }
+  // Fallback to booking.roomNumber match
+  if (!activeBookings || activeBookings.length === 0) {
+    activeBookings = await Booking.find({
+      user: req.user.id,
+      roomNumber,
+      status: { $nin: ['cancelled', 'completed'] },
+      checkOut: { $gte: today },
+      paymentStatus: { $in: ['paid', 'partial'] }
+    }).select('_id checkIn checkOut totalAmount');
+  }
 
   // If there are no active bookings, there should be no current bill
   if (!activeBookings || activeBookings.length === 0) {
@@ -234,7 +267,6 @@ exports.getRoomBillings = asyncHandler(async (req, res, next) => {
     .sort({ createdAt: -1 });
 
   // Recompute room charge using hourly pricing for this room (as before)
-  const roomDoc = await Room.findOne({ roomNumber });
   const pricePerHour = roomDoc ? Number(roomDoc.price) : 0;
 
   // Normalize billing items

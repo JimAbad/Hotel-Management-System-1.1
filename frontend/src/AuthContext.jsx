@@ -5,6 +5,13 @@ import { useNavigate } from 'react-router-dom';
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
+    const API_URL = (() => {
+        const fallback = 'https://hotel-management-system-1-1backend.onrender.com';
+        const env = import.meta.env.VITE_API_URL;
+        const envNorm = String(env || '').replace(/\/+$/, '');
+        const originNorm = typeof window !== 'undefined' ? window.location.origin.replace(/\/+$/, '') : '';
+        return envNorm && envNorm !== originNorm ? envNorm : fallback;
+    })();
     const [token, setToken] = useState(localStorage.getItem('token'));
     const [user, setUser] = useState(null);
     const navigate = useNavigate();
@@ -31,7 +38,7 @@ export const AuthProvider = ({ children }) => {
 
     const login = async (username, password) => {
         try {
-            const res = await axios.post(`${import.meta.env.VITE_API_URL}/api/auth/login`, { username, password });
+            const res = await axios.post(`${API_URL}/api/auth/login`, { username, password });
             const { token: newToken, _id, name, email, role, jobTitle, contactNumber } = res.data;
             const userWithToken = { _id, name, email, role, jobTitle, contactNumber, token: newToken };
             localStorage.setItem('token', newToken);
@@ -47,7 +54,7 @@ export const AuthProvider = ({ children }) => {
 
     const register = async (fullName, email, username, password) => {
         try {
-            const registerUrl = `${import.meta.env.VITE_API_URL}/api/auth/register`;
+            const registerUrl = `${API_URL}/api/auth/register`;
             console.log('Register URL:', registerUrl);
             await axios.post(registerUrl, { fullName, email, username, password });
             return true;

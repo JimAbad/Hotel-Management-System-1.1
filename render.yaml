@@ -3,6 +3,7 @@ services:
     name: hotel-backend
     env: node
     rootDirectory: backend
+    branch: deploy/qrph-partial-payment
     buildCommand: npm install
     startCommand: npm start
     autoDeploy: true
@@ -50,12 +51,13 @@ services:
   - type: static_site
     name: hotel-frontend
     rootDirectory: frontend
+    branch: deploy/qrph-partial-payment
     buildCommand: npm install && npm run build
     publishPath: dist
     autoDeploy: true
     envVars:
       - key: VITE_API_URL
-        sync: false
+        value: https://hotel-management-system-1-1backend.onrender.com
       - key: VITE_XENDIT_PUBLIC_KEY
         sync: false
       - key: VITE_PAYMONGO_PUBLIC_KEY

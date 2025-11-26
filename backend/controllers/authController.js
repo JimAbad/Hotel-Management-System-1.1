@@ -204,6 +204,11 @@ exports.requestSignupVerificationCode = async (req, res) => {
       return res.status(400).json({ msg: 'Email is required' });
     }
 
+    const valid = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(email).trim());
+    if (!valid) {
+      return res.status(400).json({ msg: 'Invalid email format' });
+    }
+
     // Disallow requesting code for existing accounts
     const exists = await User.findOne({ email });
     if (exists) {
@@ -230,9 +235,17 @@ exports.requestSignupVerificationCode = async (req, res) => {
       </div>
     `;
 
-    await sendEmail({ to: email, subject, html, text: `Your verification code is ${code}. Expires in 10 minutes.` });
-
-    return res.status(200).json({ msg: 'Verification code sent' });
+    let delivery = 'smtp';
+    try {
+      await sendEmail({ to: email, subject, html, text: `Your verification code is ${code}. Expires in 10 minutes.` });
+    } catch (sendErr) {
+      console.warn('Email send failed, using mock fallback:', sendErr?.message);
+      delivery = 'mock';
+    }
+    const includeCode = process.env.ALLOW_CODE_IN_RESPONSE === 'true';
+    const payload = { msg: 'Verification code sent', delivery };
+    if (includeCode) payload.debugCode = code;
+    return res.status(200).json(payload);
   } catch (error) {
     console.error('Error in requestSignupVerificationCode:', error);
     if (error.message && error.message.includes('SENDGRID_API_KEY')) {

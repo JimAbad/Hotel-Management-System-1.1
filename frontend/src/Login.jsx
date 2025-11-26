@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import { useAuthAdmin } from './AuthContextAdmin';
@@ -6,8 +6,15 @@ import './Login.css';
 import './App.css';
 import FormGroup from './FormGroup';
 
-const Login = () => {
-  const apiBase = import.meta.env.VITE_API_URL;
+  const Login = () => {
+  const API_BASE = (() => {
+    const fallback = 'https://hotel-management-system-1-1backend.onrender.com';
+    const env = import.meta.env.VITE_API_URL;
+    const envNorm = String(env || '').replace(/\/+$/, '');
+    const originNorm = typeof window !== 'undefined' ? window.location.origin.replace(/\/+$/, '') : '';
+    const base = envNorm && envNorm !== originNorm ? envNorm : fallback;
+    return base;
+  })();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -62,6 +69,14 @@ const Login = () => {
     setForgotPasswordModal(prev => ({ ...prev, step, message: '' }));
   };
 
+  const readJson = async (res) => {
+    const ct = res.headers?.get?.('content-type') || '';
+    if (ct.includes('application/json')) {
+      try { return await res.json(); } catch { return {}; }
+    }
+    return {};
+  };
+
   // API call functions for forgot password
   const sendResetCode = async () => {
     if (!forgotPasswordModal.email) {
@@ -71,7 +86,7 @@ const Login = () => {
 
     setForgotPasswordLoading(true);
     try {
-      const response = await fetch(`${apiBase}/api/auth/forgot-password`, {
+      const response = await fetch(`${API_BASE}/api/auth/forgot-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -79,7 +94,7 @@ const Login = () => {
         body: JSON.stringify({ email: forgotPasswordModal.email }),
       });
 
-      const data = await response.json();
+      const data = await readJson(response);
       
       if (response.ok) {
         setForgotPasswordMessage('Verification code sent to your email');
@@ -88,6 +103,7 @@ const Login = () => {
         setForgotPasswordMessage(data.message || 'Failed to send reset code');
       }
     } catch (error) {
+      console.error('Forgot password error:', error);
       setForgotPasswordMessage('Network error. Please try again.');
     } finally {
       setForgotPasswordLoading(false);
@@ -102,7 +118,7 @@ const Login = () => {
 
     setForgotPasswordLoading(true);
     try {
-      const response = await fetch(`${apiBase}/api/auth/verify-reset-code`, {
+      const response = await fetch(`${API_BASE}/api/auth/verify-reset-code`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -112,16 +128,16 @@ const Login = () => {
           code: forgotPasswordModal.verificationCode 
         }),
       });
-
-      const data = await response.json();
       
       if (response.ok) {
         setForgotPasswordMessage('Code verified successfully');
         nextForgotPasswordStep('newPassword');
       } else {
-        setForgotPasswordMessage('Invalid code');
+        const data = await readJson(response);
+        setForgotPasswordMessage(data.message || 'Invalid code');
       }
     } catch (error) {
+      console.error('Verify reset code error:', error);
       setForgotPasswordMessage('Network error. Please try again.');
     } finally {
       setForgotPasswordLoading(false);
@@ -146,7 +162,7 @@ const Login = () => {
 
     setForgotPasswordLoading(true);
     try {
-      const response = await fetch(`${apiBase}/api/auth/reset-password`, {
+      const response = await fetch(`${API_BASE}/api/auth/reset-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -158,7 +174,7 @@ const Login = () => {
         }),
       });
 
-      const data = await response.json();
+      const data = await readJson(response);
       
       if (response.ok) {
         setForgotPasswordMessage('Password updated successfully!');
@@ -169,6 +185,7 @@ const Login = () => {
         setForgotPasswordMessage(data.message || 'Failed to update password');
       }
     } catch (error) {
+      console.error('Reset password error:', error);
       setForgotPasswordMessage('Network error. Please try again.');
     } finally {
       setForgotPasswordLoading(false);
@@ -205,7 +222,7 @@ const Login = () => {
   return (
     <div className="login-page">
       <div className="login-left">
-        <img src="../src/img/lumine login.png" alt="Logo" className="login-logo" />
+        <img src="/images/lumine login.png" alt="Logo" className="login-logo" />
        
       </div>
       <div className="login-container">

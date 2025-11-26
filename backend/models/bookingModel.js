@@ -30,7 +30,7 @@ const bookingSchema = new mongoose.Schema({
   },
   roomNumber: {
     type: String,
-    required: true
+    default: null
   },
   checkIn: {
     type: Date,
@@ -62,7 +62,7 @@ const bookingSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['pending', 'confirmed', 'cancelled', 'completed'],
+    enum: ['pending', 'confirmed', 'occupied', 'cancelled', 'completed'],
     default: 'pending'
   },
   paymentStatus: {

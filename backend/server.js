@@ -2,6 +2,7 @@ const express = require('express');
 const connectDB = require('./config/db');
 const cors = require('cors');
 const { startBookingExpirationUpdater } = require('./utils/bookingExpirationUpdater');
+const { startPaymongoStatusRefresher } = require('./utils/paymongoStatusRefresher');
 require('dotenv').config();
 
 const app = express();
@@ -17,7 +18,7 @@ app.use(express.json({
   }
 }));
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:5176'],
+  origin: ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:5176', 'https://hotel-management-system-1-1.onrender.com', 'https://https-hotel-management-system-1-1.onrender.com', 'https://hotel-management-system-1-1-2ttg.onrender.com'],
   credentials: true
 }));
 
@@ -40,6 +41,8 @@ try {
   console.error('Error loading auth routes:', error);
 }
 app.use('/api/bookings', require('./routes/bookingRoutes'));
+app.use('/api/requests', require('./routes/requestRoutes'));
+app.use('/api/tasks', require('./routes/taskRoutes'));
 console.log('Loading payment routes...');
 app.use('/api/payment', require('./routes/paymentRoutes'));
 console.log('Payment routes loaded');
@@ -58,6 +61,9 @@ app.use('/webhooks', require('./routes/webhookRoutes'));
 const customerBillRoutes = require('./routes/customerBillRoutes');
 app.use('/api/customer-bills', customerBillRoutes);
 
+// Health check endpoint
+app.use('/', require('./routes/healthRoutes'));
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error('Error:', err);
@@ -74,4 +80,6 @@ app.listen(PORT, () => {
   
   // Start the booking expiration updater service
   startBookingExpirationUpdater();
+  // Start PayMongo status refresher to guard against missing webhooks
+  startPaymongoStatusRefresher();
 });

@@ -6,7 +6,14 @@ import './Billings.css';
 
 function Billings() {
   const { user, token } = useContext(AuthContext);
-  const [billings, setBillings] = useState([]);
+  const API_URL = (() => {
+    const fallback = 'https://hotel-management-system-1-1backend.onrender.com';
+    const env = import.meta.env.VITE_API_URL;
+    const envNorm = String(env || '').replace(/\/+$/, '');
+    const originNorm = typeof window !== 'undefined' ? window.location.origin.replace(/\/+$/, '') : '';
+    return envNorm && envNorm !== originNorm ? envNorm : fallback;
+  })();
+  
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedRoom, setSelectedRoom] = useState(null);
@@ -16,7 +23,20 @@ function Billings() {
   const [billsByRoom, setBillsByRoom] = useState({});
 
   useEffect(() => {
+    if (!user || !token) {
+      fetchBillings();
+      return;
+    }
     fetchBillings();
+    const handler = () => {
+      if (document.visibilityState === 'visible') {
+        fetchBillings();
+      }
+    };
+    document.addEventListener('visibilitychange', handler);
+    return () => {
+      document.removeEventListener('visibilitychange', handler);
+    };
   }, [user, token]);
 
   const fetchBillings = async () => {
@@ -36,55 +56,62 @@ function Billings() {
         },
       };
 
-      // 1) Get current user's bookings
-      const bookingsRes = await axios.get(`${import.meta.env.VITE_API_URL}/api/bookings/my-bookings`, config);
+      // Fetch bookings to enrich room type mapping
+      const bookingsRes = await axios.get(`${API_URL}/api/bookings/my-bookings`, config);
       const today = new Date();
+      const roomNumberToType = {};
+      (bookingsRes.data || []).forEach(b => {
+        const rn = b?.roomNumber || b?.room?.roomNumber;
+        const rt = b?.room?.roomType || b?.roomType;
+        if (rn) roomNumberToType[rn] = rt || roomNumberToType[rn] || null;
+      });
 
-      // 2) Keep only active bookings and group by roomNumber
-      const activeRoomNumbers = Array.from(
-        new Set(
-          (bookingsRes.data || [])
-            .filter(b => {
-              const checkOut = new Date(b.checkOut);
-              const status = String(b.status || '').toLowerCase();
-              return checkOut >= today && status !== 'cancelled' && status !== 'completed';
-            })
-            .map(b => String(b.roomNumber))
-        )
-      );
+      // Fetch all billing records for the user and group by roomNumber
+      const billingsRes = await axios.get(`${API_URL}/api/billings`, config);
+      const list = billingsRes.data?.data || billingsRes.data || [];
 
-      // 3) If no active rooms, clear and exit
-      if (activeRoomNumbers.length === 0) {
-        setBillsByRoom({});
-        setBillings([]);
-        setLoading(false);
-        return;
-      }
-
-      // 4) Fetch merged billings per active room using backend API (normalized below)
-      const roomResults = await Promise.all(
-        activeRoomNumbers.map(async (roomNumber) => {
-          try {
-            const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/billings/room/${roomNumber}`, config);
-            const payload = res.data?.data;
-            const items = Array.isArray(payload) ? payload : Array.isArray(payload?.items) ? payload.items : [];
-            const summary = Array.isArray(payload) ? {} : (payload || {});
-            return { roomNumber, items, summary };
-          } catch (e) {
-            console.error('Failed to fetch merged billings for room', roomNumber, e);
-            return { roomNumber, items: [], summary: {} };
-          }
-        })
-      );
-
-      // 5) Build billsByRoom map
       const grouped = {};
-      roomResults.forEach(({ roomNumber, items, summary }) => {
-        grouped[roomNumber] = { items, summary };
+      list.forEach(b => {
+        const rn = String(b.roomNumber || '').trim();
+        if (!rn) return;
+        // Only include items tied to an active booking
+        const checkOut = b?.booking?.checkOut ? new Date(b.booking.checkOut) : null;
+        const status = b?.booking?.status || '';
+        const active = checkOut ? (checkOut >= today && !['cancelled','completed'].includes(String(status).toLowerCase())) : true;
+        if (!active) return;
+
+        grouped[rn] = grouped[rn] || { items: [], summary: {}, roomType: roomNumberToType[rn] || null };
+        grouped[rn].items.push({
+          _id: b._id,
+          description: b.description,
+          amount: b.amount,
+          status: b.status,
+          date: b.createdAt,
+          bookingData: b.booking || null
+        });
+      });
+
+      // Compute summaries per room
+      Object.keys(grouped).forEach(rn => {
+        const items = grouped[rn].items || [];
+        let totalRoomCharges = 0;
+        let totalExtraCharges = 0;
+        let paidAmount = 0;
+        items.forEach(it => {
+          if (it.description && it.description.includes('Room booking charge')) {
+            totalRoomCharges += Number(it.amount || 0);
+          } else {
+            totalExtraCharges += Number(it.amount || 0);
+          }
+          const st = String(it.status || '').toLowerCase();
+          if (st === 'paid' || st === 'completed') paidAmount += Number(it.amount || 0);
+        });
+        const remainingBalance = Math.max(0, totalRoomCharges * 0.9 + totalExtraCharges - paidAmount);
+        grouped[rn].summary = { totalRoomCharges, totalExtraCharges, remainingBalance, paidAmount };
       });
 
       setBillsByRoom(grouped);
-      setBillings(roomResults.flatMap(r => r.items));
+      
       setLoading(false);
     } catch (err) {
       setError('Failed to fetch billing data. Please try again later.');
@@ -142,8 +169,8 @@ function Billings() {
 
   return (
     <div className="billing-container">
-      <div className="billing-header">
-      
+      <div className="billing-header" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+       
       </div>
 
       {/* Bills Grouped by Room */}
@@ -157,7 +184,7 @@ function Billings() {
             (roomData.items?.length || 0) === 0 ? null : (
               <div key={roomNumber} className="room-bill-group">
                 <div className="room-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <h3>Room {roomNumber}</h3>
+                  <h3>{roomData.roomType ? `Room: ${roomData.roomType}` : `Room ${roomNumber}`}</h3>
                   <button 
                     className="view-bill-btn" style={{ backgroundColor: '#B8860B', color: 'white' }}
                     onClick={() => handleViewRoom(roomNumber)}
@@ -195,6 +222,22 @@ function Billings() {
                                 ? roomData.summary.totalPrice
                                 : roomData.items.reduce((sum, it) => sum + Number(it.amount ?? it.price ?? it.totalPrice ?? 0), 0)
                             )}
+                          </strong>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td><strong>Partial deposit (10%)</strong></td>
+                        <td colSpan="3">
+                          <strong>
+                            {formatCurrency(Number(roomData.summary.totalRoomCharges || 0) * 0.1)}
+                          </strong>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td><strong>Remaining Balance</strong></td>
+                        <td colSpan="3">
+                          <strong>
+                            {formatCurrency(Number(roomData.summary.remainingBalance || 0))}
                           </strong>
                         </td>
                       </tr>

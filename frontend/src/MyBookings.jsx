@@ -4,23 +4,60 @@ import AuthContext from './AuthContext';
 import './MyBookings.css';
 
 function MyBookings() {
+  const API_URL = (() => {
+    const fallback = 'https://hotel-management-system-1-1backend.onrender.com';
+    const env = import.meta.env.VITE_API_URL;
+    const envNorm = String(env || '').replace(/\/+$/, '');
+    const originNorm = typeof window !== 'undefined' ? window.location.origin.replace(/\/+$/, '') : '';
+    return envNorm && envNorm !== originNorm ? envNorm : fallback;
+  })();
   const { user, token } = useContext(AuthContext);
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [cancelingId, setCancelingId] = useState(null);
-  const [deletingCancelled, setDeletingCancelled] = useState(false);
+  
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showWarningModal, setShowWarningModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [cancellationReasons, setCancellationReasons] = useState([]);
   const [cancellationText, setCancellationText] = useState('');
+  const [showCleaningModal, setShowCleaningModal] = useState(false);
+  const [cleaningDate, setCleaningDate] = useState('');
+  const [cleaningTime, setCleaningTime] = useState('');
+  const [cleaningDesc, setCleaningDesc] = useState('');
+  const [cleanSubmitting, setCleanSubmitting] = useState(false);
+  const [showCleanSuccess, setShowCleanSuccess] = useState(false);
+  const [requestedRooms, setRequestedRooms] = useState({});
+  const [timeOptions, setTimeOptions] = useState([]);
 
   // Utility function to format price with commas
   const formatPrice = (amount) => {
     if (!amount) return '0';
     return Number(amount).toLocaleString('en-US');
+  };
+
+  const displayPaymentStatus = (status) => {
+    if (!status) return '';
+    return String(status).toLowerCase() === 'partial' ? 'paid in partial' : status;
+  };
+
+  const getRoomType = (b) => {
+    if (!b) return 'N/A';
+    const roomObj = b.room;
+    if (roomObj && typeof roomObj === 'object' && roomObj.roomType) return roomObj.roomType;
+    if (b.roomType) return b.roomType;
+    return 'N/A';
+  };
+
+  const getRoomHeader = (b) => {
+    if (!b) return 'Room: N/A';
+    if (b.roomNumber) return `Room: ${b.roomNumber}`;
+    const r = b.room;
+    if (r && typeof r === 'object' && r.roomNumber) return `Room: ${r.roomNumber}`;
+    const t = getRoomType(b);
+    return `Room: ${t}`;
   };
 
   // Utility function to format date and time
@@ -60,17 +97,18 @@ function MyBookings() {
 
     try {
       setLoading(true);
-      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/bookings/my-bookings`, {
+      const response = await axios.get(`${API_URL}/api/bookings/my-bookings`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
       // Show bookings that have at least been created; optionally filter out cancelled/deleted statuses
       const allBookings = response.data || [];
-      // Include bookings with payment statuses that indicate user interest (e.g., paid, pending, or processing)
+      // Only show bookings that have been paid (partial or full payment)
+      // Hide unpaid/pending bookings until QRPh payment is confirmed
       const visibleBookings = allBookings.filter(b => {
         const status = (b.paymentStatus || '').toLowerCase();
-        return ['paid', 'pending', 'processing'].includes(status);
+        return ['paid', 'partial'].includes(status);
       });
       setBookings(visibleBookings);
     } catch (err) {
@@ -83,8 +121,18 @@ function MyBookings() {
 
 
   useEffect(() => {
+    if (!user || !token) return;
     fetchMyBookings();
-  }, [user]);
+    const handler = () => {
+      if (document.visibilityState === 'visible') {
+        fetchMyBookings();
+      }
+    };
+    document.addEventListener('visibilitychange', handler);
+    return () => {
+      document.removeEventListener('visibilitychange', handler);
+    };
+  }, [user, token]);
 
   const handleCancelClick = (booking) => {
     if (!token) {
@@ -145,7 +193,7 @@ function MyBookings() {
         cancellationElaboration: cancellationText.trim() || null
       };
 
-      const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/bookings/user-cancel/${selectedBooking._id}`, 
+      await axios.post(`${API_URL}/api/bookings/user-cancel/${selectedBooking._id}`, 
         cancellationData,
         {
           headers: { Authorization: `Bearer ${token}` }
@@ -155,7 +203,7 @@ function MyBookings() {
       // Show success modal instead of alert
       setShowCancelModal(false);
       setShowSuccessModal(true);
-      setBookings((prev) => prev.filter((b) => b._id !== selectedBooking._id));
+      setBookings((prev) => prev.map((b) => b._id === selectedBooking._id ? { ...b, status: 'cancelled' } : b));
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to cancel booking.');
     } finally {
@@ -167,33 +215,115 @@ function MyBookings() {
     setShowSuccessModal(false);
     setSelectedBooking(null);
   };
-  
-  const deleteAllCancelledBookings = async () => {
-    if (window.confirm("Are you sure you want to delete all cancelled bookings?")) {
-      try {
-        setDeletingCancelled(true);
-        await axios.delete(`${import.meta.env.VITE_API_URL}/api/bookings/user-cancelled`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-    
-        // Refresh bookings after successful deletion
-        await fetchMyBookings();
-    
-        alert("All cancelled bookings have been deleted.");
-      } catch (error) {
-        console.error("Error deleting cancelled bookings:", error);
-        if (error.response?.status === 404) {
-          alert(error.response.data.message || "No cancelled bookings found.");
-        } else {
-          alert("Failed to delete cancelled bookings. Please try again.");
-        }
-      } finally {
-        setDeletingCancelled(false);
+  const openCleaning = (booking) => {
+    setSelectedBooking(booking);
+    setCleaningDate('');
+    setCleaningTime('');
+    setCleaningDesc('');
+    setShowCleaningModal(true);
+  };
+  const fetchMyCleaningRequests = async () => {
+    if (!user || !token) return;
+    try {
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+      const resp = await axios.get(`${API_URL}/api/requests/cleaning/my`, config);
+      const list = resp?.data?.data || [];
+      const rooms = {};
+      list.forEach(r => { const rn = String(r.roomNumber || r?.booking?.roomNumber || '').trim(); if (rn) rooms[rn] = true; });
+      setRequestedRooms(rooms);
+    } catch (err) { console.error(err); }
+  };
+  useEffect(() => {
+    fetchMyCleaningRequests();
+    const onVis = () => { if (document.visibilityState === 'visible') fetchMyCleaningRequests(); };
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
+  }, [user, token]);
+
+  const getTodayStr = () => {
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth()+1).padStart(2,'0');
+    const dd = String(d.getDate()).padStart(2,'0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+  const getNextHalfHour = () => {
+    const d = new Date();
+    d.setSeconds(0); d.setMilliseconds(0);
+    const mins = d.getMinutes();
+    if (mins < 30) {
+      d.setMinutes(30);
+    } else {
+      d.setHours(d.getHours() + 1);
+      d.setMinutes(0);
+    }
+    const hh = String(d.getHours()).padStart(2,'0');
+    const mi = String(d.getMinutes()).padStart(2,'0');
+    return `${hh}:${mi}`;
+  };
+  const formatDisplayTime = (hhmm) => {
+    const [hh, mm] = hhmm.split(':');
+    let h = parseInt(hh, 10);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    if (h === 0) h = 12;
+    if (h > 12) h = h - 12;
+    return `${h}:${mm} ${ampm}`;
+  };
+  const buildTimeOptions = (dateStr) => {
+    if (!dateStr) return [];
+    const startHHMM = dateStr === getTodayStr() ? getNextHalfHour() : '00:00';
+    const [startH, startM] = startHHMM.split(':').map(x => parseInt(x, 10));
+    const opts = [];
+    for (let h = startH; h <= 23; h++) {
+      for (let m of [0, 30]) {
+        if (h === startH && m < startM) continue;
+        const hh = String(h).padStart(2,'0');
+        const mm = String(m).padStart(2,'0');
+        const val = `${hh}:${mm}`;
+        opts.push(val);
       }
     }
+    return opts;
   };
+  useEffect(() => {
+    const opts = buildTimeOptions(cleaningDate);
+    setTimeOptions(opts);
+    if (!opts.includes(cleaningTime)) setCleaningTime('');
+  }, [cleaningDate]);
+  const isValidSelection = () => {
+    if (!cleaningDate || !cleaningTime) return false;
+    const now = new Date();
+    const when = new Date(`${cleaningDate}T${cleaningTime}`);
+    if (isNaN(when.getTime())) return false;
+    if (when <= now) return false;
+    const mins = parseInt(cleaningTime.split(':')[1] || '0', 10);
+    if (mins % 30 !== 0) return false;
+    if (cleaningDate === getTodayStr()) {
+      const [mh, mm] = getNextHalfHour().split(':');
+      const minToday = new Date(`${cleaningDate}T${mh}:${mm}`);
+      if (when < minToday) return false;
+    }
+    return true;
+  };
+  const submitCleaning = async () => {
+    if (!selectedBooking || !isValidSelection()) return;
+    try {
+      setCleanSubmitting(true);
+      const when = `${cleaningDate}T${cleaningTime}`;
+      const config = { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } };
+      await axios.post(`${API_URL}/api/requests/cleaning`, { bookingId: selectedBooking._id, scheduledAt: when, description: cleaningDesc || '' }, config);
+      setShowCleaningModal(false);
+      setShowCleanSuccess(true);
+      const rn = selectedBooking?.roomNumber;
+      if (rn) setRequestedRooms(prev => ({ ...prev, [rn]: true }));
+    } catch (e) {
+      alert(e?.response?.data?.message || 'Failed to submit cleaning request');
+    } finally {
+      setCleanSubmitting(false);
+    }
+  };
+  
+  
 
   if (loading) {
     return <div className="my-bookings-container">Loading bookings...</div>;
@@ -210,40 +340,62 @@ function MyBookings() {
       </div>
     );
   }
-  // Check if there are any cancelled bookings
-  const hasCancelledBookings = bookings.some(booking => 
-    booking.status === 'cancelled' || booking.bookingStatus === 'cancelled'
-  );
+  
 
   return (
     <div className="my-bookings-container">
-      <h1>My Bookings</h1>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <h1>My Bookings</h1>
+        
+      </div>
       
       {/* Removed the "Delete All Cancelled Bookings" button */}
       
+      {/* Redundant toast notifications removed — rely on bell dropdown in navbar */}
       <div className="bookings-list">
-        {bookings.map(booking => (
-          <div key={booking._id} className="booking-card">
-            <h2>Room: {booking.roomNumber || 'N/A'}</h2>
-            <p>Check-in: {formatDateTime(booking.checkIn)}</p>
-            <p>Check-out: {formatDateTime(booking.checkOut)}</p>
-            <p>Total Price: ₱{formatPrice(booking.totalAmount)}</p>
-            {booking.paymentStatus && (
-              <p>Payment Status: {booking.paymentStatus}</p>
-            )}
-            <p>Booking Status: {booking.status || booking.bookingStatus}</p>
-            <div className="booking-actions">
-              {['pending', 'upcoming'].includes((booking.status || booking.bookingStatus)) && (
-                <button
-                  onClick={() => handleCancelClick(booking)}
-                  disabled={cancelingId === booking._id}
-                >
-                  {cancelingId === booking._id ? 'Cancelling...' : 'Cancel booking'}
-                </button>
+        {bookings.map(booking => {
+          const ended = new Date(booking.checkOut) < new Date();
+          return (
+            <div key={booking._id} className="booking-card">
+              {ended && (
+                <div className="ended-warning">
+                  <div className="warning-triangle"></div>
+                  <div className="warning-label">time to checkout!</div>
+                </div>
               )}
+              <div className="booking-main">
+                <h2>{getRoomHeader(booking)}</h2>
+                <p>Check-in: {formatDateTime(booking.checkIn)}</p>
+                <p>Check-out: {formatDateTime(booking.checkOut)}</p>
+                <p>Total Price: ₱{formatPrice(booking.totalAmount)}</p>
+                {booking.paymentStatus && (
+                  <p>Payment Status: {displayPaymentStatus(booking.paymentStatus)}</p>
+                )}
+                <p>Booking Status: {booking.status || booking.bookingStatus}</p>
+                <div className="booking-actions">
+                  {['pending', 'upcoming'].includes((booking.status || booking.bookingStatus)) && (
+                    <button
+                      onClick={() => handleCancelClick(booking)}
+                      disabled={cancelingId === booking._id}
+                    >
+                      {cancelingId === booking._id ? 'Cancelling...' : 'Cancel booking'}
+                    </button>
+                  )}
+                  {['confirmed','occupied','pending'].includes(String(booking.status || booking.bookingStatus).toLowerCase()) && (
+                    <button 
+                      onClick={() => openCleaning(booking)} 
+                      style={{ marginLeft: '8px' }}
+                      disabled={requestedRooms[String(booking.roomNumber || '').trim()]}
+                      title={requestedRooms[String(booking.roomNumber || '').trim()] ? 'already requested cleaning for this room' : ''}
+                    >
+                      Request Cleaning
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* 48-Hour Warning Modal */}
@@ -306,6 +458,80 @@ function MyBookings() {
                 onClick={handleSuccessClose}
               >
                 OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCleanSuccess && (
+        <div className="modal-overlay">
+          <div className="modal-content success-modal">
+            <div className="modal-header">
+              <h3>Request Submitted</h3>
+            </div>
+            <div className="modal-body">
+              <div className="success-content">
+                <div className="success-icon">✅</div>
+                <p className="success-text">Cleaning request submitted.</p>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="ok-btn" onClick={() => { setShowCleanSuccess(false); setSelectedBooking(null); }}>OK</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCleaningModal && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h3 style={{ textAlign: 'center' }}>Request Cleaning</h3>
+              <button 
+                className="modal-close"
+                onClick={() => setShowCleaningModal(false)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="booking-info">
+                <p><strong>Room:</strong> {selectedBooking?.roomNumber || 'N/A'}</p>
+                <p><strong>Check-in:</strong> {selectedBooking && formatDateTime(selectedBooking.checkIn)}</p>
+                <p><strong>Check-out:</strong> {selectedBooking && formatDateTime(selectedBooking.checkOut)}</p>
+              </div>
+              <div className="form-group">
+                <label>Date</label>
+                <input type="date" value={cleaningDate} onChange={(e)=>setCleaningDate(e.target.value)} min={getTodayStr()} />
+              </div>
+              <div className="form-group">
+                <label>Time</label>
+                <select value={cleaningTime} onChange={(e)=>setCleaningTime(e.target.value)}>
+                  <option value="">Select time</option>
+                  {timeOptions.map(t => (
+                    <option key={t} value={t}>{formatDisplayTime(t)}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Description</label>
+                <textarea value={cleaningDesc} onChange={(e)=>setCleaningDesc(e.target.value)} rows="3" placeholder="Optional"></textarea>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button 
+                className="cancel-btn"
+                onClick={() => setShowCleaningModal(false)}
+              >
+                Close
+              </button>
+              <button 
+                className="confirm-cancel-btn"
+                onClick={submitCleaning}
+                disabled={!isValidSelection() || cleanSubmitting}
+              >
+                {cleanSubmitting ? 'Submitting...' : 'Submit Request'}
               </button>
             </div>
           </div>

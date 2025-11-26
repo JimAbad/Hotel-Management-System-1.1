@@ -14,7 +14,7 @@ const Signup = () => {
   const [isModalOpen, setModalOpen] = useState(false);
   const [code, setCode] = useState('');
   const [verificationMsg, setVerificationMsg] = useState('');
-  const [isEmailVerified, setEmailVerified] = useState(false);
+  
   const [isRequesting, setRequesting] = useState(false);
   const [isVerifying, setVerifying] = useState(false);
   const [isSigningUp, setSigningUp] = useState(false);
@@ -28,7 +28,7 @@ const Signup = () => {
   const { register } = useContext(AuthContext);
   const navigate = useNavigate();
 
-  const apiBase = import.meta.env.VITE_API_URL;
+  const API_BASE = import.meta.env.VITE_API_URL || 'https://hotel-management-system-1-1backend.onrender.com';
 
   // Helper function to capitalize first letter of each word
   const capitalizeWords = (str) => {
@@ -78,7 +78,7 @@ const Signup = () => {
     setVerificationMsg('');
     setRequesting(true);
     try {
-      await axios.post(`${apiBase}/api/auth/request-verification-code`, { email });
+      await axios.post(`${API_BASE}/api/auth/request-verification-code`, { email });
       setModalOpen(true);
       setVerificationMsg('We sent a 6-digit code to your email.');
     } catch (error) {
@@ -98,8 +98,7 @@ const Signup = () => {
     setVerifying(true);
     setVerificationMsg('');
     try {
-      await axios.post(`${apiBase}/api/auth/verify-code`, { email, code });
-      setEmailVerified(true);
+      await axios.post(`${API_BASE}/api/auth/verify-code`, { email, code });
       setVerificationMsg('Email verified. Proceeding with signup...');
       
       // Automatically proceed with registration after verification
@@ -112,6 +111,7 @@ const Signup = () => {
         setSigningUp(false);
       }, 1000);
     } catch (error) {
+      console.error('Verify code error:', error);
       setVerificationMsg('Invalid code');
       setSigningUp(false);
     } finally {
@@ -143,14 +143,14 @@ const Signup = () => {
     
     // Check if username already exists
     try {
-      const checkResponse = await axios.get(`${apiBase}/api/auth/checkuser?username=${username}`);
+      const checkResponse = await axios.get(`${API_BASE}/api/auth/checkuser?username=${username}`);
       if (checkResponse.data.exists) {
         showErrorPopup('username-exists', 'Username already exists. Please choose a different username.');
         setSigningUp(false);
         return;
       }
     } catch (error) {
-      console.error('Error checking username:', error);
+      console.error('Error checking username', error);
       showErrorPopup('validation-error', 'Error validating username. Please try again.');
       setSigningUp(false);
       return;
@@ -163,7 +163,7 @@ const Signup = () => {
   return (
     <div className="signup-page">
       <div className="login-left">
-        <img src="../src/img/lumine login.png" alt="Logo" className="login-logo" />
+        <img src="/images/lumine login.png" alt="Logo" className="login-logo" />
       </div>
       <div className="signup-container">
         <div className="signup-form-card">

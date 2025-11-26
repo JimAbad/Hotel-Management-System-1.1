@@ -5,6 +5,7 @@ import axios from 'axios';
 function VerifyEmail() {
   const location = useLocation();
   const [status, setStatus] = useState({ loading: true, success: null, message: '' });
+  const API_URL = import.meta.env.VITE_API_URL || 'https://hotel-management-system-1-1backend.onrender.com';
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -16,7 +17,7 @@ function VerifyEmail() {
         return;
       }
       try {
-        const url = `${import.meta.env.VITE_API_URL}/api/auth/verify-email?token=${encodeURIComponent(token)}`;
+        const url = `${API_URL}/api/auth/verify-email?token=${encodeURIComponent(token)}`;
         const res = await axios.get(url);
         setStatus({ loading: false, success: true, message: res.data?.msg || 'Email verified successfully' });
       } catch (err) {
@@ -26,7 +27,7 @@ function VerifyEmail() {
     }
 
     verify();
-  }, [location.search]);
+  }, [location.search, API_URL]);
 
   return (
     <div style={{ paddingTop: '8rem', minHeight: 'calc(100vh - 6rem)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

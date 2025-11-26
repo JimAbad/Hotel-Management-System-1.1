@@ -11,4 +11,17 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    chunkSizeWarningLimit: 1000, // Increase warning limit to 1MB
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom'],
+          'router-vendor': ['react-router-dom'],
+          'ui-vendor': ['react-icons', 'chart.js', 'react-chartjs-2'],
+          'utils': ['axios'],
+        },
+      },
+    },
+  },
 });

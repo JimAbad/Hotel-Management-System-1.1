@@ -6,7 +6,14 @@ import './ManageBookingAdmin.css';
 
 const ManageBookingsAdmin = () => {
   const { token } = useAuthAdmin();
-  const API_BASE = (import.meta.env.VITE_API_URL || "").replace(/\/+$/, "");
+  const API_BASE = (() => {
+    const fallback = 'https://hotel-management-system-1-1backend.onrender.com';
+    const env = import.meta.env.VITE_API_URL;
+    const envNorm = String(env || '').replace(/\/+$/, '');
+    const originNorm = typeof window !== 'undefined' ? window.location.origin.replace(/\/+$/, '') : '';
+    const base = envNorm && envNorm !== originNorm ? envNorm : fallback;
+    return base.replace(/\/+$/, '');
+  })();
 
   const [bookings, setBookings] = useState([]);
   const [activities, setActivities] = useState([]);
@@ -19,6 +26,7 @@ const ManageBookingsAdmin = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [rooms, setRooms] = useState([]);
+  const [assignableRooms, setAssignableRooms] = useState([]);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [selectedRoomNumber, setSelectedRoomNumber] = useState('');
@@ -39,24 +47,24 @@ const ManageBookingsAdmin = () => {
     specialRequest: ''
   });
   const [reservationSummary, setReservationSummary] = useState(null);
+  const [cleaningRequests, setCleaningRequests] = useState([]);
+  const [showCleanModal, setShowCleanModal] = useState(false);
+  const [activeRequest, setActiveRequest] = useState(null);
+  const [cleanDate, setCleanDate] = useState('');
+  const [cleanTime, setCleanTime] = useState('');
+  const [cleanPriority, setCleanPriority] = useState('low');
+  const [cleanSubmitting, setCleanSubmitting] = useState(false);
+  const [cleanTimeOptions, setCleanTimeOptions] = useState([]);
 
   useEffect(() => {
     if (token) {
       fetchBookings();
       fetchRooms();
+      fetchCleaningRequests();
     }
   }, [statusFilter, searchQuery, token]);
 
-  const parseList = (payload) => {
-    if (Array.isArray(payload)) return payload;
-    return (
-      payload?.data?.bookings ||
-      payload?.bookings ||
-      payload?.data ||
-      payload?.results ||
-      []
-    );
-  };
+  
 
   // Helper: pick the first existing field name from your API result
   const pick = (obj, keys) => keys.find((k) => obj?.[k] !== undefined && obj?.[k] !== null) && obj[keys.find((k) => obj?.[k] !== undefined && obj?.[k] !== null)];
@@ -79,9 +87,33 @@ const ManageBookingsAdmin = () => {
     const s = String(status || "").toLowerCase();
     if (["pending"].includes(s)) return "pending";
     if (["confirmed", "reserved"].includes(s)) return "confirmed";
+    if (["occupied"].includes(s)) return "confirmed";
     if (["cancelled", "canceled"].includes(s)) return "cancelled";
     if (["completed", "checked-out", "finished"].includes(s)) return "completed";
     return "";
+  };
+
+  const normalizeType = (t) => {
+    const s = String(t || '').toLowerCase();
+    if (!s) return '';
+    if (['economy', 'standard', 'solo', 'basic'].includes(s)) return 'Economy';
+    if (['deluxe'].includes(s)) return 'Deluxe';
+    if (['suite', 'family suite'].includes(s)) return 'Suite';
+    if (['presidential'].includes(s)) return 'Presidential';
+    return t;
+  };
+
+  const getRoomTypeFromBooking = (b) => {
+    if (!b) return '';
+    const r = b.room;
+    if (r && typeof r === 'object' && r.roomType) return r.roomType;
+    if (b.roomType) return b.roomType;
+    if (typeof r === 'string' && r) {
+      const match = (rooms || []).find((room) => String(room._id) === String(r));
+      if (match && match.roomType) return match.roomType;
+      return '';
+    }
+    return '';
   };
 
   const getRoomDisplay = (b) => {
@@ -107,6 +139,54 @@ const ManageBookingsAdmin = () => {
     return 'N/A';
   };
 
+  const toDateSafe = (val) => {
+    if (!val) return null;
+    const d = new Date(val);
+    return isNaN(d) ? null : d;
+  };
+
+  const isOverlapping = (aStart, aEnd, bStart, bEnd) => {
+    if (!aStart || !aEnd || !bStart || !bEnd) return false;
+    return aStart < bEnd && bStart < aEnd;
+  };
+
+  const isRoomAvailableForBooking = (room, booking) => {
+    const rn = room?.roomNumber;
+    const currentRn = getRoomDisplay(booking);
+    const targetCi = toDateSafe(getCheckIn(booking));
+    const targetCo = toDateSafe(getCheckOut(booking));
+
+    if (!rn) return false;
+    // Must match type
+    const typeOk = normalizeType(room.roomType) === normalizeType(getRoomTypeFromBooking(booking));
+    if (!typeOk) return false;
+    // Exclude already assigned to this booking
+    if (currentRn && String(currentRn) === String(rn)) return false;
+    // Must be available by status
+    const statusOk = String(room.status || 'available').toLowerCase() === 'available';
+    if (!statusOk) return false;
+
+    // If booking has no dates, cannot evaluate overlap — allow selection
+    if (!targetCi || !targetCo) return true;
+
+    // Exclude rooms with overlapping active bookings
+    for (const b of bookings) {
+      // skip this booking
+      if (String(b?._id || '') === String(booking?._id || '')) continue;
+      const st = String(getBookingStatus(b) || '').toLowerCase();
+      const isActive = !['cancelled','completed'].includes(st);
+      if (!isActive) continue;
+      const bn = getRoomDisplay(b);
+      if (!bn || String(bn) !== String(rn)) continue;
+      const bCi = toDateSafe(getCheckIn(b));
+      const bCo = toDateSafe(getCheckOut(b));
+      if (isOverlapping(targetCi, targetCo, bCi, bCo)) {
+        return false;
+      }
+    }
+    return true;
+  };
+
   const fetchBookings = async () => {
     try {
       setLoading(true);
@@ -115,6 +195,7 @@ const ManageBookingsAdmin = () => {
       });
       const list = Array.isArray(res.data) ? res.data : res?.data?.bookings || res?.data?.data || [];
       setBookings(Array.isArray(list) ? list : []);
+      // removed adminNotifications aggregation — bell dropdown in LayoutAdmin handles admin notifications
     } catch (e) {
       setError(e?.response?.data?.message || e.message || "Failed to load bookings");
       setBookings([]);
@@ -129,12 +210,122 @@ const ManageBookingsAdmin = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
       const list = Array.isArray(res.data) ? res.data : res?.data?.rooms || res?.data?.data || [];
-      setRooms(Array.isArray(list) ? list : []);
+      const normalized = Array.isArray(list) ? list : [];
+      setRooms(normalized);
+      return normalized;
     } catch (e) {
       console.error('Failed to load rooms', e);
       setRooms([]);
+      return [];
     }
   };
+
+  const fetchCleaningRequests = async () => {
+    try {
+      const res = await axios.get(`${API_BASE}/api/requests/cleaning`, { headers: { Authorization: `Bearer ${token}` } });
+      const list = res?.data?.data || [];
+      setCleaningRequests(Array.isArray(list) ? list : []);
+    } catch {
+      setCleaningRequests([]);
+    }
+  };
+
+  const openScheduleClean = (req) => {
+    setActiveRequest(req);
+    const d = new Date(req.scheduledAt);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth()+1).padStart(2,'0');
+    const dd = String(d.getDate()).padStart(2,'0');
+    const hh = String(d.getHours()).padStart(2,'0');
+    const mi = String(d.getMinutes()).padStart(2,'0');
+    setCleanDate(`${yyyy}-${mm}-${dd}`);
+    setCleanTime(`${hh}:${mi}`);
+    setCleanPriority('low');
+    setShowCleanModal(true);
+  };
+
+  const getTodayStr = () => {
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth()+1).padStart(2,'0');
+    const dd = String(d.getDate()).padStart(2,'0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+  const getNextHalfHour = () => {
+    const d = new Date();
+    d.setSeconds(0); d.setMilliseconds(0);
+    const mins = d.getMinutes();
+    if (mins < 30) {
+      d.setMinutes(30);
+    } else {
+      d.setHours(d.getHours() + 1);
+      d.setMinutes(0);
+    }
+    const hh = String(d.getHours()).padStart(2,'0');
+    const mi = String(d.getMinutes()).padStart(2,'0');
+    return `${hh}:${mi}`;
+  };
+  const formatDisplayTime = (hhmm) => {
+    const [hh, mm] = hhmm.split(':');
+    let h = parseInt(hh, 10);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    if (h === 0) h = 12;
+    if (h > 12) h = h - 12;
+    return `${h}:${mm} ${ampm}`;
+  };
+  const buildTimeOptions = (dateStr) => {
+    if (!dateStr) return [];
+    const startHHMM = dateStr === getTodayStr() ? getNextHalfHour() : '00:00';
+    const [startH, startM] = startHHMM.split(':').map(x => parseInt(x, 10));
+    const opts = [];
+    for (let h = startH; h <= 23; h++) {
+      for (let m of [0, 30]) {
+        if (h === startH && m < startM) continue;
+        const hh = String(h).padStart(2,'0');
+        const mm = String(m).padStart(2,'0');
+        const val = `${hh}:${mm}`;
+        opts.push(val);
+      }
+    }
+    return opts;
+  };
+  useEffect(() => {
+    const opts = buildTimeOptions(cleanDate);
+    setCleanTimeOptions(opts);
+    if (!opts.includes(cleanTime)) setCleanTime('');
+  }, [cleanDate]);
+
+  const isValidCleanSelection = () => {
+    if (!cleanDate || !cleanTime) return false;
+    const now = new Date();
+    const when = new Date(`${cleanDate}T${cleanTime}`);
+    if (isNaN(when.getTime())) return false;
+    if (when <= now) return false;
+    const mins = parseInt(cleanTime.split(':')[1] || '0', 10);
+    if (mins % 30 !== 0) return false;
+    return cleanTimeOptions.includes(cleanTime);
+  };
+
+  const submitCleanTask = async () => {
+    if (!activeRequest || !cleanDate || !cleanTime) return;
+    try {
+      setCleanSubmitting(true);
+      const when = `${cleanDate}T${cleanTime}`;
+      const config = { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } };
+      await axios.post(`${API_BASE}/api/tasks/from-cleaning-request/${activeRequest._id}`, { scheduledAt: when, priority: cleanPriority }, config);
+      setShowCleanModal(false);
+      setActiveRequest(null);
+      await fetchCleaningRequests();
+    } catch (e) {
+      alert(e?.response?.data?.message || 'Failed to schedule task');
+    } finally {
+      setCleanSubmitting(false);
+    }
+  };
+
+  // removed admin billing-derived notifications — centralized in LayoutAdmin bell dropdown
+
+  // Removed toast popups in favor of bell dropdown notifications
 
   const fetchBookingActivities = async (bookingId) => {
     try {
@@ -154,16 +345,7 @@ const ManageBookingsAdmin = () => {
     setShowActivityModal(true);
   };
 
-  const handleEditClick = (booking) => {
-    setSelectedBooking(booking);
-    const co = booking.checkOutDate ? new Date(booking.checkOutDate) : null;
-    setEditForm({
-      bookingStatus: booking.bookingStatus || '',
-      checkOutDate: co && !isNaN(co) ? co.toISOString().slice(0, 10) : '',
-      roomNumber: booking?.room?.roomNumber ?? booking?.roomNumber ?? ''
-    });
-    setShowEditModal(true);
-  };
+  
 
   const handleEditSubmit = async (e) => {
     e.preventDefault();
@@ -245,14 +427,14 @@ const ManageBookingsAdmin = () => {
     }
   };
 
-  // Helper: does this booking already have a room?
-  const isAssigned = (b) =>
-    !!(b?.room?.roomNumber || b?.roomNumber || (typeof b?.room === 'string' && b.room));
+  // Removed isAssigned visual usage to keep Assign button visibly enabled for ongoing bookings
 
   const handleAssignRoom = async (booking) => {
     setSelectedBooking(booking);
     setSelectedRoomNumber('');
-    if (rooms.length === 0) await fetchRooms();
+    const roomList = rooms.length ? rooms : await fetchRooms();
+    const eligible = (roomList || []).filter((r) => isRoomAvailableForBooking(r, booking));
+    setAssignableRooms(eligible);
     setShowAssignModal(true);
   };
 
@@ -261,7 +443,7 @@ const ManageBookingsAdmin = () => {
     try {
       await axios.put(
         `${API_BASE}/api/bookings/${selectedBooking._id}`,
-        { roomNumber: selectedRoomNumber },
+        { roomNumber: selectedRoomNumber, bookingStatus: getBookingStatus(selectedBooking) || 'pending' },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setShowAssignModal(false);
@@ -279,23 +461,18 @@ const ManageBookingsAdmin = () => {
   const filtered = React.useMemo(() => {
     const q = (searchQuery || "").toLowerCase();
     const sf = (statusFilter || "").toLowerCase();
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
     return (bookings || []).filter((b) => {
       const name = (b.guestName || b.customerName || b.name || "").toLowerCase();
       const status = String(getBookingStatus(b) || "").toLowerCase();
       const okSearch = !q || name.includes(q);
       const okStatus = !sf || status === sf;
-      // Exclude bookings whose check-out date has passed
-      const coRaw = getCheckOut(b);
-      const co = coRaw ? new Date(coRaw) : null;
-      const okDate = !co || isNaN(co) ? true : co >= today;
-      return okSearch && okStatus && okDate;
+      return okSearch && okStatus;
     });
   }, [bookings, searchQuery, statusFilter]);
 
   return (
     <div className="booking-management">
+      {/* Toast popups removed — admin notifications now centralized in bell dropdown */}
       <div className="booking-header">
         <h2>Booking List</h2>
         <div className="booking-actions">
@@ -329,6 +506,37 @@ const ManageBookingsAdmin = () => {
         <div className="error">{error}</div>
       ) : (
         <div className="table-container">
+          <div style={{ marginBottom: 16 }}>
+            <h3>Cleaning Requests</h3>
+            {cleaningRequests.length === 0 ? (
+              <div className="empty">No cleaning requests</div>
+            ) : (
+              <table>
+                <thead>
+                  <tr>
+                    <th>Customer</th>
+                    <th>Room</th>
+                    <th>Requested</th>
+                    <th>Description</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {cleaningRequests.map((r) => (
+                    <tr key={r._id}>
+                      <td>{r.booking?.customerName || r.booking?.guestName || '-'}</td>
+                      <td>{r.roomNumber || r.booking?.roomNumber || '-'}</td>
+                      <td>{new Date(r.scheduledAt).toLocaleString()}</td>
+                      <td>{r.description || '-'}</td>
+                      <td>
+                        <button className="save-btn" onClick={() => openScheduleClean(r)}>Schedule</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
           <table>
             <thead>
               <tr>
@@ -369,8 +577,8 @@ const ManageBookingsAdmin = () => {
                   <td>
                     <div className="action-buttons">
                       <button
-                        className={`assign-btn ${isAssigned(b) ? 'assigned' : ''}`}
-                        disabled={isAssigned(b)}
+                        className="assign-btn"
+                        disabled={["cancelled","completed"].includes(String(getBookingStatus(b) || '').toLowerCase())}
                         onClick={() => handleAssignRoom(b)}
                       >
                         Assign Room
@@ -451,11 +659,13 @@ const ManageBookingsAdmin = () => {
                     onChange={(e) => setEditForm({ ...editForm, roomNumber: e.target.value })}
                   >
                     <option value="">Select Room</option>
-                    {rooms.map((room) => (
-                      <option key={room.roomNumber || room._id} value={room.roomNumber}>
-                        Room {room.roomNumber}
-                      </option>
-                    ))}
+                    {(rooms || [])
+                      .filter((room) => isRoomAvailableForBooking(room, selectedBooking))
+                      .map((room) => (
+                        <option key={room.roomNumber || room._id} value={room.roomNumber}>
+                          Room {room.roomNumber}
+                        </option>
+                      ))}
                   </select>
                 </div>
                 <div className="form-actions">
@@ -639,12 +849,17 @@ const ManageBookingsAdmin = () => {
                 onChange={(e) => setSelectedRoomNumber(e.target.value)}
               >
                 <option value="">Select a room</option>
-                {rooms.map((r) => (
+                {assignableRooms.map((r) => (
                   <option key={r._id || r.roomNumber} value={r.roomNumber}>
-                    Room {r.roomNumber} — {r.roomType || r.type || 'Type'}
+                    Room {r.roomNumber} — {r.roomType}
                   </option>
                 ))}
               </select>
+              {(assignableRooms.length === 0) && (
+                <div className="error" style={{ marginTop: 8 }}>
+                  No available rooms for the booked type.
+                </div>
+              )}
               <div className="form-actions" style={{ marginTop: 12 }}>
                 <button className="save-btn" onClick={confirmAssignRoom} disabled={!selectedRoomNumber}>
                   Assign
@@ -657,8 +872,44 @@ const ManageBookingsAdmin = () => {
           </div>
         </div>
       )}
+      {showCleanModal && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h3>Schedule Cleaning</h3>
+              <button onClick={() => setShowCleanModal(false)}>&times;</button>
+            </div>
+            <div className="modal-body">
+              <div className="form-group">
+                <label>Date</label>
+                <input type="date" value={cleanDate} onChange={(e)=>setCleanDate(e.target.value)} />
+              </div>
+              <div className="form-group">
+                <label>Time</label>
+                <select value={cleanTime} onChange={(e)=>setCleanTime(e.target.value)}>
+                  <option value="">Select time</option>
+                  {cleanTimeOptions.map(t => (
+                    <option key={t} value={t}>{formatDisplayTime(t)}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Priority</label>
+                <select value={cleanPriority} onChange={(e)=>setCleanPriority(e.target.value)}>
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                </select>
+              </div>
+            </div>
+            <div className="form-actions">
+              <button className="save-btn" onClick={submitCleanTask} disabled={!isValidCleanSelection() || cleanSubmitting}>{cleanSubmitting ? 'Submitting...' : 'Submit'}</button>
+              <button className="cancel-btn" onClick={() => setShowCleanModal(false)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
-
-export default ManageBookingsAdmin;
+export default ManageBookingAdmin;
