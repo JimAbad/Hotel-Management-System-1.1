@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import axios from "axios";
 import { useAuthAdmin } from "./AuthContextAdmin";
 import "./CustomerBillListAdmin.css";
+import ViewCustomerBillAdmin from "./ViewCustomerBillAdmin";
 
 const CustomerBillList = () => {
   const { token } = useAuthAdmin();
@@ -383,6 +384,27 @@ const CustomerBillList = () => {
     }
   };
 
+  const handleView = (bill, e) => {
+    if (e) e.preventDefault();
+    setActiveBill(bill);
+    setShowBillModal(true);
+  };
+
+  // ensure this handler exists in the component:
+  const handleMarkAsPaid = async (id) => {
+    try {
+      // call your existing API endpoint
+      await axios.patch(`/api/billings/${id}/mark-paid`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      // refresh list or update local state
+      setBills((prev) => prev.map(b => (b._id === id ? { ...b, paymentStatus: 'paid' } : b)));
+    } catch (err) {
+      console.error('Mark as paid failed:', err);
+      alert('Failed to mark as paid'); // simple feedback
+    }
+  };
+
   return (
     <div className="customer-bill-list-container">
       <div className="billing-card">
@@ -431,44 +453,36 @@ const CustomerBillList = () => {
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 ? (
-                <tr>
-                  <td className="empty" colSpan="6">
-                    No customer bills found.
-                  </td>
-                </tr>
+              {Array.isArray(bills) && bills.length > 0 ? (
+                bills.map((bill) => (
+                  <tr key={bill._id || bill.id}>
+                    <td>{bill.referenceNumber}</td>
+                    <td>{bill.customerName || "-"}</td>
+                    <td>{peso(bill.totalAmount ?? bill.total ?? bill.amount ?? 0)}</td>
+                    <td>
+                      <span className={`status-badge ${badgeClass(bill.paymentStatus)}`}>{bill.paymentStatus}</span>
+                    </td>
+                    <td>{prettyDate(pickCheckout(bill))}</td>
+                    <td className="action-buttons">
+                      <button type="button" className="btn view-btn" onClick={() => { setActiveBill(bill); setShowBillModal(true); }}>
+                        View Bill
+                      </button>
+                      <button
+                        type="button"
+                        className="btn mark-paid-btn"
+                        onClick={() => handleMarkAsPaid(bill._id || bill.id)}
+                        disabled={bill.paymentStatus === 'paid'}
+                      >
+                        Mark as Paid
+                      </button>
+                    </td>
+                  </tr>
+                ))
               ) : (
-                filtered.map((b) => {
-                  const badge = badgeClass(b.paymentStatus);
-                  return (
-                    <tr key={b._id}>
-                      <td>{b.referenceNumber}</td>
-                      <td>{b.customerName || "-"}</td>
-                      <td>{peso(b.totalAmount ?? b.total ?? b.amount ?? 0)}</td>
-                      <td>
-                        <span className={`status-badge ${badge}`}>{b.paymentStatus}</span>
-                      </td>
-                      <td>{prettyDate(pickCheckout(b))}</td>
-                      <td className="actions">
-                        <button
-                          type="button"
-                          className="btn btn-light"
-                          onClick={() => openBillModal(b)}
-                        >
-                          View Bill
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-ghost"
-                          disabled={badge === "paid"}
-                          onClick={() => markAsPaid(b)}
-                        >
-                          Mark as Paid
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })
+                // optional: sample fallback so you can click even if API is empty
+                <tr>
+                  <td colSpan="6">No customer bills found.</td>
+                </tr>
               )}
             </tbody>
           </table>
@@ -476,48 +490,11 @@ const CustomerBillList = () => {
       </div>
 
       {/* View Bill Modal */}
-      {showBillModal && (
-        <div className="modal-overlay" onClick={() => setShowBillModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>Bill Details</h3>
-              <button onClick={() => setShowBillModal(false)}>✕</button>
-            </div>
-            <div className="modal-body">
-              {detailsLoading && <div className="loading">Loading bill…</div>}
-              {detailsError && (
-                <div className="error-banner">
-                  {detailsError?.response?.status === 404
-                    ? "Bill not found."
-                    : detailsError.message}
-                </div>
-              )}
-              {!detailsLoading && !detailsError && (
-                <>
-                  <div className="booking-details">
-                    <p><strong>Reference Number:</strong> {activeBill?.referenceNumber}</p>
-                    <p><strong>Customer Name:</strong> {billDetails?.customerName || billDetails?.name || activeBill?.customerName || "-"}</p>
-                    <p><strong>Total Bill Amount:</strong> {prettyAmt(billDetails?.totalAmount ?? activeBill?.totalAmount)}</p>
-                    <p><strong>Payment Status:</strong> {billDetails?.paymentStatus || billDetails?.status || activeBill?.paymentStatus || "-"}</p>
-                    <p><strong>Check-Out Date:</strong> {prettyDate(billDetails?.checkOutDate || billDetails?.checkoutDate || activeBill?.checkOutDate)}</p>
-                  </div>
-                  <div className="form-actions">
-                    <Link
-                      to={`/admin/view-customer-bill/${activeBill?.bookingId || activeBill?._id || ""}`}
-                      className="btn btn-light"
-                      onClick={() => setShowBillModal(false)}
-                    >
-                      Open Full Page
-                    </Link>
-                    <button className="btn btn-ghost" onClick={() => setShowBillModal(false)}>
-                      Close
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
+      {showBillModal && activeBill && (
+        <ViewCustomerBillAdmin
+          bill={activeBill}
+          onClose={() => setShowBillModal(false)}
+        />
       )}
     </div>
   );

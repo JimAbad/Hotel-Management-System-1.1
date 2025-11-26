@@ -1,169 +1,81 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import { FaSearch, FaEye, FaCheck } from 'react-icons/fa';
-import { useAuthAdmin } from './AuthContextAdmin';
+import React from 'react';
 import './ViewCustomerBillAdmin.css';
 
-const ViewCustomerBillAdmin = () => {
-  const { token } = useAuthAdmin();
-  const API_URL = (() => {
-    const fallback = 'https://hotel-management-system-1-1backend.onrender.com';
-    const env = import.meta.env.VITE_API_URL;
-    const envNorm = String(env || '').replace(/\/+$/, '');
-    const originNorm = typeof window !== 'undefined' ? window.location.origin.replace(/\/+$/, '') : '';
-    return envNorm && envNorm !== originNorm ? envNorm : fallback;
-  })();
-  const [bills, setBills] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
-  const [error, setError] = useState(null);
+const peso = (v) => '₱' + Number(v || 0).toLocaleString('en-PH');
 
-  // Fetch all customer bills
-  useEffect(() => {
-    const fetchBills = async () => {
-      try {
-        setLoading(true);
-        const config = {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        };
-        const { data } = await axios.get(`${API_URL}/api/customer-bills`, config);
-        setBills(data);
-      } catch (error) {
-        console.error('Failed to load bills', error);
-        setError('Failed to load bills');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchBills();
-  }, [API_URL, token]);
+const toLocalDate = (d) => {
+  if (!d) return '—';
+  try {
+    return new Date(d).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+  } catch {
+    return d;
+  }
+};
 
-  // Filter + Search
-  const filteredBills = bills.filter((bill) => {
-    const matchesSearch =
-      bill.customerName.toLowerCase().includes(search.toLowerCase()) ||
-      bill.specialId.toLowerCase().includes(search.toLowerCase());
-    const matchesFilter = filterStatus ? bill.paymentStatus === filterStatus : true;
-    return matchesSearch && matchesFilter;
-  });
+const getRoomType = (b) =>
+  b.roomType || b.room_type || b.room?.type || b.roomCategory || b.roomClass || '—';
 
-  // Handle mark as paid
-  const handleMarkAsPaid = async (id) => {
-    try {
-      const config = {
-        headers: { Authorization: `Bearer ${token}` },
-      };
-      await axios.put(`${API_URL}/api/customer-bills/${id}/mark-paid`, {}, config);
-      alert('Payment status updated to Paid!');
-      setBills((prev) =>
-        prev.map((bill) =>
-          bill._id === id ? { ...bill, paymentStatus: 'Paid' } : bill
-        )
-      );
-    } catch (err) {
-      console.error('Error marking bill as paid', err);
-      alert('Failed to update payment status.');
-    }
-  };
+const getDates = (b) => {
+  const cin = b.checkInDate || b.checkinDate || b.check_in || b.startDate || b.dateFrom;
+  const cout = b.checkOutDate || b.checkoutDate || b.check_out || b.endDate || b.dateTo;
+  return `${toLocalDate(cin)} - ${toLocalDate(cout)}`;
+};
 
-  const peso = v => '₱' + Number(v || 0).toLocaleString('en-PH');
+const getGuests = (b) => {
+  const adults = Number(b.adults ?? b.numAdults ?? b.guests?.adults ?? 0);
+  const children = Number(b.children ?? b.numChildren ?? b.guests?.children ?? 0);
+  return `${adults} Adult${adults === 1 ? '' : 's'}, ${children} Children`;
+};
 
-  if (loading) return <div className="view-customer-bill-container">Loading bills...</div>;
-  if (error) return <div className="view-customer-bill-container">Error: {error}</div>;
+const getRatePerNight = (b) => {
+  const rate = b.roomRate ?? b.ratePerNight ?? b.nightlyRate ?? b.rate ?? b.amountPerNight ?? 0;
+  return `${peso(rate)} per night`;
+};
+
+const getTotal = (b) => {
+  if (b.totalAmount != null) return peso(b.totalAmount);
+  if (b.total != null) return peso(b.total);
+  if (Array.isArray(b.items)) return peso(b.items.reduce((s, i) => s + Number(i.amount || 0), 0));
+  return peso(b.amount || 0);
+};
+
+const ViewCustomerBillAdmin = ({ bill, onClose }) => {
+  if (!bill) return null;
 
   return (
-    <div className="view-customer-bill-container">
-      <h1>Customer Bills</h1>
+    <div className="view-bill-modal-backdrop">
+      <div className="view-bill-modal">
+        <h3>View Bill</h3>
 
-      {/* Search & Filter */}
-      <div className="controls">
-        <div className="search-box">
-          <FaSearch className="search-icon" />
-          <input
-            type="text"
-            placeholder="Search by name or booking ID"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+        <div className="vb-row">
+          <span className="vb-label">Room:</span>
+          <span className="vb-value">{getRoomType(bill)}</span>
         </div>
 
-        <select
-          className="filter-select"
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
-        >
-          <option value="">All Status</option>
-          <option value="Partially Paid">Partially Paid</option>
-          <option value="Paid">Paid</option>
-        </select>
-      
+        <div className="vb-row">
+          <span className="vb-label">Dates:</span>
+          <span className="vb-value">{getDates(bill)}</span>
+        </div>
 
-      {/* Table */}
-      <table className="bill-table">
-        <thead>
-          <tr>
-            <th>Booking ID</th>
-            <th>Customer</th>
-            <th>Email</th>
-            <th>Room</th>
-            <th>Total (₱)</th>
-            <th>Status</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredBills.length > 0 ? (
-            filteredBills.map((bill) => (
-              <tr key={bill._id}>
-                <td>{bill.specialId}</td>
-                <td>{bill.customerName}</td>
-                <td>{bill.customerEmail}</td>
-                <td>{bill.room}</td>
-                <td>
-                  <p><strong>Total:</strong> {peso(bill.total || bill.totalAmount)}</p>
-                  <p><strong>Room Rate:</strong> ₱{Number(bill.roomRate || 0).toLocaleString()}</p>
-                  <p><strong>Extras:</strong> ₱{Number(bill.extrasTotal || 0).toLocaleString()}</p>
-                </td>
-                <td>
-                  <span
-                    className={`status-badge ${
-                      bill.paymentStatus === 'Paid' ? 'paid' : 'partial'
-                    }`}
-                  >
-                    {bill.paymentStatus}
-                  </span>
-                </td>
-                <td className="action-buttons">
-                  <button
-                    className="view-btn"
-                    onClick={() => (window.location.href = `/admin/viewbill/${bill._id}`)}
-                  >
-                    <FaEye /> View Bill
-                  </button>
-                  {bill.paymentStatus !== 'Paid' && (
-                    <button
-                      className="paid-btn"
-                      onClick={() => handleMarkAsPaid(bill._id)}
-                    >
-                      <FaCheck /> Mark as Paid
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))
-          ) : (
-            <tr>
-              <td colSpan="7" style={{ textAlign: 'center' }}>
-                No bills found.
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
-    </div>
+        <div className="vb-row">
+          <span className="vb-label">Guests:</span>
+          <span className="vb-value">{getGuests(bill)}</span>
+        </div>
+
+        <div className="vb-row">
+          <span className="vb-label">Rate:</span>
+          <span className="vb-value">{getRatePerNight(bill)}</span>
+        </div>
+
+        <div className="vb-row">
+          <span className="vb-label">Total:</span>
+          <span className="vb-value vb-total">{getTotal(bill)}</span>
+        </div>
+
+        <div className="vb-actions">
+          <button type="button" className="vb-done" onClick={onClose}>Done</button>
+        </div>
+      </div>
     </div>
   );
 };

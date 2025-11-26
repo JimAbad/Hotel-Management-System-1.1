@@ -111,3 +111,68 @@ h1 {
 .paid-btn:hover {
   background-color: #15803d;
 }
+
+.view-bill-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+}
+
+.view-bill-modal {
+  width: 380px;
+  background: #eee;
+  border-radius: 8px;
+  padding: 16px 18px;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.2);
+  color: #000; /* make modal text black */
+}
+
+.view-bill-modal h3 {
+  margin: 0 0 12px;
+  font-weight: 600;
+}
+
+.vb-row {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.vb-label {
+  font-weight: 600;
+}
+
+.vb-value {
+  text-align: right;
+}
+
+.vb-total {
+  font-weight: 700;
+}
+
+.vb-actions {
+  margin-top: 14px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.vb-done {
+  background: #28a745;
+  border: none;
+  color: #fff;
+  padding: 6px 12px;
+  border-radius: 16px;
+  cursor: pointer;
+}
+
+.view-bill-modal h3,
+.view-bill-modal .vb-label,
+.view-bill-modal .vb-value,
+.view-bill-modal .vb-total {
+  color: #000; /* ensure black text */
+}

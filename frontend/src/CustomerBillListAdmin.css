@@ -179,3 +179,72 @@
 /* Ensure the Mark as Paid button has a class and hover turns green */
 .mark-paid-btn { background: #f3f4f6; color: #111827; border: 1px solid #d1d5db; }
 .mark-paid-btn:hover { background: #22c55e; border-color: #16a34a; color: #fff; }
+/* Existing .paid-btn stays; add aliases in case markup uses other names */
+.action-buttons .mark-as-paid,
+.action-buttons .mark-paid,
+.action-buttons .paid {
+  background-color: #16a34a;
+  color: #fff;
+}
+
+.action-buttons .mark-as-paid:hover,
+.action-buttons .mark-paid:hover,
+.action-buttons .paid:hover {
+  background-color: #15803d;
+  color: #fff;
+}
+
+/* Restore View Bill button (dark gray with white text) */
+.action-buttons .view-btn {
+  background-color: #6c757d !important;
+  border: 1px solid #6c757d !important;
+  color: #fff !important;
+}
+.action-buttons .view-btn:hover {
+  background-color: #5a6268 !important;
+  border-color: #5a6268 !important;
+  color: #fff !important;
+}
+.action-buttons .view-btn:disabled {
+  background-color: #f3f4f6 !important;
+  border-color: #e5e7eb !important;
+  color: #9ca3af !important;
+}
+
+/* Always show Mark as Paid as green (not only on hover) */
+.action-buttons .mark-paid-btn {
+  background-color: #22c55e !important;   /* green */
+  border: 1px solid #16a34a !important;
+  color: #fff !important;
+}
+
+.action-buttons .mark-paid-btn:hover:not(:disabled) {
+  background-color: #16a34a !important;   /* darker green on hover */
+  border-color: #15803d !important;
+  color: #fff !important;
+}
+
+.action-buttons .mark-paid-btn:disabled {
+  background-color: #a7f3d0 !important;   /* muted green */
+  border-color: #86efac !important;
+  color: #065f46 !important;
+}
+
+/* Force Mark as Paid to be green (override base .btn white styles) */
+.actions .btn.mark-paid-btn {
+  background-color: #22c55e !important;
+  border-color: #16a34a !important;
+  color: #fff !important;
+}
+
+.actions .btn.mark-paid-btn:hover:not(:disabled) {
+  background-color: #16a34a !important;
+  border-color: #15803d !important;
+  color: #fff !important;
+}
+
+.actions .btn.mark-paid-btn:disabled {
+  background-color: #a7f3d0 !important;
+  border-color: #86efac !important;
+  color: #065f46 !important;
+}
