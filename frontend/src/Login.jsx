@@ -77,6 +77,21 @@ import FormGroup from './FormGroup';
     return {};
   };
 
+  const postWithTimeout = async (url, body, ms) => {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), ms);
+    try {
+      return await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: ctrl.signal,
+      });
+    } finally {
+      clearTimeout(t);
+    }
+  };
+
   // API call functions for forgot password
   const sendResetCode = async () => {
     if (!forgotPasswordModal.email) {
@@ -86,17 +101,13 @@ import FormGroup from './FormGroup';
 
     setForgotPasswordLoading(true);
     try {
-      const ctrl = new AbortController();
-      const t = setTimeout(() => ctrl.abort(), 15000);
-      const response = await fetch(`${API_BASE}/api/auth/forgot-password`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email: forgotPasswordModal.email }),
-        signal: ctrl.signal,
-      });
-      clearTimeout(t);
+      let response;
+      try {
+        response = await postWithTimeout(`${API_BASE}/api/auth/forgot-password`, { email: forgotPasswordModal.email }, 20000);
+      } catch (e1) {
+        setForgotPasswordMessage('Request timed out. Retrying...');
+        response = await postWithTimeout(`${API_BASE}/api/auth/forgot-password`, { email: forgotPasswordModal.email }, 35000);
+      }
 
       const data = await readJson(response);
       
@@ -108,7 +119,8 @@ import FormGroup from './FormGroup';
       }
     } catch (error) {
       console.error('Forgot password error:', error);
-      setForgotPasswordMessage('Network error. Please try again.');
+      const isAbort = error?.name === 'AbortError';
+      setForgotPasswordMessage(isAbort ? 'Request timed out. Please try again.' : 'Network error. Please try again.');
     } finally {
       setForgotPasswordLoading(false);
     }
@@ -122,16 +134,13 @@ import FormGroup from './FormGroup';
 
     setForgotPasswordLoading(true);
     try {
-      const response = await fetch(`${API_BASE}/api/auth/verify-reset-code`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          email: forgotPasswordModal.email,
-          code: forgotPasswordModal.verificationCode 
-        }),
-      });
+      let response;
+      try {
+        response = await postWithTimeout(`${API_BASE}/api/auth/verify-reset-code`, { email: forgotPasswordModal.email, code: forgotPasswordModal.verificationCode }, 20000);
+      } catch (e1) {
+        setForgotPasswordMessage('Request timed out. Retrying...');
+        response = await postWithTimeout(`${API_BASE}/api/auth/verify-reset-code`, { email: forgotPasswordModal.email, code: forgotPasswordModal.verificationCode }, 35000);
+      }
       
       if (response.ok) {
         setForgotPasswordMessage('Code verified successfully');
@@ -142,7 +151,8 @@ import FormGroup from './FormGroup';
       }
     } catch (error) {
       console.error('Verify reset code error:', error);
-      setForgotPasswordMessage('Network error. Please try again.');
+      const isAbort = error?.name === 'AbortError';
+      setForgotPasswordMessage(isAbort ? 'Request timed out. Please try again.' : 'Network error. Please try again.');
     } finally {
       setForgotPasswordLoading(false);
     }
@@ -166,17 +176,13 @@ import FormGroup from './FormGroup';
 
     setForgotPasswordLoading(true);
     try {
-      const response = await fetch(`${API_BASE}/api/auth/reset-password`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          email: forgotPasswordModal.email,
-          code: forgotPasswordModal.verificationCode,
-          newPassword: forgotPasswordModal.newPassword 
-        }),
-      });
+      let response;
+      try {
+        response = await postWithTimeout(`${API_BASE}/api/auth/reset-password`, { email: forgotPasswordModal.email, code: forgotPasswordModal.verificationCode, newPassword: forgotPasswordModal.newPassword }, 20000);
+      } catch (e1) {
+        setForgotPasswordMessage('Request timed out. Retrying...');
+        response = await postWithTimeout(`${API_BASE}/api/auth/reset-password`, { email: forgotPasswordModal.email, code: forgotPasswordModal.verificationCode, newPassword: forgotPasswordModal.newPassword }, 35000);
+      }
 
       const data = await readJson(response);
       
@@ -190,7 +196,8 @@ import FormGroup from './FormGroup';
       }
     } catch (error) {
       console.error('Reset password error:', error);
-      setForgotPasswordMessage('Network error. Please try again.');
+      const isAbort = error?.name === 'AbortError';
+      setForgotPasswordMessage(isAbort ? 'Request timed out. Please try again.' : 'Network error. Please try again.');
     } finally {
       setForgotPasswordLoading(false);
     }
