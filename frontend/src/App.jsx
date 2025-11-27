@@ -71,6 +71,9 @@ function AppContent() {
 
   useEffect(() => { fetchUserNotifications(); }, [user, token]);
   useEffect(() => {
+    try { fetch(`${API_URL}/healthz`).catch(() => {}); } catch {}
+  }, [API_URL]);
+  useEffect(() => {
     if (!user || !token) return;
     const handler = () => {
       if (document.visibilityState === 'visible') {

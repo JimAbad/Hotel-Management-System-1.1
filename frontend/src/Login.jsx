@@ -86,13 +86,17 @@ import FormGroup from './FormGroup';
 
     setForgotPasswordLoading(true);
     try {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 15000);
       const response = await fetch(`${API_BASE}/api/auth/forgot-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ email: forgotPasswordModal.email }),
+        signal: ctrl.signal,
       });
+      clearTimeout(t);
 
       const data = await readJson(response);
       
