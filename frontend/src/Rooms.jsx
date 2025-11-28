@@ -547,6 +547,8 @@ function Rooms() {
                           value={contactNumber}
                           onChange={(e) => setContactNumber(e.target.value)}
                           placeholder="Contact Number"
+                          disabled={bookingType === 'myself'}
+                          className={bookingType === 'myself' ? 'disabled-field' : ''}
                         />
                       </div>
                       <div className="form-group">

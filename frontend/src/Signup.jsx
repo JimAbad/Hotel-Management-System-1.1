@@ -11,6 +11,7 @@ const Signup = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [contactNumber, setContactNumber] = useState('');
   const [isModalOpen, setModalOpen] = useState(false);
   const [code, setCode] = useState('');
   const [verificationMsg, setVerificationMsg] = useState('');
@@ -129,7 +130,7 @@ const Signup = () => {
       // Automatically proceed with registration after verification
       setTimeout(async () => {
         setModalOpen(false);
-        const success = await register(fullName, email, username, password);
+        const success = await register(fullName, email, username, password, contactNumber);
         if (success) {
           navigate('/login');
         }
@@ -211,6 +212,15 @@ const Signup = () => {
               onChange={(e) => setEmail(e.target.value)}
               required
               icon="fa-solid fa-envelope"
+            />
+            <FormGroup
+              label="Contact Number"
+              type="text"
+              value={contactNumber}
+              onChange={(e) => setContactNumber(e.target.value)}
+              required
+              icon="fa-solid fa-phone"
+              placeholder="e.g., 09xxxxxxxxx"
             />
             <FormGroup
               label="Username"
