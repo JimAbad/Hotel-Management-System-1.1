@@ -12,7 +12,7 @@ const { triggerExpiredBookingCheck } = require('../utils/bookingExpirationUpdate
 // @route   GET /api/bookings
 // @access  Admin
 const getAllBookings = asyncHandler(async (req, res) => {
-  const { status, search } = req.query;
+  const { status, search, includePendingPayment } = req.query;
   let query = {};
 
   // Add status filter if provided
@@ -27,6 +27,11 @@ const getAllBookings = asyncHandler(async (req, res) => {
       { referenceNumber: { $regex: search, $options: 'i' } },
       { roomNumber: { $regex: search, $options: 'i' } }
     ];
+  }
+
+  // By default, only show bookings with successful or partial payments
+  if (!includePendingPayment || String(includePendingPayment).toLowerCase() !== 'true') {
+    query.paymentStatus = { $in: ['paid', 'partial'] };
   }
 
   const bookings = await Booking.find(query)

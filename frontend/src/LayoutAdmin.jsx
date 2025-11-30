@@ -24,7 +24,8 @@ const LayoutAdmin = () => {
       const needAssign = list.filter(b => {
         const rn = b.roomNumber || (b.room && b.room.roomNumber);
         const st = String(b.status || '').toLowerCase();
-        return !rn && !['cancelled','completed'].includes(st);
+        const paid = ['paid','partial'].includes(String(b.paymentStatus || '').toLowerCase());
+        return paid && !rn && !['cancelled','completed'].includes(st);
       }).map(b => ({ id: b._id, text: `Booking ${b.referenceNumber || String(b._id).slice(-6)} needs room assignment` }));
 
       const billsResp = await fetch(`${API_URL}/api/billings/admin`, { headers });

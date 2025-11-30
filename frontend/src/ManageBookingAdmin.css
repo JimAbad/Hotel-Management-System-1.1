@@ -129,7 +129,7 @@ tr:hover {
 }
 
 /* Specific hovers */
-.assign-btn:hover { background: #eab308; }   /* deeper yellow */
+.assign-btn:hover { background: #9c6e0b; }   /* darker golden */
 .delete-btn:hover { background: #dc2626; }   /* deeper red */
 
 .edit-btn {
@@ -356,7 +356,7 @@ tr:hover {
   font-weight: 600;
 }
 
-.assign-btn { background: #facc15; color: #000; }           /* yellow */
+.assign-btn { background: #B8860B; color: #fff; }           /* golden */
 .assign-btn.assigned,
 .assign-btn:disabled { background: #9ca3af; color: #fff; cursor: not-allowed; } /* gray */
 
