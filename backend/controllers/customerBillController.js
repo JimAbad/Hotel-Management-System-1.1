@@ -9,13 +9,15 @@ exports.getAllCustomerBills = asyncHandler(async (req, res) => {
       select: 'referenceNumber customerName checkOut roomNumber status'
     })
     .lean();
-  // Exclude bills tied to bookings whose check-out date has passed and draft bookings
+  // Exclude bills tied to bookings whose check-out date has passed and unpaid pending bookings
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const activeBills = (docs || []).filter((d) => {
     const co = d?.booking?.checkOut ? new Date(d.booking.checkOut) : null;
-    // Exclude if missing or past check-out, or if booking is draft
-    if (!co || isNaN(co) || d?.booking?.status === 'draft') return false;
+    // Exclude if missing or past check-out
+    if (!co || isNaN(co)) return false;
+    // Exclude unpaid pending bookings, but show paid pending bookings
+    if (d?.booking?.status === 'pending' && d?.booking?.paymentStatus === 'pending') return false;
     return co >= today;
   });
   // Sort by most recent check-out first
@@ -38,8 +40,8 @@ exports.getCustomerBill = asyncHandler(async (req, res) => {
     .lean();
   if (!bill) return res.status(404).json({ success: false, message: 'Bill not found' });
   
-  // Don't return bills for draft bookings
-  if (bill.booking?.status === 'draft') {
+  // Don't return bills for unpaid draft bookings, but show paid draft bookings
+  if (bill.booking?.status === 'draft' && bill.booking?.paymentStatus === 'pending') {
     return res.status(404).json({ success: false, message: 'Bill not found' });
   }
   

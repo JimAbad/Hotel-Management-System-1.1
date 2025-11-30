@@ -194,10 +194,14 @@ exports.getAdminBillings = asyncHandler(async (req, res, next) => {
       select: 'name email'
     });
 
-  // Filter out billings for draft bookings
+  // Filter out billings for draft bookings that haven't been paid
   const validBillings = billings.filter(billing => {
     if (!billing.booking) return true; // Keep billings without bookings
-    return billing.booking.status !== 'draft';
+    // Show draft bookings only if they have been paid (partial or full)
+    if (billing.booking.status === 'draft') {
+      return billing.booking.paymentStatus === 'paid' || billing.booking.paymentStatus === 'partial';
+    }
+    return true; // Show all non-draft bookings
   });
 
   res.status(200).json({

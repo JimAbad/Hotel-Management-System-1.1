@@ -30,13 +30,14 @@ const getAllBookings = asyncHandler(async (req, res) => {
     ];
   }
 
-  // By default, only show bookings with successful or partial payments, exclude drafts
+  // For admin view, show all bookings regardless of payment status
+  // This ensures admins can see all bookings including unpaid pending ones
   if (!includePendingPayment || String(includePendingPayment).toLowerCase() !== 'true') {
-    query.paymentStatus = { $in: ['paid', 'partial'] };
-    query.status = { $nin: ['draft'] };
+    // Show all bookings except cancelled/completed ones
+    query.status = { $nin: ['cancelled', 'completed'] };
   } else {
-    // Even when including pending payments, exclude draft bookings
-    query.status = { $nin: ['draft'] };
+    // When including pending payments, show all bookings
+    // No additional filtering needed - show everything
   }
 
   const bookings = await Booking.find(query)
@@ -77,7 +78,7 @@ const createBooking = asyncHandler(async (req, res) => {
     specialRequests
   } = req.body;
 
-  // Check booking limit (3 bookings per user) - exclude draft bookings
+  // Check booking limit (3 bookings per user) - exclude pending bookings
   const userActiveBookings = await Booking.countDocuments({
     $and: [
       {
@@ -87,7 +88,7 @@ const createBooking = asyncHandler(async (req, res) => {
         ]
       },
       {
-        status: { $nin: ['draft', 'cancelled', 'completed'] }
+        status: { $nin: ['pending', 'cancelled', 'completed'] }
       },
       {
         checkOut: { $gte: new Date() }
@@ -213,7 +214,7 @@ const createBooking = asyncHandler(async (req, res) => {
       roomNumber: null,
       numberOfGuests,
       totalAmount,
-      status: 'draft', // Set initial status to draft
+      status: 'pending', // Set initial status to pending
       paymentStatus: 'pending'
     };
 
@@ -407,7 +408,17 @@ const getMyBookings = asyncHandler(async (req, res) => {
         ]
       },
       {
-        paymentStatus: { $in: ['paid', 'partial'] }
+        $or: [
+          // Show non-pending bookings (confirmed, occupied, etc.)
+          { status: { $nin: ['pending'] } },
+          // Show pending bookings that have been paid (partial or full)
+          { 
+            $and: [
+              { status: 'pending' },
+              { paymentStatus: { $in: ['paid', 'partial'] } }
+            ]
+          }
+        ]
       }
     ]
   })
