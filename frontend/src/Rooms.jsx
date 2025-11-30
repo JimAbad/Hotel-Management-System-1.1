@@ -97,14 +97,8 @@ function Rooms() {
       const checkOut = new Date(`${checkOutDate}T${checkOutTime}`);
       const diffTime = Math.abs(checkOut - checkIn);
       const diffHours = Math.ceil(diffTime / (1000 * 60 * 60));
-      const type = String(modalRoom?.roomType || modalRoom?.type || '').toLowerCase();
-      if (type === 'economy' && diffHours === 3) {
-        setTotal(200);
-        return;
-      }
-      const roomPrice = modalRoom.price || 0;
-      const calculatedTotal = (diffHours * roomPrice) * 1.12;
-      setTotal(calculatedTotal);
+      const roomPrice = Number(modalRoom.price || 0);
+      setTotal(diffHours * roomPrice);
     }
   }, [checkInDate, checkOutDate, checkInTime, checkOutTime, modalRoom]);
 
@@ -420,6 +414,7 @@ function Rooms() {
                
                <p>Room Type: {type}</p>  
                <p>Floor: {getDisplayFloor(type)}</p>
+               <p>Price: {roomDetails[normalizeRoomType(type)]?.price ? `₱${roomDetails[normalizeRoomType(type)].price.toLocaleString()} per hour` : 'Price varies per hour'}</p>
                
              </div>
              <div className="room-card-footer">
