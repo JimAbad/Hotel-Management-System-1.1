@@ -381,16 +381,7 @@ function MyBookings() {
                       {cancelingId === booking._id ? 'Cancelling...' : 'Cancel booking'}
                     </button>
                   )}
-                  {['confirmed','occupied','pending'].includes(String(booking.status || booking.bookingStatus).toLowerCase()) && (
-                    <button 
-                      onClick={() => openCleaning(booking)} 
-                      style={{ marginLeft: '8px' }}
-                      disabled={requestedRooms[String(booking.roomNumber || '').trim()]}
-                      title={requestedRooms[String(booking.roomNumber || '').trim()] ? 'already requested cleaning for this room' : ''}
-                    >
-                      Request Cleaning
-                    </button>
-                  )}
+
                 </div>
               </div>
             </div>
