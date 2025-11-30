@@ -1,18 +1,20 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useParams, useNavigate } from 'react-router-dom';
-import AuthContextAdmin from './AuthContextAdmin';
+import { useAuthAdmin } from './AuthContextAdmin';
 import roomDetails from './data/roomDetails';
 
 const EditRoom = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { adminToken } = useContext(AuthContextAdmin);
+  const { token } = useAuthAdmin();
+  const API_URL = import.meta.env.VITE_API_URL || 'https://hotel-management-system-1-1-backend.onrender.com';
   const [room, setRoom] = useState(null);
   const [formData, setFormData] = useState({
     roomNumber: '',
     roomType: '',
     price: '',
+    floor: '',
     isBooked: false,
   });
   const [loading, setLoading] = useState(true);
@@ -23,15 +25,16 @@ const EditRoom = () => {
       try {
         const config = {
           headers: {
-            Authorization: `Bearer ${adminToken}`,
+            Authorization: `Bearer ${token}`,
           },
         };
-        const response = await axios.get(`/api/rooms/${id}`, config);
+        const response = await axios.get(`${API_URL}/api/rooms/${id}`, config);
         setRoom(response.data);
         setFormData({
           roomNumber: response.data.roomNumber,
           roomType: response.data.roomType,
           price: response.data.price,
+          floor: response.data.floor,
           isBooked: response.data.isBooked,
         });
       } catch (err) {
@@ -41,17 +44,26 @@ const EditRoom = () => {
       }
     };
 
-    if (adminToken) {
+    if (token) {
       fetchRoom();
     }
-  }, [id, adminToken]);
+  }, [id, token]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData((prevFormData) => ({
-      ...prevFormData,
-      [name]: type === 'checkbox' ? checked : value,
-    }));
+    setFormData((prevFormData) => {
+      const next = {
+        ...prevFormData,
+        [name]: type === 'checkbox' ? checked : value,
+      };
+      if (name === 'roomNumber') {
+        const num = parseInt(String(value), 10);
+        if (!isNaN(num)) {
+          next.floor = Math.floor(num / 100);
+        }
+      }
+      return next;
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -60,10 +72,10 @@ const EditRoom = () => {
       const config = {
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${adminToken}`,
+          Authorization: `Bearer ${token}`,
         },
       };
-      await axios.put(`/api/rooms/${id}`, formData, config);
+      await axios.put(`${API_URL}/api/rooms/${id}`, formData, config);
       navigate('/admin/manage-rooms');
     } catch (err) {
       setError(err.message);

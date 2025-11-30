@@ -5,7 +5,14 @@ import { useAuthAdmin } from './AuthContextAdmin';
 import './ViewCustomerBillAdmin.css';
 
 const ViewCustomerBillAdmin = () => {
-  const { tokenAdmin } = useAuthAdmin();
+  const { token } = useAuthAdmin();
+  const API_URL = (() => {
+    const fallback = 'https://hotel-management-system-1-1-backend.onrender.com';
+    const env = import.meta.env.VITE_API_URL;
+    const envNorm = String(env || '').replace(/\/+$/, '');
+    const originNorm = typeof window !== 'undefined' ? window.location.origin.replace(/\/+$/, '') : '';
+    return envNorm && envNorm !== originNorm ? envNorm : fallback;
+  })();
   const [bills, setBills] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -17,22 +24,22 @@ const ViewCustomerBillAdmin = () => {
     const fetchBills = async () => {
       try {
         setLoading(true);
-        const token = localStorage.getItem('tokenAdmin');
         const config = {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         };
-        const { data } = await axios.get('/api/customer-bills', config);
+        const { data } = await axios.get(`${API_URL}/api/customer-bills`, config);
         setBills(data);
-      } catch (err) {
-        setError(err.message);
+      } catch (error) {
+        console.error('Failed to load bills', error);
+        setError('Failed to load bills');
       } finally {
         setLoading(false);
       }
     };
     fetchBills();
-  }, []);
+  }, [API_URL, token]);
 
   // Filter + Search
   const filteredBills = bills.filter((bill) => {
@@ -46,11 +53,10 @@ const ViewCustomerBillAdmin = () => {
   // Handle mark as paid
   const handleMarkAsPaid = async (id) => {
     try {
-      const token = localStorage.getItem('tokenAdmin');
       const config = {
         headers: { Authorization: `Bearer ${token}` },
       };
-      await axios.put(`/api/customer-bills/${id}/mark-paid`, {}, config);
+      await axios.put(`${API_URL}/api/customer-bills/${id}/mark-paid`, {}, config);
       alert('Payment status updated to Paid!');
       setBills((prev) =>
         prev.map((bill) =>
@@ -58,6 +64,7 @@ const ViewCustomerBillAdmin = () => {
         )
       );
     } catch (err) {
+      console.error('Error marking bill as paid', err);
       alert('Failed to update payment status.');
     }
   };
@@ -90,53 +97,7 @@ const ViewCustomerBillAdmin = () => {
           <option value="Partially Paid">Partially Paid</option>
           <option value="Paid">Paid</option>
         </select>
-      <div className="bill-details">
-        <h1>Customer Bill</h1>
-        <div className="bill-info">
-          <p><strong>Booking ID:</strong> {billData.specialId}</p>
-          <p><strong>Customer Name:</strong> {billData.customerName}</p>
-          <p><strong>Customer Email:</strong> {billData.customerEmail}</p>
-          <p><strong>Room Number:</strong> {billData.room}</p>
-          <p><strong>Check-in Date:</strong> {new Date(billData.checkInDate).toLocaleDateString()}</p>
-          <p><strong>Check-out Date:</strong> {new Date(billData.checkOutDate).toLocaleDateString()}</p>
-        </div>
-
-        <h2>Bill Items</h2>
-        <table className="bill-items-table">
-          <thead>
-            <tr>
-              <th>Description</th>
-              <th>Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            {billData.data && billData.data.map((item, index) => (
-              <tr key={index}>
-                <td>{item.description}</td>
-                <td>₱{item.amount?.toFixed(2) || '0.00'}</td>
-              </tr>
-            ))}
-            <tr>
-              <td><strong>Total Room Charges:</strong></td>
-              <td>₱{billData.totalRoomCharges?.toFixed(2) || '0.00'}</td>
-            </tr>
-            <tr>
-              <td><strong>Total Extra Charges:</strong></td>
-              <td>₱{billData.totalExtraCharges?.toFixed(2) || '0.00'}</td>
-            </tr>
-            <tr>
-              <td><strong>Paid Amount:</strong></td>
-              <td>₱{billData.paidAmount?.toFixed(2) || '0.00'}</td>
-            </tr>
-            <tr>
-              <td><strong>Remaining Balance:</strong></td>
-              <td>₱{billData.remainingBalance?.toFixed(2) || '0.00'}</td>
-            </tr>
-          </tbody>
-        </table>
-
-        <p><strong>Payment Status:</strong> {billData.paymentStatus}</p>
-      </div>
+      
 
       {/* Table */}
       <table className="bill-table">

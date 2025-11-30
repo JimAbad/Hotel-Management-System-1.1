@@ -1,12 +1,13 @@
-import React, { useState, useContext } from 'react';
+import React, { useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import AuthContextAdmin from './AuthContextAdmin';
+import { useAuthAdmin } from './AuthContextAdmin';
 import roomDetails from './data/roomDetails';
 
 const AddRoom = () => {
   const navigate = useNavigate();
-  const { adminToken } = useContext(AuthContextAdmin);
+  const { token } = useAuthAdmin();
+  const API_URL = import.meta.env.VITE_API_URL || 'https://hotel-management-system-1-1-backend.onrender.com';
   const [formData, setFormData] = useState({
     roomNumber: '',
     roomType: '',
@@ -19,10 +20,19 @@ const AddRoom = () => {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData((prevFormData) => ({
-      ...prevFormData,
-      [name]: type === 'checkbox' ? checked : value,
-    }));
+    setFormData((prevFormData) => {
+      const next = {
+        ...prevFormData,
+        [name]: type === 'checkbox' ? checked : value,
+      };
+      if (name === 'roomNumber') {
+        const num = parseInt(String(value), 10);
+        if (!isNaN(num)) {
+          next.floor = Math.floor(num / 100);
+        }
+      }
+      return next;
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -31,16 +41,17 @@ const AddRoom = () => {
       const config = {
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${adminToken}`,
+          Authorization: `Bearer ${token}`,
         },
       };
-      await axios.post('/api/rooms', formData, config);
+      await axios.post(`${API_URL}/api/rooms`, formData, config);
       setSuccess(true);
       setError(null);
       setFormData({
         roomNumber: '',
         roomType: '',
         price: '',
+        floor: '',
         isBooked: false,
       });
       navigate('/admin/manage-rooms');

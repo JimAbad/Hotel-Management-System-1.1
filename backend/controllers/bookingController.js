@@ -2,9 +2,11 @@ const mongoose = require('mongoose');
 const Booking = require('../models/bookingModel');
 const Room = require('../models/roomModel');
 const BookingActivity = require('../models/bookingActivityModel');
+const CancelledBooking = require('../models/cancelledBookingModel');
 const Billing = require('../models/Billing');
 const asyncHandler = require('../middleware/async');
 const ErrorResponse = require('../utils/errorResponse');
+const { triggerExpiredBookingCheck } = require('../utils/bookingExpirationUpdater');
 
 // @desc    Get all bookings with optional status and search filters
 // @route   GET /api/bookings
@@ -65,6 +67,29 @@ const createBooking = asyncHandler(async (req, res) => {
     specialRequests
   } = req.body;
 
+  // Check booking limit (3 bookings per user)
+  const userActiveBookings = await Booking.countDocuments({
+    $and: [
+      {
+        $or: [
+          { customerEmail: customerEmail },
+          { user: req.user.id }
+        ]
+      },
+      {
+        status: { $nin: ['cancelled', 'completed'] }
+      },
+      {
+        checkOut: { $gte: new Date() }
+      }
+    ]
+  });
+
+  if (userActiveBookings >= 3) {
+    res.status(400);
+    throw new Error('Booking limit reached. You can only have a maximum of 3 active bookings at a time.');
+  }
+
   // Generate reference number
   const referenceNumber = 'BK' + Date.now().toString().slice(-8);
 
@@ -75,21 +100,22 @@ const createBooking = asyncHandler(async (req, res) => {
     throw new Error('Room not found');
   }
 
-  // Calculate number of nights
+  // Calculate number of hours
   const checkInDate = new Date(checkIn);
   const checkOutDate = new Date(checkOut);
   const diffTime = Math.abs(checkOutDate - checkInDate);
-  const numberOfNights = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  const numberOfHours = Math.ceil(diffTime / (1000 * 60 * 60));
   const numberOfGuests = adults + children;
 
-  // Calculate total amount based on room price and number of nights
-  const roomPrice = room.price;
+  // Calculate total amount based on room price (per hour)
+  // Economy: 3 hours = ₱200 total (₱59.523/hour) for ₱20 downpayment (10%)
+  const roomPrice = room.roomType === 'Economy' ? 59.523 : room.price;
   console.log('Room price:', roomPrice, 'Type:', typeof roomPrice); // Log room price and type
   if (typeof roomPrice !== 'number' || isNaN(roomPrice)) {
     res.status(500);
     throw new Error('Room price is not a valid number.');
   }
-  const subtotal = numberOfNights * roomPrice;
+  const subtotal = numberOfHours * roomPrice;
   const taxesAndFees = subtotal * 0.12; // Assuming 12% tax
   const totalAmount = subtotal + taxesAndFees;
 
@@ -97,24 +123,31 @@ const createBooking = asyncHandler(async (req, res) => {
   let selectedRoom = room;
 
   console.log('Initial room status:', room.status);
-  // Check if the room is occupied but has no active booking
+  // Check if the room is occupied but has no active PAID booking
   if (room.status === 'occupied') {
-    const activeBooking = await Booking.findOne({
+    const activePaidBooking = await Booking.findOne({
       room: room._id,
       status: { $nin: ['cancelled', 'completed'] },
       checkOut: { $gte: new Date() },
+      paymentStatus: { $in: ['paid', 'partial'] } // Only consider paid bookings as valid occupation
     });
 
-    if (!activeBooking) {
-      console.log(`Room ${room.roomNumber} was occupied but no active booking found. Setting status to available.`);
+    if (!activePaidBooking) {
+      console.log(`Room ${room.roomNumber} was occupied but no active PAID booking found. Setting status to available.`);
       room.status = 'available';
       await room.save();
       console.log(`Room ${room.roomNumber} status after save: ${room.status}`);
     } else {
-      console.log(`Room ${room.roomNumber} is occupied and has an active booking.`);
+      console.log(`Room ${room.roomNumber} is occupied and has an active PAID booking.`);
     }
   }
   console.log('Room status before availability check:', room.status);
+  
+  // NEW LOGIC: Rooms are only marked as occupied AFTER payment confirmation
+  // - During booking creation: room stays available (no status change)
+  // - After QRPh payment (webhook): room.status = 'occupied' 
+  // - Payment failed/expired: room remains available
+  // - Only PAID bookings (paymentStatus: 'paid'/'partial') count as valid occupation
 
   if (room.status !== 'available') {
     // Find another available room on the same floor
@@ -134,13 +167,13 @@ const createBooking = asyncHandler(async (req, res) => {
   }
   console.log('Selected room before saving:', selectedRoom); // Log selected room before saving
 
-  // Update room status to reserved
-  selectedRoom.status = 'occupied';
-  await selectedRoom.save();
+  // Keep room available until payment is confirmed
+  // selectedRoom.status = 'occupied'; // Moved to payment confirmation
+  // await selectedRoom.save();
 
     const bookingData = {
       room: selectedRoom._id,
-      user: req.user.id, // Ensure user ID is included
+      user: req.user.id,
       referenceNumber,
       customerName,
       customerEmail,
@@ -151,7 +184,7 @@ const createBooking = asyncHandler(async (req, res) => {
       guestName,
       contactNumber,
       specialRequests,
-      roomNumber: selectedRoom.roomNumber,
+      roomNumber: null,
       numberOfGuests,
       totalAmount,
     };
@@ -165,7 +198,7 @@ const createBooking = asyncHandler(async (req, res) => {
     // Create booking activity
     await BookingActivity.create({
       booking: booking._id,
-      activity: 'Booking created',
+      activity: 'Booking created: needs room assignment',
       status: 'pending'
     });
 
@@ -175,7 +208,7 @@ const createBooking = asyncHandler(async (req, res) => {
       user: req.user.id,
       roomNumber: selectedRoom.roomNumber,
       amount: totalAmount,
-      description: `Room booking charge for ${selectedRoom.roomNumber} (${numberOfNights} nights)`,
+      description: `Room booking charge for ${selectedRoom.roomNumber} (${numberOfHours} hours)`,
       status: 'pending',
       paymentMethod: 'online payment'
     });
@@ -193,7 +226,7 @@ const createBooking = asyncHandler(async (req, res) => {
 // @route   PUT /api/bookings/:id
 // @access  Admin
 const updateBookingStatus = asyncHandler(async (req, res) => {
-  const { status } = req.body;
+  const { status, bookingStatus, checkOutDate, roomNumber } = req.body;
   const booking = await Booking.findById(req.params.id);
   
   if (!booking) {
@@ -202,7 +235,54 @@ const updateBookingStatus = asyncHandler(async (req, res) => {
   }
   
   const oldStatus = booking.status;
-  booking.status = status;
+  booking.status = bookingStatus || status || booking.status;
+
+  if (checkOutDate != null) {
+    const d = new Date(checkOutDate);
+    if (!isNaN(d)) booking.checkOut = d;
+  }
+
+  const prevRoomNumber = booking.roomNumber;
+  if (roomNumber != null && roomNumber !== '') {
+    booking.roomNumber = roomNumber;
+    const room = await Room.findOne({ roomNumber });
+    if (room) booking.room = room._id;
+    if (!bookingStatus && !status) {
+      booking.status = 'occupied';
+    }
+
+    try {
+      const Billing = require('../models/Billing');
+      const BookingActivity = require('../models/bookingActivityModel');
+      const billings = await Billing.find({ booking: booking._id });
+      for (const b of billings) {
+        const needsUpdate = String(b.roomNumber || '') === String(prevRoomNumber || '') || (b.description || '').includes('Room booking charge');
+        if (needsUpdate) {
+          b.roomNumber = roomNumber;
+          if ((b.description || '').includes('Room booking charge')) {
+            const hours = booking.checkIn && booking.checkOut
+              ? Math.ceil((new Date(booking.checkOut) - new Date(booking.checkIn)) / (1000 * 60 * 60))
+              : null;
+            b.description = hours != null
+              ? `Room booking charge for ${roomNumber} (${hours} hours)`
+              : `Room booking charge for ${roomNumber}`;
+          }
+          await b.save();
+        }
+      }
+
+      // Log activity for notifications
+      const prevRn = prevRoomNumber ? String(prevRoomNumber) : '';
+      const newRn = String(roomNumber);
+      const isReassign = prevRn && prevRn !== newRn;
+      const activityText = isReassign
+        ? `Room reassigned: ${prevRn} → ${newRn}`
+        : `Room assigned: ${newRn}`;
+      await BookingActivity.create({ booking: booking._id, activity: activityText, status: 'pending' });
+    } catch (e) {
+      console.warn('Room/billing sync or activity log failed:', e?.message);
+    }
+  }
   const updatedBooking = await booking.save();
   
   // If booking status changed to 'completed', update room status
@@ -215,6 +295,7 @@ const updateBookingStatus = asyncHandler(async (req, res) => {
         _id: { $ne: booking._id }, // Exclude current booking
         status: { $nin: ['cancelled', 'completed'] },
         checkOut: { $gte: new Date() },
+        paymentStatus: { $in: ['paid', 'partial'] } // Only consider paid bookings
       });
       
       if (!otherActiveBooking) {
@@ -226,10 +307,20 @@ const updateBookingStatus = asyncHandler(async (req, res) => {
   }
   
   // Create booking activity
+  let activityText = `Booking ${booking.status}`;
+  if (roomNumber != null && roomNumber !== '') {
+    activityText = prevRoomNumber && prevRoomNumber !== roomNumber
+      ? `Room reassigned: ${prevRoomNumber} → ${roomNumber}`
+      : `Room assigned: ${roomNumber}`;
+  }
+  const allowedStatuses = ['pending', 'confirmed', 'cancelled', 'completed'];
+  const normalizedStatus = allowedStatuses.includes(String(booking.status || '').toLowerCase())
+    ? String(booking.status).toLowerCase()
+    : 'pending';
   await BookingActivity.create({
     booking: booking._id,
-    activity: `Booking ${status}`,
-    status
+    activity: activityText,
+    status: normalizedStatus
   });
   
   res.json(updatedBooking);
@@ -274,13 +365,27 @@ const generatePaymentQrCode = asyncHandler(async (req, res) => {
 const getMyBookings = asyncHandler(async (req, res) => {
   console.log('Backend: Fetching bookings for email:', req.user.email);
   console.log('Backend: Fetching bookings for userId:', req.user._id);
+  
+  // Get current date at start of day to compare with checkout dates
+  const currentDate = new Date();
+  currentDate.setHours(0, 0, 0, 0);
+  
   const bookings = await Booking.find({
-    $or: [
-      { customerEmail: req.user.email },
-      { user: req.user._id }
+    $and: [
+      {
+        $or: [
+          { customerEmail: req.user.email },
+          { user: req.user._id }
+        ]
+      },
+      {
+        paymentStatus: { $in: ['paid', 'partial'] }
+      }
     ]
-  }).sort({ createdAt: -1 });
-  console.log('Backend: Bookings found:', bookings);
+  })
+  .populate({ path: 'room', select: 'roomType roomNumber' })
+  .sort({ createdAt: -1 });
+  console.log('Backend: Bookings found (excluding past bookings):', bookings);
   
   res.json(bookings);
 });
@@ -291,11 +396,12 @@ const getMyBookings = asyncHandler(async (req, res) => {
 const updateRoomStatus = asyncHandler(async (req, res) => {
   const { roomId } = req.params;
   
-  // Find active bookings for this room
+  // Find active PAID bookings for this room
   const activeBooking = await Booking.findOne({
     room: roomId,
     status: { $nin: ['cancelled', 'completed'] },
     checkOut: { $gte: new Date() },
+    paymentStatus: { $in: ['paid', 'partial'] } // Only consider paid bookings
   });
   
   const room = await Room.findById(roomId);
@@ -327,34 +433,97 @@ const updateRoomStatus = asyncHandler(async (req, res) => {
 // @route   DELETE /api/bookings/:id
 // @access  Admin
 const cancelBooking = asyncHandler(async (req, res) => {
-  const booking = await Booking.findById(req.params.id);
+  const booking = await Booking.findById(req.params.id).populate('room user');
   
   if (!booking) {
     res.status(404);
     throw new Error('Booking not found');
   }
   
+  // Extract cancellation data from request body
+  let { cancellationReasons, cancellationElaboration } = req.body;
+  
+  // Validate that at least one cancellation reason is provided
+  const isAdmin = req.user && req.user.role === 'admin';
+  if (!cancellationReasons || !Array.isArray(cancellationReasons) || cancellationReasons.length === 0) {
+    if (isAdmin) {
+      cancellationReasons = ['Admin deletion'];
+    } else {
+      res.status(400);
+      throw new Error('At least one cancellation reason must be selected');
+    }
+  }
+  
+  // Calculate cancellation fee (10% of total amount)
+  const total = Number(booking.totalAmount || 0);
+  const cancellationFee = Number((total * 0.10).toFixed(2));
+  const refundAmount = Number((total - cancellationFee).toFixed(2));
+  
+  // Store cancelled booking data
+  const cancelledBookingData = {
+    originalBookingId: booking._id,
+    room: booking.room ? booking.room._id : null,
+    user: booking.user ? booking.user._id : (req.user ? req.user._id : null),
+    referenceNumber: booking.referenceNumber,
+    customerName: booking.customerName,
+    customerEmail: booking.customerEmail,
+    checkIn: booking.checkIn,
+    checkOut: booking.checkOut,
+    adults: booking.adults,
+    children: booking.children,
+    guestName: booking.guestName,
+    contactNumber: booking.contactNumber,
+    specialRequests: booking.specialRequests,
+    roomNumber: booking.roomNumber,
+    numberOfGuests: booking.numberOfGuests,
+    totalAmount: booking.totalAmount,
+    originalBookingDate: booking.createdAt,
+    cancellationReasons,
+    cancellationElaboration: cancellationElaboration || null,
+    cancellationFee,
+    refundAmount,
+    cancelledBy: req.user && req.user.role === 'admin' ? 'admin' : 'user'
+  };
+  
+  // Create cancelled booking record (best-effort)
+  try {
+    await CancelledBooking.create(cancelledBookingData);
+  } catch (e) {
+    console.warn('CancelledBooking create failed, proceeding with deletion:', e && e.message);
+  }
+  
   // Get the room ID before deleting the booking
-  const roomId = booking.room;
+  const roomId = booking.room ? booking.room._id : null;
   
   // Create booking activity before deletion
   await BookingActivity.create({
     booking: booking._id,
-    activity: 'Booking cancelled and deleted',
+    activity: `Booking cancelled by user. Reasons: ${cancellationReasons.join(', ')}${cancellationElaboration ? `. Additional details: ${cancellationElaboration}` : ''}`,
     status: 'cancelled'
   });
   
-  // Permanently delete the booking
-  await Booking.findByIdAndDelete(req.params.id);
+  // Delete associated billing records before deleting the booking
+  if (isAdmin) {
+    await Billing.deleteMany({ booking: booking._id });
+  }
   
-  // Update room status after cancellation
-  const activeBooking = await Booking.findOne({
+  // Permanently delete the booking
+  if (isAdmin) {
+    await Booking.findByIdAndDelete(req.params.id);
+  } else {
+    booking.status = 'cancelled';
+    await booking.save();
+  }
+  
+  // Update room status after cancellation - only consider paid bookings
+  const activeBooking = roomId ? await Booking.findOne({
     room: roomId,
     status: { $nin: ['cancelled', 'completed'] },
     checkOut: { $gte: new Date() },
-  });
+    paymentStatus: { $in: ['paid', 'partial'] }
+  }) : null;
   
-  const room = await Room.findById(roomId);
+  const room = roomId ? await Room.findById(roomId) : null;
   if (room) {
     if (activeBooking) {
       room.status = 'occupied';
@@ -364,8 +533,10 @@ const cancelBooking = asyncHandler(async (req, res) => {
     await room.save();
   }
   
-  res.json({ 
-    message: 'Booking cancelled and permanently deleted',
+  res.json({
+    message: 'Booking cancelled successfully',
+    cancellationFee,
+    refundAmount,
     roomStatus: room ? room.status : 'unknown'
   });
 });
@@ -377,34 +548,39 @@ const deleteCancelledBookings = asyncHandler(async (req, res, next) => {
   console.log("deleteCancelledBookings function called.");
   console.log("Request user:", req.user);
   
+  if (req.user && req.user.role !== 'admin') {
+    return res.status(403).json({ success: false, message: 'Only admins can delete cancelled bookings.' });
+  }
+
   if (req.originalUrl === '/api/bookings/user-cancelled') {
-    // User-specific deletion
-    const userId = new mongoose.Types.ObjectId(req.user.id);
-    console.log("Attempting to delete user-specific cancelled bookings for user ID:", userId);
-    console.log("Type of userId:", typeof userId);
-    const query = { user: userId, status: 'cancelled' };
-    console.log("Query for deleteMany:", query);
+    return res.status(403).json({ success: false, message: 'Users cannot delete cancelled bookings.' });
+  }
 
-    const bookingsToFind = await Booking.find(query);
-    console.log("Bookings found with query:", bookingsToFind);
+  console.log("Attempting to delete all cancelled bookings (admin request).");
+  const result = await Booking.deleteMany({ status: 'cancelled' });
+  console.log("Admin deletion result:", result);
+  if (result.deletedCount === 0) {
+    res.status(404).json({ success: false, message: 'No cancelled bookings found.' });
+    return;
+  }
+  res.status(200).json({ success: true, message: 'All cancelled bookings deleted successfully.' });
+});
 
-    const result = await Booking.deleteMany(query);
-    console.log("User-specific deletion result:", result);
-    if (result.deletedCount === 0) {
-      res.status(404).json({ success: false, message: 'No cancelled bookings found for this user.' });
-      return;
-    }
-    res.status(200).json({ success: true, message: 'All cancelled bookings for the user deleted successfully.' });
-  } else {
-    // Admin deletion (original functionality)
-    console.log("Attempting to delete all cancelled bookings (admin request).");
-    const result = await Booking.deleteMany({ status: 'cancelled' });
-    console.log("Admin deletion result:", result);
-    if (result.deletedCount === 0) {
-      res.status(404).json({ success: false, message: 'No cancelled bookings found.' });
-      return;
-    }
-    res.status(200).json({ success: true, message: 'All cancelled bookings deleted successfully.' });
+// @desc    Manually trigger expired booking check
+// @route   POST /api/bookings/check-expired
+// @access  Admin
+const checkExpiredBookings = asyncHandler(async (req, res) => {
+  try {
+    const result = await triggerExpiredBookingCheck();
+    
+    res.json({
+      message: 'Expired booking check completed successfully',
+      processedBookings: result.processedBookings,
+      updatedRooms: result.updatedRooms
+    });
+  } catch (error) {
+    res.status(500);
+    throw new Error('Failed to process expired bookings');
   }
 });
 
@@ -419,4 +595,5 @@ module.exports = {
   cancelBooking,
   deleteCancelledBookings,
   updateRoomStatus,
+  checkExpiredBookings,
 };

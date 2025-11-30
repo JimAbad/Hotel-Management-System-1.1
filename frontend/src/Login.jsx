@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import { useAuthAdmin } from './AuthContextAdmin';
@@ -6,47 +6,224 @@ import './Login.css';
 import './App.css';
 import FormGroup from './FormGroup';
 
-const Login = () => {
+  const Login = () => {
+  const API_BASE = (() => {
+    const fallback = 'https://hotel-management-system-1-1-backend.onrender.com';
+    const env = import.meta.env.VITE_API_URL;
+    const envNorm = String(env || '').replace(/\/+$/, '');
+    const originNorm = typeof window !== 'undefined' ? window.location.origin.replace(/\/+$/, '') : '';
+    const base = envNorm && envNorm !== originNorm ? envNorm : fallback;
+    return base;
+  })();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  
+  // Forgot password states
+  const [forgotPasswordModal, setForgotPasswordModal] = useState({
+    isOpen: false,
+    step: 'email', // 'email', 'verification', 'newPassword'
+    email: '',
+    verificationCode: '',
+    newPassword: '',
+    confirmPassword: '',
+    message: '',
+    isLoading: false
+  });
+  
   const { login: customerLogin } = useAuth();
   const { login: adminLogin } = useAuthAdmin();
   const navigate = useNavigate();
+
+  // Forgot password helper functions
+  const openForgotPasswordModal = () => {
+    setForgotPasswordModal({
+      isOpen: true,
+      step: 'email',
+      email: '',
+      verificationCode: '',
+      newPassword: '',
+      confirmPassword: '',
+      message: '',
+      isLoading: false
+    });
+  };
+
+  const closeForgotPasswordModal = () => {
+    setForgotPasswordModal(prev => ({ ...prev, isOpen: false }));
+  };
+
+  const updateForgotPasswordField = (field, value) => {
+    setForgotPasswordModal(prev => ({ ...prev, [field]: value }));
+  };
+
+  const setForgotPasswordMessage = (message) => {
+    setForgotPasswordModal(prev => ({ ...prev, message }));
+  };
+
+  const setForgotPasswordLoading = (isLoading) => {
+    setForgotPasswordModal(prev => ({ ...prev, isLoading }));
+  };
+
+  const nextForgotPasswordStep = (step) => {
+    setForgotPasswordModal(prev => ({ ...prev, step, message: '' }));
+  };
+
+  const readJson = async (res) => {
+    const ct = res.headers?.get?.('content-type') || '';
+    if (ct.includes('application/json')) {
+      try { return await res.json(); } catch { return {}; }
+    }
+    return {};
+  };
+
+  const postWithTimeout = async (url, body, ms) => {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), ms);
+    try {
+      return await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: ctrl.signal,
+      });
+    } finally {
+      clearTimeout(t);
+    }
+  };
+
+  // API call functions for forgot password
+  const sendResetCode = async () => {
+    if (!forgotPasswordModal.email) {
+      setForgotPasswordMessage('Please enter your email address');
+      return;
+    }
+
+    setForgotPasswordLoading(true);
+    try {
+      let response;
+      try {
+        response = await postWithTimeout(`${API_BASE}/api/auth/forgot-password`, { email: forgotPasswordModal.email }, 20000);
+      } catch (e1) {
+        setForgotPasswordMessage('Request timed out. Retrying...');
+        response = await postWithTimeout(`${API_BASE}/api/auth/forgot-password`, { email: forgotPasswordModal.email }, 35000);
+      }
+
+      const data = await readJson(response);
+      
+      if (response.ok) {
+        setForgotPasswordMessage('Verification code sent to your email');
+        nextForgotPasswordStep('verification');
+      } else {
+        setForgotPasswordMessage(data.msg || data.message || 'Failed to send reset code');
+      }
+    } catch (error) {
+      console.error('Forgot password error:', error);
+      const isAbort = error?.name === 'AbortError';
+      setForgotPasswordMessage(isAbort ? 'Request timed out. Please try again.' : 'Network error. Please try again.');
+    } finally {
+      setForgotPasswordLoading(false);
+    }
+  };
+
+  const verifyResetCode = async () => {
+    if (!forgotPasswordModal.verificationCode) {
+      setForgotPasswordMessage('Please enter the verification code');
+      return;
+    }
+
+    setForgotPasswordLoading(true);
+    try {
+      let response;
+      try {
+        response = await postWithTimeout(`${API_BASE}/api/auth/verify-reset-code`, { email: forgotPasswordModal.email, code: forgotPasswordModal.verificationCode }, 20000);
+      } catch (e1) {
+        setForgotPasswordMessage('Request timed out. Retrying...');
+        response = await postWithTimeout(`${API_BASE}/api/auth/verify-reset-code`, { email: forgotPasswordModal.email, code: forgotPasswordModal.verificationCode }, 35000);
+      }
+      
+      if (response.ok) {
+        setForgotPasswordMessage('Code verified successfully');
+        nextForgotPasswordStep('newPassword');
+      } else {
+        const data = await readJson(response);
+        setForgotPasswordMessage(data.msg || data.message || 'Invalid code');
+      }
+    } catch (error) {
+      console.error('Verify reset code error:', error);
+      const isAbort = error?.name === 'AbortError';
+      setForgotPasswordMessage(isAbort ? 'Request timed out. Please try again.' : 'Network error. Please try again.');
+    } finally {
+      setForgotPasswordLoading(false);
+    }
+  };
+
+  const updatePassword = async () => {
+    if (!forgotPasswordModal.newPassword || !forgotPasswordModal.confirmPassword) {
+      setForgotPasswordMessage('Please fill in both password fields');
+      return;
+    }
+
+    if (forgotPasswordModal.newPassword !== forgotPasswordModal.confirmPassword) {
+      setForgotPasswordMessage('Passwords do not match');
+      return;
+    }
+
+    if (forgotPasswordModal.newPassword.length < 6) {
+      setForgotPasswordMessage('Password must be at least 6 characters long');
+      return;
+    }
+
+    setForgotPasswordLoading(true);
+    try {
+      let response;
+      try {
+        response = await postWithTimeout(`${API_BASE}/api/auth/reset-password`, { email: forgotPasswordModal.email, code: forgotPasswordModal.verificationCode, newPassword: forgotPasswordModal.newPassword }, 20000);
+      } catch (e1) {
+        setForgotPasswordMessage('Request timed out. Retrying...');
+        response = await postWithTimeout(`${API_BASE}/api/auth/reset-password`, { email: forgotPasswordModal.email, code: forgotPasswordModal.verificationCode, newPassword: forgotPasswordModal.newPassword }, 35000);
+      }
+
+      const data = await readJson(response);
+      
+      if (response.ok) {
+        setForgotPasswordMessage('Password updated successfully!');
+        setTimeout(() => {
+          closeForgotPasswordModal();
+        }, 2000);
+      } else {
+        setForgotPasswordMessage(data.msg || data.message || 'Failed to update password');
+      }
+    } catch (error) {
+      console.error('Reset password error:', error);
+      const isAbort = error?.name === 'AbortError';
+      setForgotPasswordMessage(isAbort ? 'Request timed out. Please try again.' : 'Network error. Please try again.');
+    } finally {
+      setForgotPasswordLoading(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     try {
-      let loginSuccess = false;
-      let userRole = null;
-
       // Attempt admin login first
       const adminResult = await adminLogin(username, password);
       if (adminResult.success) {
-        loginSuccess = true;
-        userRole = adminResult.role;
+        navigate('/admin/dashboard');
+        return;
       }
 
       // If admin login failed, attempt customer login
-      if (!loginSuccess) {
-        const customerResult = await customerLogin(username, password);
-        if (customerResult.success) {
-          loginSuccess = true;
-          userRole = customerResult.role;
-        }
+      const customerResult = await customerLogin(username, password);
+      if (customerResult.success) {
+        navigate('/');
+        return;
       }
 
-      if (loginSuccess) {
-        if (userRole === 'admin') {
-          navigate('/admin/dashboard');
-        } else if (userRole === 'user') {
-          navigate('/');
-        }
-      } else {
-        setError('Invalid Credentials');
-      }
-
+      // Show specific error message if available
+      const message = customerResult.message || adminResult.message || 'Invalid Credentials';
+      setError(message);
     } catch (err) {
       setError('An error occurred during login.');
       console.error('Login error:', err);
@@ -56,7 +233,7 @@ const Login = () => {
   return (
     <div className="login-page">
       <div className="login-left">
-        <img src="../src/img/lumine login.png" alt="Logo" className="login-logo" />
+        <img src="/images/lumine login.png" alt="Logo" className="login-logo" />
        
       </div>
       <div className="login-container">
@@ -81,12 +258,152 @@ const Login = () => {
               icon="fa-solid fa-lock"
             />
             <button type="submit" className="login-button">Login</button>
+            <p className="forgot-password-link">
+              <span onClick={openForgotPasswordModal} className="forgot-link">
+                Forgot Password?
+              </span>
+            </p>
             <p className="signup-link">
               Don't have an account? <Link to="/signup">Sign up</Link>
             </p>
           </form>
         </div>
       </div>
+
+      {/* Forgot Password Modal */}
+      {forgotPasswordModal.isOpen && (
+        <div className="forgot-password-overlay" onClick={closeForgotPasswordModal}>
+          <div className="forgot-password-modal" onClick={(e) => e.stopPropagation()}>
+            <button className="forgot-password-close" onClick={closeForgotPasswordModal}>
+              <i className="fa-solid fa-times"></i>
+            </button>
+
+            {/* Step 1: Email Input */}
+            {forgotPasswordModal.step === 'email' && (
+              <div className="forgot-password-content">
+                <div className="forgot-password-icon">
+                  <i className="fa-solid fa-envelope"></i>
+                </div>
+                <h3 className="forgot-password-title">Reset Password</h3>
+                <p className="forgot-password-subtitle">
+                  Enter your email address and we'll send you a verification code
+                </p>
+                <FormGroup
+                  label="Email Address"
+                  type="email"
+                  value={forgotPasswordModal.email}
+                  onChange={(e) => updateForgotPasswordField('email', e.target.value)}
+                  required
+                  icon="fa-solid fa-envelope"
+                  placeholder="Enter your email"
+                />
+                {forgotPasswordModal.message && (
+                  <p className={`forgot-password-message ${forgotPasswordModal.message.includes('sent') ? 'success' : 'error'}`}>
+                    {forgotPasswordModal.message}
+                  </p>
+                )}
+                <button 
+                  className="forgot-password-button"
+                  onClick={sendResetCode}
+                  disabled={forgotPasswordModal.isLoading}
+                >
+                  {forgotPasswordModal.isLoading ? 'Sending...' : 'Send Reset Code'}
+                </button>
+              </div>
+            )}
+
+            {/* Step 2: Verification Code */}
+            {forgotPasswordModal.step === 'verification' && (
+              <div className="forgot-password-content">
+                <div className="forgot-password-icon">
+                  <i className="fa-solid fa-shield-halved"></i>
+                </div>
+                <h3 className="forgot-password-title">Enter Verification Code</h3>
+                <p className="forgot-password-subtitle">
+                  We've sent a 6-digit code to {forgotPasswordModal.email}
+                </p>
+                <FormGroup
+                  label="Verification Code"
+                  type="text"
+                  value={forgotPasswordModal.verificationCode}
+                  onChange={(e) => updateForgotPasswordField('verificationCode', e.target.value)}
+                  required
+                  icon="fa-solid fa-key"
+                  placeholder="Enter 6-digit code"
+                  maxLength="6"
+                />
+                {forgotPasswordModal.message && (
+                  <p className={`forgot-password-message ${forgotPasswordModal.message.includes('successfully') ? 'success' : 'error'}`}>
+                    {forgotPasswordModal.message}
+                  </p>
+                )}
+                <button 
+                  className="forgot-password-button"
+                  onClick={verifyResetCode}
+                  disabled={forgotPasswordModal.isLoading}
+                >
+                  {forgotPasswordModal.isLoading ? 'Verifying...' : 'Verify Code'}
+                </button>
+                <button 
+                  className="forgot-password-back"
+                  onClick={() => nextForgotPasswordStep('email')}
+                >
+                  Back to Email
+                </button>
+              </div>
+            )}
+
+            {/* Step 3: New Password */}
+            {forgotPasswordModal.step === 'newPassword' && (
+              <div className="forgot-password-content">
+                <div className="forgot-password-icon">
+                  <i className="fa-solid fa-lock"></i>
+                </div>
+                <h3 className="forgot-password-title">Create New Password</h3>
+                <p className="forgot-password-subtitle">
+                  Enter your new password below
+                </p>
+                <FormGroup
+                  label="New Password"
+                  type="password"
+                  value={forgotPasswordModal.newPassword}
+                  onChange={(e) => updateForgotPasswordField('newPassword', e.target.value)}
+                  required
+                  icon="fa-solid fa-lock"
+                  placeholder="Enter new password"
+                />
+                <FormGroup
+                  label="Confirm Password"
+                  type="password"
+                  value={forgotPasswordModal.confirmPassword}
+                  onChange={(e) => updateForgotPasswordField('confirmPassword', e.target.value)}
+                  required
+                  icon="fa-solid fa-lock"
+                  placeholder="Confirm new password"
+                />
+                {forgotPasswordModal.message && (
+                  <p className={`forgot-password-message ${forgotPasswordModal.message.includes('successfully') ? 'success' : 'error'}`}>
+                    {forgotPasswordModal.message}
+                  </p>
+                )}
+                <button 
+                  className="forgot-password-button"
+                  onClick={updatePassword}
+                  disabled={forgotPasswordModal.isLoading}
+                >
+                  {forgotPasswordModal.isLoading ? 'Updating...' : 'Update Password'}
+                </button>
+                <button 
+                  className="forgot-password-back"
+                  onClick={() => nextForgotPasswordStep('verification')}
+                >
+                  Back to Verification
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

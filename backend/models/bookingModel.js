@@ -30,7 +30,7 @@ const bookingSchema = new mongoose.Schema({
   },
   roomNumber: {
     type: String,
-    required: true
+    default: null
   },
   checkIn: {
     type: Date,
@@ -62,13 +62,31 @@ const bookingSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['pending', 'confirmed', 'cancelled', 'completed'],
+    enum: ['pending', 'confirmed', 'occupied', 'cancelled', 'completed'],
     default: 'pending'
   },
   paymentStatus: {
     type: String,
     enum: ['pending', 'partial', 'paid'],
     default: 'pending'
+  },
+  // PayMongo-specific fields
+  paymongoSourceId: {
+    type: String,
+    default: null
+  },
+  paymongoPaymentId: {
+    type: String,
+    default: null
+  },
+  paymentAmount: {
+    type: Number,
+    default: 0
+  },
+  // Flexible payment details blob (e.g., Xendit info)
+  paymentDetails: {
+    type: mongoose.Schema.Types.Mixed,
+    default: {}
   },
   totalAmount: {
     type: Number,

@@ -11,11 +11,12 @@ function RoomDetails() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const { user } = useContext(AuthContext);
+  const API_URL = import.meta.env.VITE_API_URL || 'https://hotel-management-system-1-1-backend.onrender.com';
 
   useEffect(() => {
     const fetchRoom = async () => {
       try {
-        const response = await axios.get(`/rooms/${id}`);
+        const response = await axios.get(`${API_URL}/api/rooms/${id}`);
         setRoom(response.data);
       } catch (err) {
         setError('Failed to fetch room details.');
@@ -59,6 +60,7 @@ function RoomDetails() {
       <p>View: {currentRoomDetails.view || 'N/A'}</p>
       <p>Floor: {currentRoomDetails.floor || 'N/A'}</p>
       <p>Accessibility: {currentRoomDetails.accessibility || 'N/A'}</p>
+      <br></br>
       <p>Smoking: {currentRoomDetails.smoking || 'N/A'}</p>
       <p>Pets: {currentRoomDetails.pets || 'N/A'}</p>
       <p>Quiet Hours: {currentRoomDetails.quietHours || 'N/A'}</p>

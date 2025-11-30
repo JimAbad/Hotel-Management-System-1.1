@@ -6,15 +6,37 @@ import './Billings.css';
 
 function Billings() {
   const { user, token } = useContext(AuthContext);
-  const [billings, setBillings] = useState([]);
+  const API_URL = (() => {
+    const fallback = 'https://hotel-management-system-1-1-backend.onrender.com';
+    const env = import.meta.env.VITE_API_URL;
+    const envNorm = String(env || '').replace(/\/+$/, '');
+    const originNorm = typeof window !== 'undefined' ? window.location.origin.replace(/\/+$/, '') : '';
+    return envNorm && envNorm !== originNorm ? envNorm : fallback;
+  })();
+  
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedBill, setSelectedBill] = useState(null);
+  const [selectedRoom, setSelectedRoom] = useState(null);
+  const [selectedRoomItems, setSelectedRoomItems] = useState([]);
+  const [selectedRoomSummary, setSelectedRoomSummary] = useState({});
   const [showBillModal, setShowBillModal] = useState(false);
   const [billsByRoom, setBillsByRoom] = useState({});
 
   useEffect(() => {
+    if (!user || !token) {
+      fetchBillings();
+      return;
+    }
     fetchBillings();
+    const handler = () => {
+      if (document.visibilityState === 'visible') {
+        fetchBillings();
+      }
+    };
+    document.addEventListener('visibilitychange', handler);
+    return () => {
+      document.removeEventListener('visibilitychange', handler);
+    };
   }, [user, token]);
 
   const fetchBillings = async () => {
@@ -28,25 +50,68 @@ function Billings() {
 
     try {
       setLoading(true);
-      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/billings`, {
+      const config = {
         headers: {
           Authorization: `Bearer ${token}`,
         },
+      };
+
+      // Fetch bookings to enrich room type mapping
+      const bookingsRes = await axios.get(`${API_URL}/api/bookings/my-bookings`, config);
+      const today = new Date();
+      const roomNumberToType = {};
+      (bookingsRes.data || []).forEach(b => {
+        const rn = b?.roomNumber || b?.room?.roomNumber;
+        const rt = b?.room?.roomType || b?.roomType;
+        if (rn) roomNumberToType[rn] = rt || roomNumberToType[rn] || null;
       });
-      const bills = response.data.data;
-      setBillings(bills);
-      
-      // Group bills by room number
-      const grouped = bills.reduce((acc, bill) => {
-        const roomNum = bill.roomNumber;
-        if (!acc[roomNum]) {
-          acc[roomNum] = [];
-        }
-        acc[roomNum].push(bill);
-        return acc;
-      }, {});
-      
+
+      // Fetch all billing records for the user and group by roomNumber
+      const billingsRes = await axios.get(`${API_URL}/api/billings`, config);
+      const list = billingsRes.data?.data || billingsRes.data || [];
+
+      const grouped = {};
+      list.forEach(b => {
+        const rn = String(b.roomNumber || '').trim();
+        if (!rn) return;
+        // Only include items tied to an active booking
+        const checkOut = b?.booking?.checkOut ? new Date(b.booking.checkOut) : null;
+        const status = b?.booking?.status || '';
+        const active = checkOut ? (checkOut >= today && !['cancelled','completed'].includes(String(status).toLowerCase())) : true;
+        if (!active) return;
+
+        grouped[rn] = grouped[rn] || { items: [], summary: {}, roomType: roomNumberToType[rn] || null };
+        grouped[rn].items.push({
+          _id: b._id,
+          description: b.description,
+          amount: b.amount,
+          status: b.status,
+          date: b.createdAt,
+          bookingData: b.booking || null
+        });
+      });
+
+      // Compute summaries per room
+      Object.keys(grouped).forEach(rn => {
+        const items = grouped[rn].items || [];
+        let totalRoomCharges = 0;
+        let totalExtraCharges = 0;
+        let paidAmount = 0;
+        items.forEach(it => {
+          if (it.description && it.description.includes('Room booking charge')) {
+            totalRoomCharges += Number(it.amount || 0);
+          } else {
+            totalExtraCharges += Number(it.amount || 0);
+          }
+          const st = String(it.status || '').toLowerCase();
+          if (st === 'paid' || st === 'completed') paidAmount += Number(it.amount || 0);
+        });
+        const remainingBalance = Math.max(0, totalRoomCharges * 0.9 + totalExtraCharges - paidAmount);
+        grouped[rn].summary = { totalRoomCharges, totalExtraCharges, remainingBalance, paidAmount };
+      });
+
       setBillsByRoom(grouped);
+      
       setLoading(false);
     } catch (err) {
       setError('Failed to fetch billing data. Please try again later.');
@@ -55,15 +120,17 @@ function Billings() {
     }
   };
 
-
-
-  const handleViewBill = (bill) => {
-    setSelectedBill(bill);
+  const handleViewRoom = (roomNumber) => {
+    const roomData = billsByRoom[roomNumber] || { items: [], summary: {} };
+    setSelectedRoom(roomNumber);
+    setSelectedRoomItems(roomData.items || []);
+    setSelectedRoomSummary(roomData.summary || {});
     setShowBillModal(true);
   };
 
   const getStatusClass = (status) => {
-    switch (status.toLowerCase()) {
+    const normalized = String(status || 'pending').toLowerCase();
+    switch (normalized) {
       case 'paid':
         return 'status-paid';
       case 'pending':
@@ -73,6 +140,15 @@ function Billings() {
       default:
         return '';
     }
+  };
+
+  // Add currency formatter to show thousands with commas
+  const formatCurrency = (value) => {
+    const num = Number(value ?? 0);
+    return '₱' + num.toLocaleString('en-PH', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
   };
 
   const formatDate = (dateString) => {
@@ -93,65 +169,90 @@ function Billings() {
 
   return (
     <div className="billing-container">
-      <div className="billing-header">
-        <h2 style={{ color: '#B8860B' }}> My Billings</h2>
+      <div className="billing-header" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+       
       </div>
 
       {/* Bills Grouped by Room */}
       {Object.keys(billsByRoom).length === 0 ? (
         <div className="no-billings">
-          <p>You don't have any billing records yet.</p>
+          <p>You don't have any active billing records.</p>
         </div>
       ) : (
         <div className="room-grouped-bills">
-          {Object.entries(billsByRoom).map(([roomNumber, roomBills]) => (
-            <div key={roomNumber} className="room-bill-group">
-              <div className="room-header">
-                <h3>Room {roomNumber}</h3>
-              </div>
-              <div className="room-bills-table">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Bill ID</th>
-                      <th>Room</th>
-                      <th>Description</th>
-                      <th>Amount</th>
-                      <th>Status</th>
-                      <th>Date</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {roomBills.map((bill) => (
-                      <tr key={bill._id}>
-                        <td>{bill._id.substring(0, 8)}...</td>
-                        <td>{bill.roomNumber}</td>
-                        <td>{bill.description}</td>
-                        <td>₱{bill.amount.toFixed(2)}</td>
-                        <td><span className={getStatusClass(bill.status)}>{bill.status}</span></td>
-                        <td>{formatDate(bill.createdAt)}</td>
-                        <td>
-                          <button 
-                            className="view-bill-btn" style={{ backgroundColor: '#B8860B', color: 'white' }}
-                            onClick={() => handleViewBill(bill)}
-                          >
-                            <FaEye /> View
-                          </button>
+          {Object.entries(billsByRoom).map(([roomNumber, roomData]) => (
+            (roomData.items?.length || 0) === 0 ? null : (
+              <div key={roomNumber} className="room-bill-group">
+                <div className="room-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h3>{roomData.roomType ? `Room: ${roomData.roomType}` : `Room ${roomNumber}`}</h3>
+                  <button 
+                    className="view-bill-btn" style={{ backgroundColor: '#B8860B', color: 'white' }}
+                    onClick={() => handleViewRoom(roomNumber)}
+                  >
+                    <FaEye /> View
+                  </button>
+                </div>
+                <div className="room-bills-summary" style={{ padding: '8px 0' }}>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Description</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                        <th>Date</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {roomData.items.map((item, idx) => (
+                        <tr key={item._id || idx}>
+                          <td>{item.description || '—'}</td>
+                          <td>{formatCurrency(item.amount ?? item.price ?? item.totalPrice ?? 0)}</td>
+                          <td><span className={getStatusClass(item.status)}>{item.status || 'pending'}</span></td>
+                          <td>{formatDate(item.date || item.createdAt || roomData.summary.deliveredAt || roomData.summary.checkedOutAt || new Date())}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr>
+                        <td><strong>Total</strong></td>
+                        <td colSpan="3">
+                          <strong>
+                            {formatCurrency(
+                              typeof roomData.summary.totalPrice === 'number'
+                                ? roomData.summary.totalPrice
+                                : roomData.items.reduce((sum, it) => sum + Number(it.amount ?? it.price ?? it.totalPrice ?? 0), 0)
+                            )}
+                          </strong>
                         </td>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                      <tr>
+                        <td><strong>Partial deposit (10%)</strong></td>
+                        <td colSpan="3">
+                          <strong>
+                            {formatCurrency(Number(roomData.summary.totalRoomCharges || 0) * 0.1)}
+                          </strong>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td><strong>Remaining Balance</strong></td>
+                        <td colSpan="3">
+                          <strong>
+                            {formatCurrency(Number(roomData.summary.remainingBalance || 0))}
+                          </strong>
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
               </div>
-            </div>
+            )
           ))}
         </div>
       )}
       
 
       {/* Bill Detail Modal */}
-      {showBillModal && selectedBill && (
+      {showBillModal && selectedRoom && (
         <div className="modal-overlay">
           <div className="modal-content bill-modal">
 <div
@@ -178,7 +279,7 @@ Back
   </button>
 
   <h3 style={{ margin: 0 }}>
-    <FaReceipt /> Bill Details
+    <FaReceipt /> Room {selectedRoom} Bills
   </h3>
 </div>
 
@@ -190,54 +291,42 @@ Back
       className="bill-header"
       style={{ textAlign: 'center', marginBottom: '20px' }}
     >
-      <h4 style={{ margin: 0 }}>Lumine Hotel</h4>
+     
       <p style={{ margin: 0 }}></p>
       <p style={{ margin: 0 }}></p>
     </div>
-<br></br>
-<br></br>
-<br></br>
     {/* Bill info section */}
     <div
       className="bill-info"
       style={{ textAlign: 'left', marginLeft: '10px' }}
     >
       <div className="bill-row">
-        <span>Bill ID:</span>
-        <span>{selectedBill._id}</span>
-      </div>
-      <div className="bill-row">
-        <span>Date:</span>
-        <span>{formatDate(selectedBill.createdAt)}</span>
-      </div>
-      <div className="bill-row">
-        <span>Room:</span>
-        <span>
-          {selectedBill.roomNumber
-            ? `Room ${selectedBill.roomNumber}`
-            : 'N/A'}
-        </span>
+        
       </div>
 
-      {selectedBill.booking && (
-        <>
-          <div className="bill-row">
-            <span>Check-in:</span>
-            <span>
-              {selectedBill.booking.checkInDate
-                ? formatDate(selectedBill.booking.checkInDate)
-                : 'N/A'}
-            </span>
-          </div>
-          <div className="bill-row">
-            <span>Check-out:</span>
-            <span>
-              {selectedBill.booking.checkOutDate
-                ? formatDate(selectedBill.booking.checkOutDate)
-                : 'N/A'}
-            </span>
-          </div>
-        </>
+      {selectedRoomSummary.checkedOutAt && (
+        <div className="bill-row">
+          <span>Checked-out:</span>
+          <span>{formatDate(selectedRoomSummary.checkedOutAt)}</span>
+        </div>
+      )}
+      {selectedRoomSummary.deliveredAt && (
+        <div className="bill-row">
+          <span>Delivered:</span>
+          <span>{formatDate(selectedRoomSummary.deliveredAt)}</span>
+        </div>
+      )}
+      {selectedRoomSummary.checkIn && (
+        <div className="bill-row">
+          <span>Check-in:</span>
+          <span>{formatDate(selectedRoomSummary.checkIn)}</span>
+        </div>
+      )}
+      {selectedRoomSummary.checkOut && (
+        <div className="bill-row">
+          <span>Check-out:</span>
+          <span>{formatDate(selectedRoomSummary.checkOut)}</span>
+        </div>
       )}
     </div>
   </div>
@@ -251,34 +340,38 @@ Back
                       <tr>
                         <th>Description</th>
                         <th>Amount</th>
+                        <th>Status</th>
+                        <th>Date</th>
                       </tr>
                     </thead>
                     <tbody>
-                      <tr>
-                        <td>{selectedBill.description}</td>
-                        <td>₱{selectedBill.amount.toFixed(2)}</td>
-                      </tr>
+                      {selectedRoomItems.map((item, idx) => (
+                        <tr key={item._id || idx}>
+                          <td>{item.description || '—'}</td>
+                          <td>{formatCurrency(item.amount ?? item.price ?? item.totalPrice ?? 0)}</td>
+                          <td><span className={getStatusClass(item.status)}>{item.status || 'pending'}</span></td>
+                          <td>{formatDate(item.date || item.createdAt || selectedRoomSummary.deliveredAt || selectedRoomSummary.checkedOutAt || new Date())}</td>
+                        </tr>
+                      ))}
                     </tbody>
                     <tfoot>
                       <tr>
                         <td><strong>Total</strong></td>
-                        <td><strong>₱{selectedBill.amount.toFixed(2)}</strong></td>
+                        <td colSpan="3">
+                          <strong>
+                            {formatCurrency(
+                              typeof selectedRoomSummary.totalPrice === 'number'
+                                ? selectedRoomSummary.totalPrice
+                                : selectedRoomItems.reduce((sum, it) => sum + Number(it.amount ?? it.price ?? it.totalPrice ?? 0), 0)
+                            )}
+                          </strong>
+                        </td>
                       </tr>
                     </tfoot>
                   </table>
                 </div>
                 
-           <div className="bill-status" style={{ textAlign: 'left', marginLeft: '10px' }}>
-  <p>
-    Payment Status:{' '}
-    <span className={getStatusClass(selectedBill.status)}>
-      {selectedBill.status}
-    </span>
-  </p>
-  {selectedBill.paymentMethod && (
-    <p>Payment Method: {selectedBill.paymentMethod}</p>
-  )}
-</div>
+           {/* Aggregated view: item statuses are shown in the table; no single payment status */}
 
 <div
   className="bill-footer"
