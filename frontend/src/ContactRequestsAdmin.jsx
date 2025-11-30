@@ -3,7 +3,8 @@ import axios from 'axios';
 import { useAuthAdmin } from './AuthContextAdmin';
 
 const ContactRequestsAdmin = () => {
-  const { token } = useAuthAdmin();
+  const { token: contextToken } = useAuthAdmin();
+  const token = contextToken || localStorage.getItem('tokenAdmin');
   const API_URL = import.meta.env.VITE_API_URL || 'https://hotel-management-system-1-1-backend.onrender.com';
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
