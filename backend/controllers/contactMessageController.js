@@ -1,5 +1,5 @@
 const ContactMessage = require('../models/contactMessageModel');
-const Task = require('../models/taskModel');
+const Request = require('../models/requestModel');
 
 const getContactMessagesAdmin = async (req, res) => {
   try {
@@ -13,28 +13,68 @@ const getContactMessagesAdmin = async (req, res) => {
 const createTaskFromContactMessage = async (req, res) => {
   try {
     const { id } = req.params;
-    const { scheduledAt, priority } = req.body || {};
+    const { scheduledAt, category, priority } = req.body || {};
     const msg = await ContactMessage.findById(id);
     if (!msg) return res.status(404).json({ message: 'Contact message not found' });
     const when = new Date(scheduledAt || Date.now());
     if (isNaN(when.getTime())) return res.status(400).json({ message: 'Invalid scheduledAt' });
-    const pr = priority && ['low','medium','high'].includes(String(priority)) ? String(priority) : 'low';
-    const task = await Task.create({
-      type: 'request',
-      source: 'contact',
-      contactMessage: msg._id,
+    
+    // Determine request type based on category
+    const requestCategory = category || 'cleaning';
+    const requestType = requestCategory === 'misc' ? 'miscellaneous' : requestCategory;
+    const requestPriority = priority && ['low','medium','high'].includes(String(priority)) ? String(priority) : 'low';
+    
+    // Create a request that matches the existing collection structure
+    const request = await Request.create({
       roomNumber: msg.roomNumber || null,
-      scheduledAt: when,
-      priority: pr,
-      description: msg.message || ''
+      jobType: requestCategory, // This will be 'cleaning', 'maintenance', or 'misc'
+      date: when,
+      priority: requestPriority,
+      description: `Contact request (${requestType}): ${msg.message || ''}`,
+      contactMessage: msg._id
     });
+    
     msg.status = 'assigned';
-    msg.taskId = task._id;
+    msg.taskId = request._id;
     await msg.save();
-    res.status(201).json({ success: true, data: task });
+    res.status(201).json({ success: true, data: request });
   } catch (err) {
     res.status(500).json({ message: err.message || 'Server error' });
   }
 };
 
-module.exports = { getContactMessagesAdmin, createTaskFromContactMessage };
+const updateContactMessageStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    
+    if (!['new', 'assigned', 'handled', 'complied'].includes(status)) {
+      return res.status(400).json({ message: 'Invalid status' });
+    }
+    
+    const msg = await ContactMessage.findById(id);
+    if (!msg) return res.status(404).json({ message: 'Contact message not found' });
+    
+    msg.status = status;
+    await msg.save();
+    
+    res.json({ success: true, data: msg });
+  } catch (err) {
+    res.status(500).json({ message: err.message || 'Server error' });
+  }
+};
+
+const deleteContactMessage = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const msg = await ContactMessage.findById(id);
+    if (!msg) return res.status(404).json({ message: 'Contact message not found' });
+    
+    await ContactMessage.findByIdAndDelete(id);
+    res.json({ success: true, message: 'Contact message deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ message: err.message || 'Server error' });
+  }
+};
+
+module.exports = { getContactMessagesAdmin, createTaskFromContactMessage, updateContactMessageStatus, deleteContactMessage };

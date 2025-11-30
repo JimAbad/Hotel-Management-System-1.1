@@ -40,6 +40,13 @@ function Rooms() {
   const [bookingType, setBookingType] = useState('myself');
   const [userBookingCount, setUserBookingCount] = useState(0);
   const [showAmenitiesModal, setShowAmenitiesModal] = useState(false);
+  const [holidayInfo, setHolidayInfo] = useState({ isHoliday: false, multiplier: 1.0 });
+
+  // Function to calculate holiday price
+  const calculateHolidayPrice = (basePrice) => {
+    if (!basePrice) return 0;
+    return Math.round(basePrice * holidayInfo.multiplier);
+  };
 
   // Function to fetch user's current booking count
   const fetchUserBookingCount = useCallback(async () => {
@@ -91,6 +98,24 @@ function Rooms() {
     fetchUserBookingCount();
   }, [fetchUserBookingCount]);
 
+  // Check for holiday pricing on page load
+  useEffect(() => {
+    const checkHolidayPricing = async () => {
+      try {
+        const response = await axios.get(`${API_URL}/api/holidays/check-pricing`);
+        if (response.data.isHoliday) {
+          setHolidayInfo({
+            isHoliday: true,
+            multiplier: response.data.priceMultiplier || 1.05
+          });
+        }
+      } catch (error) {
+        console.error('Error checking holiday pricing:', error);
+      }
+    };
+    checkHolidayPricing();
+  }, [API_URL]);
+
   useEffect(() => {
     if (checkInDate && checkOutDate && checkInTime && checkOutTime && modalRoom) {
       const checkIn = new Date(`${checkInDate}T${checkInTime}`);
@@ -98,9 +123,10 @@ function Rooms() {
       const diffTime = Math.abs(checkOut - checkIn);
       const diffHours = Math.ceil(diffTime / (1000 * 60 * 60));
       const roomPrice = Number(modalRoom.price || 0);
-      setTotal(diffHours * roomPrice);
+      const holidayPrice = holidayInfo.isHoliday ? roomPrice * holidayInfo.multiplier : roomPrice;
+      setTotal(diffHours * holidayPrice);
     }
-  }, [checkInDate, checkOutDate, checkInTime, checkOutTime, modalRoom]);
+  }, [checkInDate, checkOutDate, checkInTime, checkOutTime, modalRoom, holidayInfo]);
 
   // Helper functions for date/time validation
   const getCurrentDateTime = () => {
@@ -394,6 +420,20 @@ function Rooms() {
       )}
       <h1>Available Room Types</h1>
      <p style={{ color: "red" }}>You can book up to 3 rooms per account only</p>
+     
+     {holidayInfo.isHoliday && (
+       <div style={{
+         backgroundColor: '#fff3cd',
+         border: '1px solid #ffc107',
+         borderRadius: '5px',
+         padding: '10px',
+         margin: '10px 0',
+         textAlign: 'center',
+         color: '#856404'
+       }}>
+         🎉 <strong>Holiday Pricing Active!</strong> Room prices are increased by {((holidayInfo.multiplier - 1) * 100).toFixed(0)}% due to holiday season.
+       </div>
+     )}
 
       <div className="room-list">
         {summary.filter(({ type }) => !type?.includes('Presidential')).map(({ type, total, available }) => (
@@ -404,7 +444,25 @@ function Rooms() {
                  <button className="more-info-btn" onClick={() => handleMoreInfo(type)}>
                    More info
                  </button>
-                 <span className="room-price"><span>{roomDetails[normalizeRoomType(type)]?.price ? `₱${roomDetails[normalizeRoomType(type)].price} per hour` : ' per hour varies'}</span></span>
+                 <span className="room-price">
+                   <span>
+                     {roomDetails[normalizeRoomType(type)]?.price ? (
+                       holidayInfo.isHoliday ? (
+                         <>
+                           <span style={{ textDecoration: 'line-through', opacity: '0.7' }}>
+                             ₱{roomDetails[normalizeRoomType(type)].price}
+                           </span>
+                           {' '}
+                           <span style={{ color: '#dc3545', fontWeight: 'bold' }}>
+                             ₱{calculateHolidayPrice(roomDetails[normalizeRoomType(type)].price).toLocaleString()} per hour
+                           </span>
+                         </>
+                       ) : (
+                         `₱${roomDetails[normalizeRoomType(type)].price} per hour`
+                       )
+                     ) : ' per hour varies'}
+                   </span>
+                 </span>
                  {available === 0 && (
                    <span className="fully-booked-badge" title="This room type is not available">Not available</span>
                  )}
@@ -412,9 +470,23 @@ function Rooms() {
              </div>
              <div className="room-card-body">
                
-               <p>Room Type: {type}</p>  
+               <p>Room Type: {type} {holidayInfo.isHoliday && <span style={{ color: '#dc3545', fontSize: '12px', fontWeight: 'bold' }}>🎉 Holiday Pricing</span>}</p>  
                <p>Floor: {getDisplayFloor(type)}</p>
-               <p>Price: {roomDetails[normalizeRoomType(type)]?.price ? `₱${roomDetails[normalizeRoomType(type)].price.toLocaleString()} per hour` : 'Price varies per hour'}</p>
+               <p>Price: {roomDetails[normalizeRoomType(type)]?.price ? (
+                 holidayInfo.isHoliday ? (
+                   <>
+                     <span style={{ textDecoration: 'line-through', opacity: '0.7' }}>
+                       ₱{roomDetails[normalizeRoomType(type)].price.toLocaleString()}
+                     </span>
+                     {' '}
+                     <span style={{ color: '#dc3545', fontWeight: 'bold' }}>
+                       ₱{calculateHolidayPrice(roomDetails[normalizeRoomType(type)].price).toLocaleString()} per hour
+                     </span>
+                   </>
+                 ) : (
+                   `₱${roomDetails[normalizeRoomType(type)].price.toLocaleString()} per hour`
+                 )
+               ) : 'Price varies per hour'}</p>
                
              </div>
              <div className="room-card-footer">
@@ -642,7 +714,22 @@ function Rooms() {
                         <p>Room: {modalRoom?.roomType || modalRoom?.type}</p>
                         <p>Dates: {checkInDate} - {checkOutDate}</p>
                         <p>Guests: {adults} Adults, {children} Children (0-5 years old)</p>
-                        <p>Rate: ₱{modalRoom?.price?.toLocaleString()} per hour</p>
+                        <p>Rate: {holidayInfo.isHoliday ? (
+                          <>
+                            <span style={{ textDecoration: 'line-through', opacity: '0.7' }}>
+                              ₱{modalRoom?.price?.toLocaleString()}
+                            </span>
+                            {' '}
+                            <span style={{ color: '#dc3545', fontWeight: 'bold' }}>
+                              ₱{calculateHolidayPrice(modalRoom?.price || 0).toLocaleString()} per hour
+                            </span>
+                            <span style={{ color: '#dc3545', fontSize: '12px', display: 'block' }}>
+                              Holiday pricing active ({((holidayInfo.multiplier - 1) * 100).toFixed(0)}% increase)
+                            </span>
+                          </>
+                        ) : (
+                          `₱${modalRoom?.price?.toLocaleString()} per hour`
+                        )}</p>
                         
                         <p>Total: ₱{total.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
                       </div>

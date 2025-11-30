@@ -4,6 +4,7 @@ const Room = require('../models/roomModel');
 const BookingActivity = require('../models/bookingActivityModel');
 const CancelledBooking = require('../models/cancelledBookingModel');
 const Billing = require('../models/Billing');
+const Holiday = require('../models/holidayModel');
 const asyncHandler = require('../middleware/async');
 const ErrorResponse = require('../utils/errorResponse');
 const { triggerExpiredBookingCheck } = require('../utils/bookingExpirationUpdater');
@@ -120,7 +121,23 @@ const createBooking = asyncHandler(async (req, res) => {
     res.status(500);
     throw new Error('Room price is not a valid number.');
   }
-  const subtotal = numberOfHours * roomPrice;
+  let subtotal = numberOfHours * roomPrice;
+  
+  // Check if check-in date is a holiday and apply holiday pricing
+  const checkInDateOnly = new Date(checkInDate);
+  checkInDateOnly.setHours(0, 0, 0, 0);
+  
+  const holiday = await Holiday.findOne({ 
+    date: checkInDateOnly, 
+    isActive: true 
+  });
+  
+  if (holiday) {
+    // Apply holiday multiplier to subtotal
+    subtotal = subtotal * holiday.priceMultiplier;
+    console.log(`Holiday pricing applied: ${holiday.name} - ${holiday.priceMultiplier * 100}% of regular price`);
+  }
+  
   const taxesAndFees = subtotal * 0.12; // Assuming 12% tax
   const totalAmount = subtotal + taxesAndFees;
 

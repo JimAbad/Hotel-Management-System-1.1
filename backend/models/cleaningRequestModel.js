@@ -1,8 +1,8 @@
 const mongoose = require('mongoose');
 
 const cleaningRequestSchema = new mongoose.Schema({
-  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  booking: { type: mongoose.Schema.Types.ObjectId, ref: 'Booking', required: true },
+  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+  booking: { type: mongoose.Schema.Types.ObjectId, ref: 'Booking', default: null },
   roomNumber: { type: String, default: null },
   scheduledAt: { type: Date, required: true },
   description: { type: String, default: '' },

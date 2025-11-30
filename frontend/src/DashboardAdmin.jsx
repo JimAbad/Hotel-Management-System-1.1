@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Line, Doughnut } from 'react-chartjs-2';
 import './DashboardAdmin.css';
+import HolidayToggle from './HolidayToggle';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -27,6 +28,7 @@ const DashboardAdmin = () => {
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [holidayDate, setHolidayDate] = useState(new Date().toISOString().split('T')[0]);
 
   const API_BASE = (import.meta.env.VITE_API_URL || 'https://hotel-management-system-1-1-backend.onrender.com').replace(/\/+$/, '');
 
@@ -120,6 +122,30 @@ const DashboardAdmin = () => {
         <div className="card">
           <h3>Pending Payments</h3>
           <p>{pendingPayments || 0}</p>
+        </div>
+      </div>
+
+      <div className="holiday-section">
+        <div className="card">
+          <h3>Holiday Pricing Control</h3>
+          <div style={{ marginBottom: '15px' }}>
+            <label htmlFor="holiday-date" style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+              Select Date:
+            </label>
+            <input
+              id="holiday-date"
+              type="date"
+              value={holidayDate}
+              onChange={(e) => setHolidayDate(e.target.value)}
+              style={{
+                padding: '8px',
+                border: '1px solid #ddd',
+                borderRadius: '4px',
+                fontSize: '14px'
+              }}
+            />
+          </div>
+          <HolidayToggle date={holidayDate} />
         </div>
       </div>
 

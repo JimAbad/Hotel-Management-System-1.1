@@ -61,6 +61,7 @@ app.use('/webhooks', require('./routes/webhookRoutes'));
 const customerBillRoutes = require('./routes/customerBillRoutes');
 app.use('/api/customer-bills', customerBillRoutes);
 app.use('/api/contact-messages', require('./routes/contactMessageRoutes'));
+app.use('/api/holidays', require('./routes/holidayRoutes'));
 
 // Health check endpoint
 app.use('/', require('./routes/healthRoutes'));

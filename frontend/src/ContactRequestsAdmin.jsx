@@ -11,49 +11,14 @@ const ContactRequestsAdmin = () => {
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
   const [active, setActive] = useState(null);
-  const [scheduledDate, setScheduledDate] = useState('');
-  const [scheduledTime, setScheduledTime] = useState('');
-  const [timeOptions, setTimeOptions] = useState([]);
+  const [category, setCategory] = useState('Cleaning');
+  const [miscOption, setMiscOption] = useState('Submit');
   const [priority, setPriority] = useState('low');
   const [submitting, setSubmitting] = useState(false);
 
-  const getTodayStr = () => {
-    const d = new Date();
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
-    return `${yyyy}-${mm}-${dd}`;
-  };
 
-  const generateTimeOptions = (dateStr) => {
-    const opts = [];
-    const now = new Date();
-    const isToday = dateStr === getTodayStr();
-    const startH = isToday ? now.getHours() : 0;
-    const startM = isToday ? now.getMinutes() : 0;
-    for (let h = startH; h <= 23; h++) {
-      for (let m of [0, 30]) {
-        if (h === startH && isToday && m < Math.ceil(startM / 30) * 30) continue;
-        const hh = String(h).padStart(2, '0');
-        const mm = String(m).padStart(2, '0');
-        const val = `${hh}:${mm}`;
-        const displayHour = ((h % 12) || 12);
-        const ampm = h < 12 ? 'AM' : 'PM';
-        const display = `${displayHour}:${mm} ${ampm}`;
-        opts.push({ value: val, display });
-      }
-    }
-    return opts;
-  };
 
-  useEffect(() => {
-    const dateStr = scheduledDate || getTodayStr();
-    const opts = generateTimeOptions(dateStr);
-    setTimeOptions(opts);
-    if (!opts.find(o => o.value === scheduledTime)) {
-      setScheduledTime(opts[0]?.value || '');
-    }
-  }, [scheduledDate]);
+
 
   useEffect(() => {
     const fetchData = async () => {
@@ -94,12 +59,22 @@ const ContactRequestsAdmin = () => {
 
   const openSchedule = (item) => {
     setActive(item);
-    const d = getTodayStr();
-    setScheduledDate(d);
-    const opts = generateTimeOptions(d);
-    setTimeOptions(opts);
-    setScheduledTime(opts[0]?.value || '');
+    setCategory('Cleaning');
+    setMiscOption('Submit');
     setPriority('low');
+  };
+
+  const handleComplete = async (item) => {
+    try {
+      const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
+      await axios.delete(`${API_URL}/api/contact-messages/${item._id}`, { headers });
+      const headers2 = { Authorization: `Bearer ${token}` };
+      const { data } = await axios.get(`${API_URL}/api/contact-messages`, { headers: headers2 });
+      const arr = Array.isArray(data) ? data : data?.data || [];
+      setItems(arr);
+    } catch (e) {
+      alert(e?.response?.data?.message || e.message || 'Failed to complete request');
+    }
   };
 
   const submitTask = async () => {
@@ -107,24 +82,27 @@ const ContactRequestsAdmin = () => {
     try {
       setSubmitting(true);
       const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
-      const dateStr = scheduledDate || getTodayStr();
-      const timeStr = scheduledTime || timeOptions[0]?.value || '00:00';
-      const scheduledAt = `${dateStr}T${timeStr}`;
-      const when = new Date(scheduledAt);
-      if (isNaN(when.getTime()) || when <= new Date()) {
-        alert('Please select a future date and time.');
-        setSubmitting(false);
-        return;
+      
+      // Handle different categories
+      if (category === 'Miscellaneous' && miscOption === 'Comply') {
+        // Keep in contact requests with complied status
+        await axios.put(`${API_URL}/api/contact-messages/${active._id}/status`, { status: 'complied' }, { headers });
+      } else {
+        // Send to requests collection (Cleaning, Maintenance, or Miscellaneous with Submit)
+        const now = new Date();
+        const scheduledAt = now.toISOString(); // Use current time for requests
+        const requestCategory = category === 'Miscellaneous' ? 'misc' : category.toLowerCase();
+        const payload = { scheduledAt, category: requestCategory, priority };
+        await axios.post(`${API_URL}/api/contact-messages/${active._id}/create-task`, payload, { headers });
       }
-      const payload = { scheduledAt, priority };
-      await axios.post(`${API_URL}/api/contact-messages/${active._id}/create-task`, payload, { headers });
+      
       setActive(null);
       const headers2 = { Authorization: `Bearer ${token}` };
       const { data } = await axios.get(`${API_URL}/api/contact-messages`, { headers: headers2 });
       const arr = Array.isArray(data) ? data : data?.data || [];
       setItems(arr);
     } catch (e) {
-      alert(e?.response?.data?.message || e.message || 'Failed to create task');
+      alert(e?.response?.data?.message || e.message || 'Failed to process request');
     } finally {
       setSubmitting(false);
     }
@@ -169,11 +147,13 @@ const ContactRequestsAdmin = () => {
                   <td>{x.roomNumber || '-'}</td>
                   <td>{x.message || '-'}</td>
                   <td>{x.priority || 'low'}</td>
-                  <td>{x.status === 'handled' ? 'assigned' : (x.status || 'new')}</td>
+                  <td>{x.status === 'handled' ? 'assigned' : (x.status === 'complied' ? 'complied' : (x.status || 'new'))}</td>
                   <td>{formatDateTime(x.createdAt)}</td>
                   <td>
                     {x.status === 'assigned' || x.status === 'handled' ? (
                       <button disabled style={{ background: '#ddd', color: '#333', borderRadius: 8, padding: '8px 12px', cursor: 'not-allowed' }}>Assigned</button>
+                    ) : x.status === 'complied' ? (
+                      <button onClick={() => handleComplete(x)} style={{ background: '#28a745', color: 'white', borderRadius: 8, padding: '8px 12px' }}>Complete</button>
                     ) : (
                       <button onClick={() => openSchedule(x)} style={{ background: '#B8860B', color: 'white', borderRadius: 8, padding: '8px 12px' }}>Create Task</button>
                     )}
@@ -190,16 +170,11 @@ const ContactRequestsAdmin = () => {
           <div className="confirm-modal">
             <h3 style={{ color: 'black' }}>Create Task</h3>
             <div style={{ marginBottom: 8 }}>
-              <label>Date</label>
-              <input type="date" value={scheduledDate} min={getTodayStr()} onChange={(e) => setScheduledDate(e.target.value)} style={{ marginLeft: 10 }} />
-            </div>
-            <div style={{ marginBottom: 8 }}>
-              <label>Time</label>
-              <select value={scheduledTime} onChange={(e) => setScheduledTime(e.target.value)} style={{ marginLeft: 10 }}>
-                <option value="">Select time</option>
-                {timeOptions.map(t => (
-                  <option key={t.value} value={t.value}>{t.display}</option>
-                ))}
+              <label>Category</label>
+              <select value={category} onChange={(e) => setCategory(e.target.value)} style={{ marginLeft: 10 }}>
+                <option value="Cleaning">Cleaning</option>
+                <option value="Maintenance">Maintenance</option>
+                <option value="Miscellaneous">Miscellaneous</option>
               </select>
             </div>
             <div style={{ marginBottom: 8 }}>
@@ -210,6 +185,21 @@ const ContactRequestsAdmin = () => {
                 <option value="high">High</option>
               </select>
             </div>
+            {category === 'Miscellaneous' && (
+              <div style={{ marginBottom: 8 }}>
+                <label>Action</label>
+                <div style={{ marginLeft: 10 }}>
+                  <label style={{ display: 'block', marginBottom: 4 }}>
+                    <input type="radio" value="Submit" checked={miscOption === 'Submit'} onChange={(e) => setMiscOption(e.target.value)} />
+                    Submit to Requests
+                  </label>
+                  <label style={{ display: 'block' }}>
+                    <input type="radio" value="Comply" checked={miscOption === 'Comply'} onChange={(e) => setMiscOption(e.target.value)} />
+                    Comply Here
+                  </label>
+                </div>
+              </div>
+            )}
             <div className="confirm-actions">
               <button className="btn-yes" onClick={submitTask} disabled={submitting}>Confirm</button>
               <button className="btn-cancel" onClick={() => setActive(null)}>Cancel</button>
