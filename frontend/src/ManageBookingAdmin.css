@@ -366,6 +366,8 @@ tr:hover {
 /* Optional: modal buttons */
 .save-btn { background: #16a34a; color: #fff; }
 .cancel-btn { background: #6b7280; color: #fff; }
+.ok-btn { background: #B8860B; color: #fff; }
+.cancel-btn.cancel-danger { background: #ef4444; color: #fff; }
 
 /* Ensure table text visible */
 .booking-management table th,

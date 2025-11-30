@@ -10,6 +10,7 @@ import EditRoom from './EditRoom';
 import AddRoom from './AddRoom';
 import CustomerBillListAdmin from './CustomerBillListAdmin';
 import ProtectedRouteAdmin from './ProtectedRouteAdmin';
+import ContactRequestsAdmin from './ContactRequestsAdmin';
 // import AdminLogin from './AdminLogin'; // AdminLogin is now handled in main.jsx
  
 
@@ -26,6 +27,7 @@ function AppAdmin() {
           <Route index element={<DashboardAdmin />} />
           <Route path="dashboard" element={<DashboardAdmin />} />
           <Route path="manage-booking" element={<ManageBookingAdmin />} />
+          <Route path="contact-requests" element={<ContactRequestsAdmin />} />
           <Route path="manage-rooms" element={<ManageRooms />} />
           <Route path="manage-rooms/edit/:id" element={<EditRoom />} />
           <Route path="manage-rooms/add" element={<AddRoom />} />

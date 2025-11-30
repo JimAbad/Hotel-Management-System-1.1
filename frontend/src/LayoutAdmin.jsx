@@ -2,7 +2,7 @@ import React, { useContext, useState, useEffect, useRef } from 'react';
 import { Link, Outlet, useLocation, useNavigate, NavLink } from 'react-router-dom';
 import AuthContextAdmin from './AuthContextAdmin';
 import './LayoutAdmin.css';
-import { FaTachometerAlt, FaBook, FaFileInvoiceDollar, FaStar, FaSignOutAlt, FaBell } from 'react-icons/fa';
+import { FaTachometerAlt, FaBook, FaFileInvoiceDollar, FaStar, FaSignOutAlt, FaBell, FaEnvelopeOpenText } from 'react-icons/fa';
 
 const LayoutAdmin = () => {
   const { logout, token } = useContext(AuthContextAdmin);
@@ -127,7 +127,10 @@ const LayoutAdmin = () => {
               </Link>
             </li>
             <li>
-              <NavLink to="/admin/customer-bills">Customer Bills</NavLink>
+              <NavLink to="/admin/customer-bills"><FaFileInvoiceDollar className="icon" /> Customer Bills</NavLink>
+            </li>
+            <li>
+              <NavLink to="/admin/contact-requests"><FaEnvelopeOpenText className="icon" /> Contact Requests</NavLink>
             </li>
             <li>
               <Link to="/admin/reviews-management" className={location.pathname === '/admin/reviews-management' ? 'active' : ''}>

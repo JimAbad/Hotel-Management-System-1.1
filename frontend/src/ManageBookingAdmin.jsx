@@ -55,6 +55,8 @@ const ManageBookingAdmin = () => {
   const [cleanPriority, setCleanPriority] = useState('low');
   const [cleanSubmitting, setCleanSubmitting] = useState(false);
   const [cleanTimeOptions, setCleanTimeOptions] = useState([]);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteBookingId, setDeleteBookingId] = useState(null);
 
   useEffect(() => {
     if (token) {
@@ -360,16 +362,25 @@ const ManageBookingAdmin = () => {
     }
   };
 
-  const handleDelete = async (bookingId) => {
-    if (window.confirm('Are you sure you want to delete this booking?')) {
-      try {
-        const config = { headers: { Authorization: `Bearer ${token}` } };
-        await axios.delete(`${API_BASE}/api/bookings/${bookingId}`, config);
-        fetchBookings();
-      } catch (err) {
-        console.error('Error deleting booking:', err);
-        alert(err?.response?.data?.message || err.message);
-      }
+  const handleDelete = (bookingId) => {
+    setDeleteBookingId(bookingId);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeleteBooking = async () => {
+    if (!deleteBookingId) return;
+    try {
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+      await axios.delete(`${API_BASE}/api/bookings/${deleteBookingId}`, {
+        ...config,
+        data: { cancellationReasons: ['Admin deletion'], cancellationElaboration: '' }
+      });
+      setShowDeleteModal(false);
+      setDeleteBookingId(null);
+      fetchBookings();
+    } catch (err) {
+      console.error('Error deleting booking:', err);
+      alert(err?.response?.data?.message || err.message);
     }
   };
 
@@ -905,6 +916,22 @@ const ManageBookingAdmin = () => {
             <div className="form-actions">
               <button className="save-btn" onClick={submitCleanTask} disabled={!isValidCleanSelection() || cleanSubmitting}>{cleanSubmitting ? 'Submitting...' : 'Submit'}</button>
               <button className="cancel-btn" onClick={() => setShowCleanModal(false)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showDeleteModal && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h3 style={{ color: 'black' }}>Confirm Delete</h3>
+            </div>
+            <div className="modal-body" style={{ color: 'black' }}>
+              Are you sure you want to delete this booking?
+            </div>
+            <div className="form-actions" style={{ justifyContent: 'flex-end' }}>
+              <button className="cancel-btn cancel-danger" onClick={() => setShowDeleteModal(false)}>Cancel</button>
+              <button className="ok-btn" onClick={confirmDeleteBooking}>Okay</button>
             </div>
           </div>
         </div>

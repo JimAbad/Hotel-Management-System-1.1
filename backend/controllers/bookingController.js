@@ -441,7 +441,7 @@ const cancelBooking = asyncHandler(async (req, res) => {
   }
   
   // Extract cancellation data from request body
-  let { cancellationReasons, cancellationElaboration } = req.body;
+  let { cancellationReasons, cancellationElaboration } = req.body || {};
   
   // Validate that at least one cancellation reason is provided
   const isAdmin = req.user && req.user.role === 'admin';
