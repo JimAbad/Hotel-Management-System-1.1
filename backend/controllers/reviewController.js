@@ -29,6 +29,23 @@ const getReviews = asyncHandler(async (req, res) => {
   res.json(reviews);
 });
 
+// @desc    Get all reviews (public view)
+// @route   GET /api/reviews/public
+// @access  Public
+const getPublicReviews = asyncHandler(async (req, res) => {
+  const list = await Review.find({}).populate('customer', 'name fullName');
+  const mapped = list.map((r) => ({
+    _id: r._id,
+    customerName: (r.customer && (r.customer.fullName || r.customer.name)) || 'Anonymous',
+    createdAt: r.createdAt,
+    overallRating: r.overallRating,
+    serviceQuality: r.serviceQuality,
+    roomQuality: r.roomQuality,
+    detailedFeedback: r.detailedFeedback || '',
+  }));
+  res.json({ success: true, data: mapped });
+});
+
 // @desc    Get reviews for the logged-in user
 // @route   GET /api/reviews/myreviews
 // @access  Private
@@ -99,4 +116,5 @@ module.exports = {
   updateReview,
   deleteReview,
   getMyReviews, // Export the new function
+  getPublicReviews,
 };

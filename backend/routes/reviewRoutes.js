@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { createReview, getReviews, getReviewById, updateReview, deleteReview, getMyReviews } = require('../controllers/reviewController');
+const { createReview, getReviews, getReviewById, updateReview, deleteReview, getMyReviews, getPublicReviews } = require('../controllers/reviewController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
 router.route('/')
@@ -8,6 +8,9 @@ router.route('/')
   .get(protect, getReviews);
 
 router.get('/myreviews', protect, getMyReviews); // New route for user-specific reviews
+
+// Public reviews (read-only)
+router.get('/public', getPublicReviews);
 
 router.route('/:id')
   .get(protect, getReviewById)
