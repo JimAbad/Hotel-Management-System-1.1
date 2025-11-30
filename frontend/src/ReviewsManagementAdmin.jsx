@@ -229,9 +229,9 @@ const ReviewsManagementAdmin = () => {
       {confirmId && (
         <div className="confirm-overlay">
           <div className="confirm-modal">
-            <h3>Confirm Deletion</h3>
-            <p>Are you sure you want to delete this review record?</p>
-            <p>This will also delete all related feedback about this review.</p>
+            <h3 style={{ color: 'black' }}>Confirm Deletion</h3>
+            <p style={{ color: 'black' }}>Are you sure you want to delete this review record?</p>
+            <p style={{ color: 'black' }}>This will also delete all related feedback about this review.</p>
             <div className="confirm-actions">
               <button className="btn-yes" onClick={confirmDelete}>Yes, Delete.</button>
               <button className="btn-cancel" onClick={() => setConfirmId(null)}>Cancel</button>
