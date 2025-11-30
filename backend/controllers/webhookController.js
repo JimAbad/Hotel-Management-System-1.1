@@ -177,6 +177,12 @@ const handlePayMongoWebhook = async (req, res) => {
       booking.paymentAmount = paidAmount;
       booking.paymongoPaymentId = resource?.id || booking.paymongoPaymentId;
       
+      // Convert draft booking to confirmed when payment is received
+      if (booking.status === 'draft') {
+        booking.status = 'confirmed';
+        console.log(`Draft booking ${bookingId} converted to confirmed via payment`);
+      }
+      
       // Set payment status based on amount paid vs total amount
       if (paidAmount < booking.totalAmount) {
         booking.paymentStatus = 'partial';
@@ -193,10 +199,18 @@ const handlePayMongoWebhook = async (req, res) => {
       await booking.save();
       console.log(`Booking ${bookingId} remains pending (payment failed)`);
     } else if (evtType === 'qrph.expired') {
-      // QRPh source expired; allow reattempt by keeping pending
-      booking.paymentStatus = 'pending';
-      await booking.save();
-      console.log(`Booking ${bookingId} remains pending (QRPh expired)`);
+      // QRPh source expired; cancel draft booking
+      if (booking.status === 'draft') {
+        booking.status = 'cancelled';
+        booking.paymentStatus = 'pending'; // Keep payment status as pending for cancelled drafts
+        await booking.save();
+        console.log(`Draft booking ${bookingId} cancelled (QRPh expired)`);
+      } else {
+        // For non-draft bookings, keep as pending to allow retrial
+        booking.paymentStatus = 'pending';
+        await booking.save();
+        console.log(`Booking ${bookingId} remains pending (QRPh expired)`);
+      }
     } else if (evtType === 'source.chargeable') {
       // When a source becomes chargeable, attempt to create a payment
       try {

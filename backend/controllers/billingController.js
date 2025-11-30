@@ -51,11 +51,20 @@ exports.getBillings = asyncHandler(async (req, res, next) => {
   const billings = await Billing.find({ user: req.user.id })
     .populate({
       path: 'booking',
-      select: 'roomNumber checkIn checkOut'
+      select: 'roomNumber checkIn checkOut paymentStatus status'
     });
 
   // Filter out billings that reference non-existent bookings (cancelled bookings)
-  const validBillings = billings.filter(billing => billing.booking !== null);
+  // and only show billings for bookings that have been paid or have partial payment
+  const validBillings = billings.filter(billing => {
+    // Filter out cancelled bookings
+    if (!billing.booking) return false;
+    
+    // Only show billings for bookings with payment status of 'paid' or 'partial'
+    // This prevents unpaid bookings from appearing in the billings page
+    const paymentStatus = billing.booking.paymentStatus;
+    return paymentStatus === 'paid' || paymentStatus === 'partial';
+  });
 
   res.status(200).json({
     success: true,
@@ -68,11 +77,17 @@ exports.getBillings = asyncHandler(async (req, res, next) => {
 // @route   GET /api/billings/booking/:bookingId
 // @access  Private
 exports.getBookingBillings = asyncHandler(async (req, res, next) => {
-  // Check if the booking exists first
+  // Check if the booking exists first and has valid payment status
   const booking = await Booking.findById(req.params.bookingId);
   
   if (!booking) {
     return next(new ErrorResponse(`Booking not found or has been cancelled`, 404));
+  }
+
+  // Only show billings for bookings that have been paid or have partial payment
+  // This prevents unpaid bookings from appearing in billing details
+  if (booking.paymentStatus !== 'paid' && booking.paymentStatus !== 'partial') {
+    return next(new ErrorResponse(`No billing records found for unpaid bookings`, 404));
   }
 
   const billings = await Billing.find({ 
@@ -172,17 +187,23 @@ exports.getAdminBillings = asyncHandler(async (req, res, next) => {
   const billings = await Billing.find()
     .populate({
       path: 'booking',
-      select: 'roomNumber checkIn checkOut'
+      select: 'roomNumber checkIn checkOut paymentStatus status'
     })
     .populate({
       path: 'user',
       select: 'name email'
     });
 
+  // Filter out billings for draft bookings
+  const validBillings = billings.filter(billing => {
+    if (!billing.booking) return true; // Keep billings without bookings
+    return billing.booking.status !== 'draft';
+  });
+
   res.status(200).json({
     success: true,
-    count: billings.length,
-    data: billings
+    count: validBillings.length,
+    data: validBillings
   });
 });
 
@@ -365,8 +386,11 @@ exports.getRoomBillings = asyncHandler(async (req, res, next) => {
 // @route   GET /api/billings/summary
 // @access  Private
 exports.getUserBillingSummary = asyncHandler(async (req, res, next) => {
-  // Get unique room numbers from user's bookings
-  const userBookings = await Booking.find({ user: req.user.id })
+  // Get unique room numbers from user's bookings that have been paid or have partial payment
+  const userBookings = await Booking.find({ 
+    user: req.user.id,
+    paymentStatus: { $in: ['paid', 'partial'] }
+  })
     .select('roomNumber totalAmount')
     .distinct('roomNumber');
 
@@ -378,15 +402,22 @@ exports.getUserBillingSummary = asyncHandler(async (req, res, next) => {
       user: req.user.id 
     }).populate({
       path: 'booking',
-      select: 'checkIn checkOut totalAmount'
+      select: 'checkIn checkOut totalAmount paymentStatus'
     });
 
-    if (roomBillings.length > 0) {
+    // Filter out billings for unpaid bookings
+    const validBillings = roomBillings.filter(billing => {
+      if (!billing.booking) return false;
+      const paymentStatus = billing.booking.paymentStatus;
+      return paymentStatus === 'paid' || paymentStatus === 'partial';
+    });
+
+    if (validBillings.length > 0) {
       let totalRoomCharges = 0;
       let totalExtraCharges = 0;
       let paidAmount = 0;
 
-      roomBillings.forEach(billing => {
+      validBillings.forEach(billing => {
         if (billing.description && billing.description.includes('Room booking charge')) {
           totalRoomCharges += billing.amount;
         } else {
@@ -406,7 +437,7 @@ exports.getUserBillingSummary = asyncHandler(async (req, res, next) => {
         totalExtraCharges: totalExtraCharges,
         paidAmount: paidAmount,
         remainingBalance: remainingBalance,
-        billings: roomBillings
+        billings: validBillings
       });
     }
   }

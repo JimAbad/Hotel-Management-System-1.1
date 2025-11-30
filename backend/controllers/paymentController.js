@@ -357,6 +357,11 @@ exports.getPayMongoPaymentDetails = async (req, res, next) => {
       return next(new ErrorResponse('Booking not found', 404));
     }
 
+    // Don't allow payment for cancelled draft bookings
+    if (booking.status === 'cancelled') {
+      return next(new ErrorResponse('Booking has been cancelled', 400));
+    }
+
     // Only allow the owner of the booking or an admin to access the details
     if (booking.user.toString() !== req.user.id && req.user.role !== 'admin') {
       return next(new ErrorResponse('Not authorized to view this booking', 401));

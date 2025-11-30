@@ -30,9 +30,13 @@ const getAllBookings = asyncHandler(async (req, res) => {
     ];
   }
 
-  // By default, only show bookings with successful or partial payments
+  // By default, only show bookings with successful or partial payments, exclude drafts
   if (!includePendingPayment || String(includePendingPayment).toLowerCase() !== 'true') {
     query.paymentStatus = { $in: ['paid', 'partial'] };
+    query.status = { $nin: ['draft'] };
+  } else {
+    // Even when including pending payments, exclude draft bookings
+    query.status = { $nin: ['draft'] };
   }
 
   const bookings = await Booking.find(query)
@@ -73,7 +77,7 @@ const createBooking = asyncHandler(async (req, res) => {
     specialRequests
   } = req.body;
 
-  // Check booking limit (3 bookings per user)
+  // Check booking limit (3 bookings per user) - exclude draft bookings
   const userActiveBookings = await Booking.countDocuments({
     $and: [
       {
@@ -83,7 +87,7 @@ const createBooking = asyncHandler(async (req, res) => {
         ]
       },
       {
-        status: { $nin: ['cancelled', 'completed'] }
+        status: { $nin: ['draft', 'cancelled', 'completed'] }
       },
       {
         checkOut: { $gte: new Date() }
@@ -209,6 +213,8 @@ const createBooking = asyncHandler(async (req, res) => {
       roomNumber: null,
       numberOfGuests,
       totalAmount,
+      status: 'draft', // Set initial status to draft
+      paymentStatus: 'pending'
     };
 
     console.log('Booking data before creation:', bookingData);
