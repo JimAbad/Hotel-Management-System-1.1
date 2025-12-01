@@ -24,7 +24,4 @@ const holidaySchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Create index for efficient date queries
-holidaySchema.index({ date: 1 });
-
 module.exports = mongoose.model('Holiday', holidaySchema);

@@ -3,12 +3,9 @@ const connectDB = require('./config/db');
 const cors = require('cors');
 const { startBookingExpirationUpdater } = require('./utils/bookingExpirationUpdater');
 const { startPaymongoStatusRefresher } = require('./utils/paymongoStatusRefresher');
-require('dotenv').config();
+require('dotenv').config({ override: true });
 
 const app = express();
-
-// Connect Database
-connectDB();
 
 // Init Middleware
 app.use(express.json({
@@ -48,6 +45,9 @@ app.use('/api/payment', require('./routes/paymentRoutes'));
 console.log('Payment routes loaded');
 app.use('/api/billings', require('./routes/billingRoutes'));
 app.use('/api/test', require('./routes/testRoutes'));
+
+// ADD THIS IMPORT BEFORE MOUNTING /api/debug
+const debugRoutes = require('./routes/debugRoutes');
 app.use('/api/debug', debugRoutes);
 
 app.use('/api/reviews', require('./routes/reviewRoutes'));
@@ -75,27 +75,32 @@ app.use((err, req, res, next) => {
   });
 });
 
-const PORT = process.env.PORT || 3000;
+// Match Vite proxy (frontend/vite.config.js proxies /api -> http://localhost:5000)
+const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  
-  // Start the booking expiration updater service
-  startBookingExpirationUpdater();
-  // Start PayMongo status refresher to guard against missing webhooks
-  startPaymongoStatusRefresher();
+(async () => {
+  try {
+    await connectDB(); // wait for DB before starting server
 
-  // Drop legacy unique index on tasks.taskId to prevent E11000 on null
-  (async () => {
-    try {
-      const Task = require('./models/taskModel');
-      const idx = await Task.collection.indexes();
-      if (Array.isArray(idx) && idx.some((i) => i.name === 'taskId_1')) {
-        await Task.collection.dropIndex('taskId_1');
-        console.log('Dropped legacy index taskId_1 on tasks collection');
-      }
-    } catch (e) {
-      console.warn('Task index check/drop failed:', e && e.message);
-    }
-  })();
-});
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+      startBookingExpirationUpdater();
+      startPaymongoStatusRefresher();
+      (async () => {
+        try {
+          const Task = require('./models/taskModel');
+          const idx = await Task.collection.indexes();
+          if (Array.isArray(idx) && idx.some((i) => i.name === 'taskId_1')) {
+            await Task.collection.dropIndex('taskId_1');
+            console.log('Dropped legacy index taskId_1 on tasks collection');
+          }
+        } catch (e) {
+          console.warn('Task index check/drop failed:', e && e.message);
+        }
+      })();
+    });
+  } catch (e) {
+    console.error('Failed to start server:', e.message);
+    process.exit(1);
+  }
+})();
