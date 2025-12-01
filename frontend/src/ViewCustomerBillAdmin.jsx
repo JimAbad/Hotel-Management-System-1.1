@@ -1,46 +1,73 @@
 import React from 'react';
 import './ViewCustomerBillAdmin.css';
 
-const peso = (v) => '₱' + Number(v || 0).toLocaleString('en-PH');
+const ViewCustomerBillAdmin = () => {
+  const { token } = useAuthAdmin();
+  const API_URL = (() => {
+    const fallback = 'https://hotel-management-system-1-1-backend.onrender.com';
+    const env = import.meta.env.VITE_API_URL;
+    const envNorm = String(env || '').replace(/\/+$/, '');
+    const originNorm = typeof window !== 'undefined' ? window.location.origin.replace(/\/+$/, '') : '';
+    return envNorm && envNorm !== originNorm ? envNorm : fallback;
+  })();
+  const [bills, setBills] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+  const [error, setError] = useState(null);
 
-const toLocalDate = (d) => {
-  if (!d) return '—';
-  try {
-    return new Date(d).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
-  } catch {
-    return d;
-  }
-};
+  // Fetch all customer bills
+  useEffect(() => {
+    const fetchBills = async () => {
+      try {
+        setLoading(true);
+        const config = {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        };
+        const { data } = await axios.get(`${API_URL}/api/customer-bills`, config);
+        setBills(data);
+      } catch (error) {
+        console.error('Failed to load bills', error);
+        setError('Failed to load bills');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchBills();
+  }, [API_URL, token]);
 
-const getRoomType = (b) =>
-  b.roomType || b.room_type || b.room?.type || b.roomCategory || b.roomClass || '—';
+  // Filter + Search
+  const filteredBills = bills.filter((bill) => {
+    const matchesSearch =
+      bill.customerName.toLowerCase().includes(search.toLowerCase()) ||
+      bill.specialId.toLowerCase().includes(search.toLowerCase());
+    const matchesFilter = filterStatus ? bill.paymentStatus === filterStatus : true;
+    return matchesSearch && matchesFilter;
+  });
 
-const getDates = (b) => {
-  const cin = b.checkInDate || b.checkinDate || b.check_in || b.startDate || b.dateFrom;
-  const cout = b.checkOutDate || b.checkoutDate || b.check_out || b.endDate || b.dateTo;
-  return `${toLocalDate(cin)} - ${toLocalDate(cout)}`;
-};
+  // Handle mark as paid
+  const handleMarkAsPaid = async (id) => {
+    try {
+      const config = {
+        headers: { Authorization: `Bearer ${token}` },
+      };
+      await axios.put(`${API_URL}/api/customer-bills/${id}/mark-paid`, {}, config);
+      alert('Payment status updated to Paid!');
+      setBills((prev) =>
+        prev.map((bill) =>
+          bill._id === id ? { ...bill, paymentStatus: 'Paid' } : bill
+        )
+      );
+    } catch (err) {
+      console.error('Error marking bill as paid', err);
+      alert('Failed to update payment status.');
+    }
+  };
 
-const getGuests = (b) => {
-  const adults = Number(b.adults ?? b.numAdults ?? b.guests?.adults ?? 0);
-  const children = Number(b.children ?? b.numChildren ?? b.guests?.children ?? 0);
-  return `${adults} Adult${adults === 1 ? '' : 's'}, ${children} Children`;
-};
-
-const getRatePerNight = (b) => {
-  const rate = b.roomRate ?? b.ratePerNight ?? b.nightlyRate ?? b.rate ?? b.amountPerNight ?? 0;
-  return `${peso(rate)} per night`;
-};
-
-const getTotal = (b) => {
-  if (b.totalAmount != null) return peso(b.totalAmount);
-  if (b.total != null) return peso(b.total);
-  if (Array.isArray(b.items)) return peso(b.items.reduce((s, i) => s + Number(i.amount || 0), 0));
-  return peso(b.amount || 0);
-};
-
-const ViewCustomerBillAdmin = ({ bill, onClose }) => {
-  if (!bill) return null;
+  if (loading) return <div className="view-customer-bill-container">Loading bills...</div>;
+  if (error) return <div className="view-customer-bill-container">Error: {error}</div>;
 
   return (
     <div className="view-bill-modal-backdrop">

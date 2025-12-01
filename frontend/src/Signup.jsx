@@ -11,6 +11,7 @@ const Signup = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [contactNumber, setContactNumber] = useState('');
   const [isModalOpen, setModalOpen] = useState(false);
   const [code, setCode] = useState('');
   const [verificationMsg, setVerificationMsg] = useState('');
@@ -28,7 +29,11 @@ const Signup = () => {
   const { register } = useContext(AuthContext);
   const navigate = useNavigate();
 
-  const API_BASE = import.meta.env.VITE_API_URL || 'https://hotel-management-system-1-1backend.onrender.com';
+  const API_BASE = import.meta.env.VITE_API_URL || 'https://hotel-management-system-1-1-backend.onrender.com';
+
+  const postWithTimeout = async (url, body, ms) => {
+    return await axios.post(url, body, { timeout: ms });
+  };
 
   // Helper function to capitalize first letter of each word
   const capitalizeWords = (str) => {
@@ -78,7 +83,19 @@ const Signup = () => {
     setVerificationMsg('');
     setRequesting(true);
     try {
-      await axios.post(`${API_BASE}/api/auth/request-verification-code`, { email });
+      let resp;
+      try {
+        resp = await postWithTimeout(`${API_BASE}/api/auth/request-verification-code`, { email }, 20000);
+      } catch (e1) {
+        setVerificationMsg('Request timed out. Retrying...');
+        resp = await postWithTimeout(`${API_BASE}/api/auth/request-verification-code`, { email }, 35000);
+      }
+      if (resp && resp.status >= 200 && resp.status < 300) {
+        const includeCode = resp.data?.debugCode;
+        setModalOpen(true);
+        setVerificationMsg(includeCode ? `Code: ${includeCode}` : 'We sent a 6-digit code to your email.');
+        return;
+      }
       setModalOpen(true);
       setVerificationMsg('We sent a 6-digit code to your email.');
     } catch (error) {
@@ -98,13 +115,22 @@ const Signup = () => {
     setVerifying(true);
     setVerificationMsg('');
     try {
-      await axios.post(`${API_BASE}/api/auth/verify-code`, { email, code });
+      let resp;
+      try {
+        resp = await postWithTimeout(`${API_BASE}/api/auth/verify-code`, { email, code }, 20000);
+      } catch (e1) {
+        setVerificationMsg('Request timed out. Retrying...');
+        resp = await postWithTimeout(`${API_BASE}/api/auth/verify-code`, { email, code }, 35000);
+      }
+      if (!(resp && resp.status >= 200 && resp.status < 300)) {
+        throw new Error(resp?.data?.msg || 'Invalid code');
+      }
       setVerificationMsg('Email verified. Proceeding with signup...');
       
       // Automatically proceed with registration after verification
       setTimeout(async () => {
         setModalOpen(false);
-        const success = await register(fullName, email, username, password);
+        const success = await register(fullName, email, username, password, contactNumber);
         if (success) {
           navigate('/login');
         }
@@ -186,6 +212,15 @@ const Signup = () => {
               onChange={(e) => setEmail(e.target.value)}
               required
               icon="fa-solid fa-envelope"
+            />
+            <FormGroup
+              label="Contact Number"
+              type="text"
+              value={contactNumber}
+              onChange={(e) => setContactNumber(e.target.value)}
+              required
+              icon="fa-solid fa-phone"
+              placeholder="e.g., 09xxxxxxxxx"
             />
             <FormGroup
               label="Username"

@@ -60,6 +60,8 @@ app.use('/webhooks', require('./routes/webhookRoutes'));
 
 const customerBillRoutes = require('./routes/customerBillRoutes');
 app.use('/api/customer-bills', customerBillRoutes);
+app.use('/api/contact-messages', require('./routes/contactMessageRoutes'));
+app.use('/api/holidays', require('./routes/holidayRoutes'));
 
 // Health check endpoint
 app.use('/', require('./routes/healthRoutes'));
@@ -82,4 +84,18 @@ app.listen(PORT, () => {
   startBookingExpirationUpdater();
   // Start PayMongo status refresher to guard against missing webhooks
   startPaymongoStatusRefresher();
+
+  // Drop legacy unique index on tasks.taskId to prevent E11000 on null
+  (async () => {
+    try {
+      const Task = require('./models/taskModel');
+      const idx = await Task.collection.indexes();
+      if (Array.isArray(idx) && idx.some((i) => i.name === 'taskId_1')) {
+        await Task.collection.dropIndex('taskId_1');
+        console.log('Dropped legacy index taskId_1 on tasks collection');
+      }
+    } catch (e) {
+      console.warn('Task index check/drop failed:', e && e.message);
+    }
+  })();
 });

@@ -8,7 +8,7 @@ const EditRoom = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { token } = useAuthAdmin();
-  const API_URL = import.meta.env.VITE_API_URL || 'https://hotel-management-system-1-1backend.onrender.com';
+  const API_URL = import.meta.env.VITE_API_URL || 'https://hotel-management-system-1-1-backend.onrender.com';
   const [room, setRoom] = useState(null);
   const [formData, setFormData] = useState({
     roomNumber: '',

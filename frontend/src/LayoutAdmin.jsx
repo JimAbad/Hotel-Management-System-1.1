@@ -2,7 +2,7 @@ import React, { useContext, useState, useEffect, useRef } from 'react';
 import { Link, Outlet, useLocation, useNavigate, NavLink } from 'react-router-dom';
 import AuthContextAdmin from './AuthContextAdmin';
 import './LayoutAdmin.css';
-import { FaTachometerAlt, FaBook, FaFileInvoiceDollar, FaStar, FaSignOutAlt, FaBell } from 'react-icons/fa';
+import { FaTachometerAlt, FaBook, FaFileInvoiceDollar, FaStar, FaSignOutAlt, FaBell, FaEnvelopeOpenText } from 'react-icons/fa';
 
 const LayoutAdmin = () => {
   const { logout, token } = useContext(AuthContextAdmin);
@@ -16,7 +16,7 @@ const LayoutAdmin = () => {
 
   const loadNotifications = async () => {
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'https://hotel-management-system-1-1backend.onrender.com';
+      const API_URL = import.meta.env.VITE_API_URL || 'https://hotel-management-system-1-1-backend.onrender.com';
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const bookingsResp = await fetch(`${API_URL}/api/bookings`, { headers });
       const bookings = await bookingsResp.json();
@@ -24,7 +24,8 @@ const LayoutAdmin = () => {
       const needAssign = list.filter(b => {
         const rn = b.roomNumber || (b.room && b.room.roomNumber);
         const st = String(b.status || '').toLowerCase();
-        return !rn && !['cancelled','completed'].includes(st);
+        const paid = ['paid','partial'].includes(String(b.paymentStatus || '').toLowerCase());
+        return paid && !rn && !['cancelled','completed'].includes(st);
       }).map(b => ({ id: b._id, text: `Booking ${b.referenceNumber || String(b._id).slice(-6)} needs room assignment` }));
 
       const billsResp = await fetch(`${API_URL}/api/billings/admin`, { headers });
@@ -127,7 +128,10 @@ const LayoutAdmin = () => {
               </Link>
             </li>
             <li>
-              <NavLink to="/admin/customer-bills">Customer Bills</NavLink>
+              <NavLink to="/admin/customer-bills"><FaFileInvoiceDollar className="icon" /> Customer Bills</NavLink>
+            </li>
+            <li>
+              <NavLink to="/admin/contact-requests"><FaEnvelopeOpenText className="icon" /> Contact Requests</NavLink>
             </li>
             <li>
               <Link to="/admin/reviews-management" className={location.pathname === '/admin/reviews-management' ? 'active' : ''}>

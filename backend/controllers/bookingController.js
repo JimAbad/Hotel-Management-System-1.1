@@ -4,6 +4,7 @@ const Room = require('../models/roomModel');
 const BookingActivity = require('../models/bookingActivityModel');
 const CancelledBooking = require('../models/cancelledBookingModel');
 const Billing = require('../models/Billing');
+const Holiday = require('../models/holidayModel');
 const asyncHandler = require('../middleware/async');
 const ErrorResponse = require('../utils/errorResponse');
 const { triggerExpiredBookingCheck } = require('../utils/bookingExpirationUpdater');
@@ -12,7 +13,7 @@ const { triggerExpiredBookingCheck } = require('../utils/bookingExpirationUpdate
 // @route   GET /api/bookings
 // @access  Admin
 const getAllBookings = asyncHandler(async (req, res) => {
-  const { status, search } = req.query;
+  const { status, search, includePendingPayment } = req.query;
   let query = {};
 
   // Add status filter if provided
@@ -27,6 +28,16 @@ const getAllBookings = asyncHandler(async (req, res) => {
       { referenceNumber: { $regex: search, $options: 'i' } },
       { roomNumber: { $regex: search, $options: 'i' } }
     ];
+  }
+
+  // For admin view, show all bookings regardless of payment status
+  // This ensures admins can see all bookings including unpaid pending ones
+  if (!includePendingPayment || String(includePendingPayment).toLowerCase() !== 'true') {
+    // Show all bookings except cancelled/completed ones
+    query.status = { $nin: ['cancelled', 'completed'] };
+  } else {
+    // When including pending payments, show all bookings
+    // No additional filtering needed - show everything
   }
 
   const bookings = await Booking.find(query)
@@ -67,7 +78,7 @@ const createBooking = asyncHandler(async (req, res) => {
     specialRequests
   } = req.body;
 
-  // Check booking limit (3 bookings per user)
+  // Check booking limit (3 bookings per user) - exclude pending bookings
   const userActiveBookings = await Booking.countDocuments({
     $and: [
       {
@@ -77,7 +88,7 @@ const createBooking = asyncHandler(async (req, res) => {
         ]
       },
       {
-        status: { $nin: ['cancelled', 'completed'] }
+        status: { $nin: ['pending', 'cancelled', 'completed'] }
       },
       {
         checkOut: { $gte: new Date() }
@@ -115,7 +126,23 @@ const createBooking = asyncHandler(async (req, res) => {
     res.status(500);
     throw new Error('Room price is not a valid number.');
   }
-  const subtotal = numberOfHours * roomPrice;
+  let subtotal = numberOfHours * roomPrice;
+  
+  // Check if check-in date is a holiday and apply holiday pricing
+  const checkInDateOnly = new Date(checkInDate);
+  checkInDateOnly.setHours(0, 0, 0, 0);
+  
+  const holiday = await Holiday.findOne({ 
+    date: checkInDateOnly, 
+    isActive: true 
+  });
+  
+  if (holiday) {
+    // Apply holiday multiplier to subtotal
+    subtotal = subtotal * holiday.priceMultiplier;
+    console.log(`Holiday pricing applied: ${holiday.name} - ${holiday.priceMultiplier * 100}% of regular price`);
+  }
+  
   const taxesAndFees = subtotal * 0.12; // Assuming 12% tax
   const totalAmount = subtotal + taxesAndFees;
 
@@ -187,6 +214,8 @@ const createBooking = asyncHandler(async (req, res) => {
       roomNumber: null,
       numberOfGuests,
       totalAmount,
+      status: 'pending', // Set initial status to pending
+      paymentStatus: 'pending'
     };
 
     console.log('Booking data before creation:', bookingData);
@@ -379,7 +408,17 @@ const getMyBookings = asyncHandler(async (req, res) => {
         ]
       },
       {
-        paymentStatus: { $in: ['paid', 'partial'] }
+        $or: [
+          // Show non-pending bookings (confirmed, occupied, etc.)
+          { status: { $nin: ['pending'] } },
+          // Show pending bookings that have been paid (partial or full)
+          { 
+            $and: [
+              { status: 'pending' },
+              { paymentStatus: { $in: ['paid', 'partial'] } }
+            ]
+          }
+        ]
       }
     ]
   })
@@ -441,7 +480,7 @@ const cancelBooking = asyncHandler(async (req, res) => {
   }
   
   // Extract cancellation data from request body
-  let { cancellationReasons, cancellationElaboration } = req.body;
+  let { cancellationReasons, cancellationElaboration } = req.body || {};
   
   // Validate that at least one cancellation reason is provided
   const isAdmin = req.user && req.user.role === 'admin';

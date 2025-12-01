@@ -29,4 +29,19 @@ const getTasksAdmin = async (req, res) => {
   }
 };
 
-module.exports = { createTaskFromCleaningRequest, getTasksAdmin };
+const updateTaskStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body || {};
+    if (!status) return res.status(400).json({ message: 'Missing status' });
+    const allowed = ['open','in_progress','completed','cancelled'];
+    if (!allowed.includes(String(status))) return res.status(400).json({ message: 'Invalid status' });
+    const updated = await Task.findOneAndUpdate({ _id: id }, { status }, { new: true });
+    if (!updated) return res.status(404).json({ message: 'Task not found' });
+    res.json({ success: true, data: updated });
+  } catch (err) {
+    res.status(500).json({ message: err.message || 'Server error' });
+  }
+};
+
+module.exports = { createTaskFromCleaningRequest, getTasksAdmin, updateTaskStatus };

@@ -5,7 +5,7 @@ import './MyBookings.css';
 
 function MyBookings() {
   const API_URL = (() => {
-    const fallback = 'https://hotel-management-system-1-1backend.onrender.com';
+    const fallback = 'https://hotel-management-system-1-1-backend.onrender.com';
     const env = import.meta.env.VITE_API_URL;
     const envNorm = String(env || '').replace(/\/+$/, '');
     const originNorm = typeof window !== 'undefined' ? window.location.origin.replace(/\/+$/, '') : '';
@@ -381,16 +381,7 @@ function MyBookings() {
                       {cancelingId === booking._id ? 'Cancelling...' : 'Cancel booking'}
                     </button>
                   )}
-                  {['confirmed','occupied','pending'].includes(String(booking.status || booking.bookingStatus).toLowerCase()) && (
-                    <button 
-                      onClick={() => openCleaning(booking)} 
-                      style={{ marginLeft: '8px' }}
-                      disabled={requestedRooms[String(booking.roomNumber || '').trim()]}
-                      title={requestedRooms[String(booking.roomNumber || '').trim()] ? 'already requested cleaning for this room' : ''}
-                    >
-                      Request Cleaning
-                    </button>
-                  )}
+
                 </div>
               </div>
             </div>

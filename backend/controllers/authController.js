@@ -372,17 +372,17 @@ exports.forgotPassword = async (req, res) => {
       htmlPresent: !!emailHtml
     };
     
-    await sendEmail({ 
-      to: email, 
-      subject: emailSubject, 
-      text: emailText, 
-      html: emailHtml 
-    });
-
-    res.status(200).json({ 
-      msg: 'Password reset code sent to your email',
-      debug: debugInfo 
-    });
+    let delivery = 'smtp';
+    try {
+      await sendEmail({ to: email, subject: emailSubject, text: emailText, html: emailHtml });
+    } catch (sendErr) {
+      console.warn('Email send failed, using mock fallback:', sendErr?.message);
+      delivery = 'mock';
+    }
+    const includeCode = process.env.ALLOW_CODE_IN_RESPONSE === 'true';
+    const payload = { msg: 'Password reset code sent to your email', debug: debugInfo, delivery };
+    if (includeCode) payload.debugCode = code;
+    res.status(200).json(payload);
   } catch (error) {
     console.error('Error in forgotPassword:', error);
     debugInfo.error = {

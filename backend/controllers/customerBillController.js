@@ -6,16 +6,18 @@ exports.getAllCustomerBills = asyncHandler(async (req, res) => {
   const docs = await Billing.find({})
     .populate({
       path: 'booking',
-      select: 'referenceNumber customerName checkOut roomNumber'
+      select: 'referenceNumber customerName checkOut roomNumber status'
     })
     .lean();
-  // Exclude bills tied to bookings whose check-out date has passed
+  // Exclude bills tied to bookings whose check-out date has passed and unpaid pending bookings
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const activeBills = (docs || []).filter((d) => {
     const co = d?.booking?.checkOut ? new Date(d.booking.checkOut) : null;
     // Exclude if missing or past check-out
     if (!co || isNaN(co)) return false;
+    // Exclude unpaid pending bookings, but show paid pending bookings
+    if (d?.booking?.status === 'pending' && d?.booking?.paymentStatus === 'pending') return false;
     return co >= today;
   });
   // Sort by most recent check-out first
@@ -33,9 +35,15 @@ exports.getCustomerBill = asyncHandler(async (req, res) => {
   const bill = await Billing.findOne({ bookingId: req.params.bookingId })
     .populate({
       path: 'booking',
-      select: 'referenceNumber customerName checkOut roomNumber'
+      select: 'referenceNumber customerName checkOut roomNumber status'
     })
     .lean();
   if (!bill) return res.status(404).json({ success: false, message: 'Bill not found' });
+  
+  // Don't return bills for unpaid draft bookings, but show paid draft bookings
+  if (bill.booking?.status === 'draft' && bill.booking?.paymentStatus === 'pending') {
+    return res.status(404).json({ success: false, message: 'Bill not found' });
+  }
+  
   res.status(200).json({ success: true, bill });
 });

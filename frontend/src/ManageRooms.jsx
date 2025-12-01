@@ -11,7 +11,7 @@ const ManageRooms = () => {
   const [error, setError] = useState(null);
   const navigate = useNavigate();
   const { token } = useAuthAdmin();
-  const API_URL = import.meta.env.VITE_API_URL || 'https://hotel-management-system-1-1backend.onrender.com';
+  const API_URL = import.meta.env.VITE_API_URL || 'https://hotel-management-system-1-1-backend.onrender.com';
 
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this room?')) {

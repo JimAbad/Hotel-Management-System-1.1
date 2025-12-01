@@ -7,7 +7,7 @@ import './ManageBookingAdmin.css';
 const ManageBookingsAdmin = () => {
   const { token } = useAuthAdmin();
   const API_BASE = (() => {
-    const fallback = 'https://hotel-management-system-1-1backend.onrender.com';
+    const fallback = 'https://hotel-management-system-1-1-backend.onrender.com';
     const env = import.meta.env.VITE_API_URL;
     const envNorm = String(env || '').replace(/\/+$/, '');
     const originNorm = typeof window !== 'undefined' ? window.location.origin.replace(/\/+$/, '') : '';
@@ -47,20 +47,13 @@ const ManageBookingsAdmin = () => {
     specialRequest: ''
   });
   const [reservationSummary, setReservationSummary] = useState(null);
-  const [cleaningRequests, setCleaningRequests] = useState([]);
-  const [showCleanModal, setShowCleanModal] = useState(false);
-  const [activeRequest, setActiveRequest] = useState(null);
-  const [cleanDate, setCleanDate] = useState('');
-  const [cleanTime, setCleanTime] = useState('');
-  const [cleanPriority, setCleanPriority] = useState('low');
-  const [cleanSubmitting, setCleanSubmitting] = useState(false);
-  const [cleanTimeOptions, setCleanTimeOptions] = useState([]);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteBookingId, setDeleteBookingId] = useState(null);
 
   useEffect(() => {
     if (token) {
       fetchBookings();
       fetchRooms();
-      fetchCleaningRequests();
     }
   }, [statusFilter, searchQuery, token]);
 
@@ -220,29 +213,7 @@ const ManageBookingsAdmin = () => {
     }
   };
 
-  const fetchCleaningRequests = async () => {
-    try {
-      const res = await axios.get(`${API_BASE}/api/requests/cleaning`, { headers: { Authorization: `Bearer ${token}` } });
-      const list = res?.data?.data || [];
-      setCleaningRequests(Array.isArray(list) ? list : []);
-    } catch {
-      setCleaningRequests([]);
-    }
-  };
 
-  const openScheduleClean = (req) => {
-    setActiveRequest(req);
-    const d = new Date(req.scheduledAt);
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth()+1).padStart(2,'0');
-    const dd = String(d.getDate()).padStart(2,'0');
-    const hh = String(d.getHours()).padStart(2,'0');
-    const mi = String(d.getMinutes()).padStart(2,'0');
-    setCleanDate(`${yyyy}-${mm}-${dd}`);
-    setCleanTime(`${hh}:${mi}`);
-    setCleanPriority('low');
-    setShowCleanModal(true);
-  };
 
   const getTodayStr = () => {
     const d = new Date();
@@ -265,63 +236,7 @@ const ManageBookingsAdmin = () => {
     const mi = String(d.getMinutes()).padStart(2,'0');
     return `${hh}:${mi}`;
   };
-  const formatDisplayTime = (hhmm) => {
-    const [hh, mm] = hhmm.split(':');
-    let h = parseInt(hh, 10);
-    const ampm = h >= 12 ? 'PM' : 'AM';
-    if (h === 0) h = 12;
-    if (h > 12) h = h - 12;
-    return `${h}:${mm} ${ampm}`;
-  };
-  const buildTimeOptions = (dateStr) => {
-    if (!dateStr) return [];
-    const startHHMM = dateStr === getTodayStr() ? getNextHalfHour() : '00:00';
-    const [startH, startM] = startHHMM.split(':').map(x => parseInt(x, 10));
-    const opts = [];
-    for (let h = startH; h <= 23; h++) {
-      for (let m of [0, 30]) {
-        if (h === startH && m < startM) continue;
-        const hh = String(h).padStart(2,'0');
-        const mm = String(m).padStart(2,'0');
-        const val = `${hh}:${mm}`;
-        opts.push(val);
-      }
-    }
-    return opts;
-  };
-  useEffect(() => {
-    const opts = buildTimeOptions(cleanDate);
-    setCleanTimeOptions(opts);
-    if (!opts.includes(cleanTime)) setCleanTime('');
-  }, [cleanDate]);
 
-  const isValidCleanSelection = () => {
-    if (!cleanDate || !cleanTime) return false;
-    const now = new Date();
-    const when = new Date(`${cleanDate}T${cleanTime}`);
-    if (isNaN(when.getTime())) return false;
-    if (when <= now) return false;
-    const mins = parseInt(cleanTime.split(':')[1] || '0', 10);
-    if (mins % 30 !== 0) return false;
-    return cleanTimeOptions.includes(cleanTime);
-  };
-
-  const submitCleanTask = async () => {
-    if (!activeRequest || !cleanDate || !cleanTime) return;
-    try {
-      setCleanSubmitting(true);
-      const when = `${cleanDate}T${cleanTime}`;
-      const config = { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } };
-      await axios.post(`${API_BASE}/api/tasks/from-cleaning-request/${activeRequest._id}`, { scheduledAt: when, priority: cleanPriority }, config);
-      setShowCleanModal(false);
-      setActiveRequest(null);
-      await fetchCleaningRequests();
-    } catch (e) {
-      alert(e?.response?.data?.message || 'Failed to schedule task');
-    } finally {
-      setCleanSubmitting(false);
-    }
-  };
 
   // removed admin billing-derived notifications — centralized in LayoutAdmin bell dropdown
 
@@ -360,16 +275,25 @@ const ManageBookingsAdmin = () => {
     }
   };
 
-  const handleDelete = async (bookingId) => {
-    if (window.confirm('Are you sure you want to delete this booking?')) {
-      try {
-        const config = { headers: { Authorization: `Bearer ${token}` } };
-        await axios.delete(`${API_BASE}/api/bookings/${bookingId}`, config);
-        fetchBookings();
-      } catch (err) {
-        console.error('Error deleting booking:', err);
-        alert(err?.response?.data?.message || err.message);
-      }
+  const handleDelete = (bookingId) => {
+    setDeleteBookingId(bookingId);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeleteBooking = async () => {
+    if (!deleteBookingId) return;
+    try {
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+      await axios.delete(`${API_BASE}/api/bookings/${deleteBookingId}`, {
+        ...config,
+        data: { cancellationReasons: ['Admin deletion'], cancellationElaboration: '' }
+      });
+      setShowDeleteModal(false);
+      setDeleteBookingId(null);
+      fetchBookings();
+    } catch (err) {
+      console.error('Error deleting booking:', err);
+      alert(err?.response?.data?.message || err.message);
     }
   };
 
@@ -506,37 +430,6 @@ const ManageBookingsAdmin = () => {
         <div className="error">{error}</div>
       ) : (
         <div className="table-container">
-          <div style={{ marginBottom: 16 }}>
-            <h3>Cleaning Requests</h3>
-            {cleaningRequests.length === 0 ? (
-              <div className="empty">No cleaning requests</div>
-            ) : (
-              <table>
-                <thead>
-                  <tr>
-                    <th>Customer</th>
-                    <th>Room</th>
-                    <th>Requested</th>
-                    <th>Description</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {cleaningRequests.map((r) => (
-                    <tr key={r._id}>
-                      <td>{r.booking?.customerName || r.booking?.guestName || '-'}</td>
-                      <td>{r.roomNumber || r.booking?.roomNumber || '-'}</td>
-                      <td>{new Date(r.scheduledAt).toLocaleString()}</td>
-                      <td>{r.description || '-'}</td>
-                      <td>
-                        <button className="save-btn" onClick={() => openScheduleClean(r)}>Schedule</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
           <table>
             <thead>
               <tr>
@@ -872,39 +765,18 @@ const ManageBookingsAdmin = () => {
           </div>
         </div>
       )}
-      {showCleanModal && (
+      {showDeleteModal && (
         <div className="modal-overlay">
           <div className="modal-content">
             <div className="modal-header">
-              <h3>Schedule Cleaning</h3>
-              <button onClick={() => setShowCleanModal(false)}>&times;</button>
+              <h3 style={{ color: 'black' }}>Confirm Delete</h3>
             </div>
-            <div className="modal-body">
-              <div className="form-group">
-                <label>Date</label>
-                <input type="date" value={cleanDate} onChange={(e)=>setCleanDate(e.target.value)} />
-              </div>
-              <div className="form-group">
-                <label>Time</label>
-                <select value={cleanTime} onChange={(e)=>setCleanTime(e.target.value)}>
-                  <option value="">Select time</option>
-                  {cleanTimeOptions.map(t => (
-                    <option key={t} value={t}>{formatDisplayTime(t)}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="form-group">
-                <label>Priority</label>
-                <select value={cleanPriority} onChange={(e)=>setCleanPriority(e.target.value)}>
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
-                </select>
-              </div>
+            <div className="modal-body" style={{ color: 'black' }}>
+              Are you sure you want to delete this booking?
             </div>
-            <div className="form-actions">
-              <button className="save-btn" onClick={submitCleanTask} disabled={!isValidCleanSelection() || cleanSubmitting}>{cleanSubmitting ? 'Submitting...' : 'Submit'}</button>
-              <button className="cancel-btn" onClick={() => setShowCleanModal(false)}>Cancel</button>
+            <div className="form-actions" style={{ justifyContent: 'flex-end' }}>
+              <button className="cancel-btn cancel-danger" onClick={() => setShowDeleteModal(false)}>Cancel</button>
+              <button className="ok-btn" onClick={confirmDeleteBooking}>Okay</button>
             </div>
           </div>
         </div>

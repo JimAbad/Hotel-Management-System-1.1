@@ -159,7 +159,22 @@ const handlePayMongoWebhook = async (req, res) => {
     if (evtType === 'payment.paid') {
       booking.paymentStatus = 'paid';
       booking.paymongoPaymentId = resource?.id || booking.paymongoPaymentId;
-      booking.paymentAmount = (attributes?.amount ? attributes.amount / 100 : booking.paymentAmount);
+      
+      // Convert draft booking to confirmed when payment is received
+      if (booking.status === 'draft') {
+        booking.status = 'confirmed';
+        console.log(`Draft booking ${bookingId} converted to confirmed via payment`);
+      }
+      
+      // Set payment status based on amount paid vs total amount
+      if (paidAmount < booking.totalAmount) {
+        booking.paymentStatus = 'partial';
+        console.log(`Booking ${bookingId} marked as paid (partial) via PayMongo - Amount: ₱${paidAmount}, Total: ₱${booking.totalAmount}`);
+      } else {
+        booking.paymentStatus = 'paid';
+        console.log(`Booking ${bookingId} marked as paid via PayMongo`);
+      }
+      
       await booking.save();
       console.log(`Booking ${bookingId} marked as paid via PayMongo`);
     } else if (evtType === 'payment.failed') {
@@ -167,9 +182,18 @@ const handlePayMongoWebhook = async (req, res) => {
       await booking.save();
       console.log(`Booking ${bookingId} marked as failed via PayMongo`);
     } else if (evtType === 'qrph.expired') {
-      booking.paymentStatus = 'failed';
-      await booking.save();
-      console.log(`Booking ${bookingId} marked as failed (QRPh expired)`);
+      // QRPh source expired; cancel draft booking
+      if (booking.status === 'draft') {
+        booking.status = 'cancelled';
+        booking.paymentStatus = 'pending'; // Keep payment status as pending for cancelled drafts
+        await booking.save();
+        console.log(`Draft booking ${bookingId} cancelled (QRPh expired)`);
+      } else {
+        // For non-draft bookings, keep as pending to allow retrial
+        booking.paymentStatus = 'pending';
+        await booking.save();
+        console.log(`Booking ${bookingId} remains pending (QRPh expired)`);
+      }
     } else if (evtType === 'source.chargeable') {
       // When a source becomes chargeable, attempt to create a payment
       try {
