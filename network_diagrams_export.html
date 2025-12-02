@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Design Diagrams - Export</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+            font-weight: 700;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #7f8c8d;
+            margin-bottom: 40px;
+            font-size: 1.1em;
+        }
+
+        .diagram-section {
+            margin-bottom: 50px;
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 30px;
+            border: 2px solid #e9ecef;
+            transition: all 0.3s ease;
+        }
+
+        .diagram-section:hover {
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            transform: translateY(-5px);
+        }
+
+        .diagram-title {
+            font-size: 1.8em;
+            color: #34495e;
+            margin-bottom: 15px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .diagram-title::before {
+            content: "📊";
+            font-size: 1.2em;
+        }
+
+        .diagram-description {
+            color: #6c757d;
+            margin-bottom: 20px;
+            font-size: 1.05em;
+            line-height: 1.6;
+        }
+
+        .diagram-container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            overflow-x: auto;
+            border: 1px solid #dee2e6;
+        }
+
+        .mermaid {
+            display: flex;
+            justify-content: center;
+            min-height: 400px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .download-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .download-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .download-btn:active {
+            transform: translateY(0);
+        }
+
+        .download-all-btn {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1.2em;
+            font-weight: 700;
+            margin: 30px auto;
+            display: block;
+            transition: all 0.3s ease;
+            box-shadow: 0 6px 20px rgba(245, 87, 108, 0.4);
+        }
+
+        .download-all-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(245, 87, 108, 0.6);
+        }
+
+        .status {
+            text-align: center;
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 8px;
+            font-weight: 600;
+            display: none;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+            display: block;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            display: block;
+        }
+
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+            display: block;
+        }
+
+        .instructions {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .instructions h3 {
+            color: #856404;
+            margin-bottom: 10px;
+            font-size: 1.3em;
+        }
+
+        .instructions ul {
+            color: #856404;
+            margin-left: 20px;
+            line-height: 1.8;
+        }
+
+        .instructions li {
+            margin-bottom: 8px;
+        }
+
+        /* Mermaid diagram styling for better visibility */
+        .mermaid svg {
+            max-width: 100%;
+            height: auto;
+        }
+
+        /* Ensure text is visible on all backgrounds */
+        .mermaid text {
+            fill: #2c3e50 !important;
+            font-weight: 600 !important;
+            font-size: 14px !important;
+        }
+
+        .mermaid .node rect,
+        .mermaid .node circle,
+        .mermaid .node ellipse,
+        .mermaid .node polygon {
+            stroke-width: 2px !important;
+        }
+
+        @media print {
+            body {
+                background: white;
+            }
+            .download-btn, .download-all-btn, .instructions {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌐 Hotel Management System</h1>
+        <p class="subtitle">Network Design Diagrams - High Quality Export</p>
+
+        <div class="instructions">
+            <h3>📋 Instructions:</h3>
+            <ul>
+                <li><strong>Individual Download:</strong> Click the "Download as PNG" button below each diagram</li>
+                <li><strong>Bulk Download:</strong> Click "Download All Diagrams" to save all diagrams at once</li>
+                <li><strong>High Quality:</strong> All images are exported in high resolution (2x scale)</li>
+                <li><strong>Text Visibility:</strong> All text is rendered with high contrast for readability</li>
+            </ul>
+        </div>
+
+        <div id="status" class="status"></div>
+
+        <button class="download-all-btn" onclick="downloadAllDiagrams()">
+            📥 Download All Diagrams (ZIP)
+        </button>
+
+        <!-- Diagram 1: Network Topology -->
+        <div class="diagram-section">
+            <h2 class="diagram-title">Network Topology</h2>
+            <p class="diagram-description">
+                Complete network architecture showing Internet edge layer, DMZ, application network, 
+                data network, external services, and monitoring infrastructure with all network connections.
+            </p>
+            <div class="diagram-container" id="diagram1">
+                <div class="mermaid">
+graph TB
+    subgraph "Internet"
+        INT[Public Internet]
+    end
+    
+    subgraph "Edge Layer - CDN & Load Balancing"
+        CDN[Render.com CDN<br/>Global Edge Nodes]
+        LB[Load Balancer<br/>HTTPS Termination]
+        WAF[Web Application Firewall<br/>DDoS Protection]
+    end
+    
+    subgraph "DMZ - Demilitarized Zone"
+        WEB[Web Server Cluster<br/>Static Content<br/>IP: Dynamic]
+        API[API Gateway<br/>Express.js Servers<br/>IP: Dynamic]
+    end
+    
+    subgraph "Application Network - Private Subnet"
+        APP1[Application Server 1<br/>Node.js/Express<br/>Private IP]
+        APP2[Application Server 2<br/>Node.js/Express<br/>Private IP]
+        APP3[Application Server N<br/>Auto-scaling<br/>Private IP]
+    end
+    
+    subgraph "Data Network - Isolated Subnet"
+        DB_PRIMARY[(MongoDB Primary<br/>Atlas Cluster<br/>Private Endpoint)]
+        DB_SECONDARY1[(MongoDB Secondary 1<br/>Replica Set)]
+        DB_SECONDARY2[(MongoDB Secondary 2<br/>Replica Set)]
+    end
+    
+    subgraph "External Service Network"
+        PAY1[Xendit API<br/>payment.xendit.co<br/>HTTPS/443]
+        PAY2[PayMongo API<br/>api.paymongo.com<br/>HTTPS/443]
+        SMTP[SMTP Server<br/>Email Gateway<br/>TLS/587]
+    end
+    
+    subgraph "Monitoring & Management Network"
+        MON[Monitoring Service<br/>Render Dashboard]
+        LOG[Logging Service<br/>Application Logs]
+    end
+    
+    INT -->|HTTPS/443| CDN
+    INT -->|HTTPS/443| WAF
+    CDN -->|HTTPS/443| WEB
+    WAF -->|HTTPS/443| LB
+    LB -->|HTTPS/443| API
+    API -->|HTTP/3000<br/>Internal Network| APP1
+    API -->|HTTP/3000<br/>Internal Network| APP2
+    API -->|HTTP/3000<br/>Internal Network| APP3
+    APP1 -->|MongoDB Protocol<br/>27017/TLS| DB_PRIMARY
+    APP2 -->|MongoDB Protocol<br/>27017/TLS| DB_PRIMARY
+    APP3 -->|MongoDB Protocol<br/>27017/TLS| DB_PRIMARY
+    DB_PRIMARY -.->|Replication<br/>Internal| DB_SECONDARY1
+    DB_PRIMARY -.->|Replication<br/>Internal| DB_SECONDARY2
+    APP1 -->|HTTPS/443<br/>REST API| PAY1
+    APP1 -->|HTTPS/443<br/>REST API| PAY2
+    APP1 -->|SMTP/587<br/>TLS| SMTP
+    PAY2 -->|Webhook<br/>HTTPS/443| API
+    APP1 -.->|Metrics| MON
+    APP2 -.->|Metrics| MON
+    APP3 -.->|Metrics| MON
+    APP1 -.->|Logs| LOG
+    
+    style INT fill:#ffcdd2
+    style CDN fill:#fff9c4
+    style LB fill:#fff9c4
+    style WAF fill:#ffccbc
+    style WEB fill:#c5cae9
+    style API fill:#c5cae9
+    style APP1 fill:#c8e6c9
+    style APP2 fill:#c8e6c9
+    style APP3 fill:#c8e6c9
+    style DB_PRIMARY fill:#e1bee7
+    style DB_SECONDARY1 fill:#f8bbd0
+    style DB_SECONDARY2 fill:#f8bbd0
+    style PAY1 fill:#ffe0b2
+    style PAY2 fill:#ffe0b2
+    style SMTP fill:#ffe0b2
+                </div>
+            </div>
+            <div class="button-group">
+                <button class="download-btn" onclick="downloadDiagram('diagram1', 'network_topology')">
+                    📥 Download as PNG
+                </button>
+            </div>
+        </div>
+
+        <!-- Diagram 2: OSI Model -->
+        <div class="diagram-section">
+            <h2 class="diagram-title">Network Layers & Protocols (OSI Model)</h2>
+            <p class="diagram-description">
+                Implementation of the OSI model showing all seven layers from physical to application layer,
+                including specific protocols used at each layer.
+            </p>
+            <div class="diagram-container" id="diagram2">
+                <div class="mermaid">
+graph LR
+    subgraph "Layer 7 - Application"
+        L7A[HTTP/HTTPS<br/>REST API]
+        L7B[SMTP<br/>Email]
+        L7C[MongoDB Wire Protocol]
+        L7D[WebSocket<br/>Future Use]
+    end
+    
+    subgraph "Layer 6 - Presentation"
+        L6A[TLS 1.3<br/>Encryption]
+        L6B[JSON<br/>Data Format]
+        L6C[BSON<br/>MongoDB]
+    end
+    
+    subgraph "Layer 5 - Session"
+        L5A[JWT Tokens<br/>Session Management]
+        L5B[Keep-Alive<br/>Persistent Connections]
+    end
+    
+    subgraph "Layer 4 - Transport"
+        L4A[TCP<br/>Reliable Delivery]
+        L4B[Port 443<br/>HTTPS]
+        L4C[Port 27017<br/>MongoDB]
+        L4D[Port 587<br/>SMTP]
+    end
+    
+    subgraph "Layer 3 - Network"
+        L3A[IPv4/IPv6<br/>Routing]
+        L3B[DNS Resolution]
+    end
+    
+    subgraph "Layer 2 - Data Link"
+        L2A[Ethernet<br/>Cloud Infrastructure]
+    end
+    
+    subgraph "Layer 1 - Physical"
+        L1A[Fiber Optic<br/>Data Center Network]
+    end
+    
+    L7A --> L6A
+    L7B --> L6A
+    L7C --> L6C
+    L6A --> L5A
+    L6B --> L5A
+    L5A --> L4A
+    L4A --> L3A
+    L3A --> L2A
+    L2A --> L1A
+                </div>
+            </div>
+            <div class="button-group">
+                <button class="download-btn" onclick="downloadDiagram('diagram2', 'osi_model_layers')">
+                    📥 Download as PNG
+                </button>
+            </div>
+        </div>
+
+        <!-- Diagram 3: Network Security Architecture -->
+        <div class="diagram-section">
+            <h2 class="diagram-title">Network Security Architecture (Defense in Depth)</h2>
+            <p class="diagram-description">
+                Multi-layered security architecture implementing defense-in-depth strategy with perimeter,
+                network, application, and data security layers.
+            </p>
+            <div class="diagram-container" id="diagram3">
+                <div class="mermaid">
+graph TB
+    subgraph "Layer 1: Perimeter Security"
+        P1[DDoS Protection<br/>Render.com Infrastructure]
+        P2[Rate Limiting<br/>Request Throttling]
+        P3[IP Filtering<br/>Geo-blocking if needed]
+    end
+    
+    subgraph "Layer 2: Network Security"
+        N1[TLS 1.3 Encryption<br/>All External Traffic]
+        N2[VPC Isolation<br/>Private Subnets]
+        N3[Network ACLs<br/>Port Restrictions]
+    end
+    
+    subgraph "Layer 3: Application Security"
+        A1[CORS Policy<br/>Origin Validation]
+        A2[JWT Authentication<br/>Token Verification]
+        A3[Input Validation<br/>SQL/NoSQL Injection Prevention]
+        A4[Webhook Signature<br/>Verification]
+    end
+    
+    subgraph "Layer 4: Data Security"
+        D1[MongoDB TLS<br/>Encrypted Connections]
+        D2[IP Whitelist<br/>Database Access Control]
+        D3[Encryption at Rest<br/>AES-256]
+        D4[Backup Encryption<br/>Secure Backups]
+    end
+    
+    Internet[Internet Traffic] --> P1
+    P1 --> P2
+    P2 --> P3
+    P3 --> N1
+    N1 --> N2
+    N2 --> N3
+    N3 --> A1
+    A1 --> A2
+    A2 --> A3
+    A3 --> A4
+    A4 --> D1
+    D1 --> D2
+    D2 --> D3
+    D3 --> D4
+    
+    style P1 fill:#ffcdd2
+    style P2 fill:#ffcdd2
+    style N1 fill:#f8bbd0
+    style N2 fill:#f8bbd0
+    style A1 fill:#e1bee7
+    style A2 fill:#e1bee7
+    style D1 fill:#ce93d8
+    style D2 fill:#ce93d8
+                </div>
+            </div>
+            <div class="button-group">
+                <button class="download-btn" onclick="downloadDiagram('diagram3', 'security_architecture')">
+                    📥 Download as PNG
+                </button>
+            </div>
+        </div>
+
+        <!-- Diagram 4: IP Addressing -->
+        <div class="diagram-section">
+            <h2 class="diagram-title">Network Addressing & Subnets</h2>
+            <p class="diagram-description">
+                IP address allocation showing public network, DMZ subnet, application subnet, and 
+                database private VPC with internal routing.
+            </p>
+            <div class="diagram-container" id="diagram4">
+                <div class="mermaid">
+graph TB
+    subgraph "Public Network - 0.0.0.0/0"
+        PUB[Public Internet<br/>Any IP]
+    end
+    
+    subgraph "Render.com Infrastructure"
+        subgraph "DMZ Subnet - 10.0.1.0/24"
+            LB_IP[Load Balancer<br/>10.0.1.10]
+            WEB_IP[Web Servers<br/>10.0.1.20-30]
+        end
+        
+        subgraph "Application Subnet - 10.0.2.0/24"
+            APP_IP1[App Server 1<br/>10.0.2.10]
+            APP_IP2[App Server 2<br/>10.0.2.11]
+            APP_IP3[App Server N<br/>10.0.2.12-50]
+        end
+    end
+    
+    subgraph "MongoDB Atlas Network"
+        subgraph "Database Subnet - Private VPC"
+            DB_IP1[Primary Node<br/>Private IP]
+            DB_IP2[Secondary Node 1<br/>Private IP]
+            DB_IP3[Secondary Node 2<br/>Private IP]
+        end
+    end
+    
+    PUB -->|Public IP| LB_IP
+    LB_IP -->|Internal| WEB_IP
+    LB_IP -->|Internal| APP_IP1
+    LB_IP -->|Internal| APP_IP2
+    APP_IP1 -->|VPC Peering/Private Link| DB_IP1
+    APP_IP2 -->|VPC Peering/Private Link| DB_IP1
+    
+    style PUB fill:#ffcdd2
+    style LB_IP fill:#fff9c4
+    style WEB_IP fill:#c5cae9
+    style APP_IP1 fill:#c8e6c9
+    style APP_IP2 fill:#c8e6c9
+    style DB_IP1 fill:#e1bee7
+                </div>
+            </div>
+            <div class="button-group">
+                <button class="download-btn" onclick="downloadDiagram('diagram4', 'ip_addressing_subnets')">
+                    📥 Download as PNG
+                </button>
+            </div>
+        </div>
+
+        <!-- Diagram 5: Bandwidth Distribution -->
+        <div class="diagram-section">
+            <h2 class="diagram-title">Bandwidth Allocation</h2>
+            <p class="diagram-description">
+                Network bandwidth distribution showing allocation percentages for static assets,
+                API requests, database traffic, and external API calls.
+            </p>
+            <div class="diagram-container" id="diagram5">
+                <div class="mermaid">
+graph LR
+    subgraph "Bandwidth Distribution"
+        TOTAL[Total Bandwidth<br/>Render.com Allocated]
+        
+        TOTAL -->|60%| STATIC[Static Assets<br/>CDN Cached]
+        TOTAL -->|30%| API[API Requests<br/>Dynamic Content]
+        TOTAL -->|5%| DB[Database Traffic<br/>Internal Network]
+        TOTAL -->|5%| EXT[External APIs<br/>Payment/Email]
+    end
+    
+    style TOTAL fill:#e3f2fd
+    style STATIC fill:#c8e6c9
+    style API fill:#fff9c4
+    style DB fill:#f8bbd0
+    style EXT fill:#ffe0b2
+                </div>
+            </div>
+            <div class="button-group">
+                <button class="download-btn" onclick="downloadDiagram('diagram5', 'bandwidth_allocation')">
+                    📥 Download as PNG
+                </button>
+            </div>
+        </div>
+
+        <!-- Diagram 6: High Availability -->
+        <div class="diagram-section">
+            <h2 class="diagram-title">High Availability & Redundancy</h2>
+            <p class="diagram-description">
+                Multi-region deployment architecture showing primary and secondary regions with
+                load balancers, application servers, and database replication for failover.
+            </p>
+            <div class="diagram-container" id="diagram6">
+                <div class="mermaid">
+graph TB
+    subgraph "Multi-Region Setup"
+        direction LR
+        
+        subgraph "Primary Region - US East"
+            LB1[Load Balancer 1]
+            APP1A[App Server 1A]
+            APP1B[App Server 1B]
+            DB1[MongoDB Primary]
+        end
+        
+        subgraph "Secondary Region - US West"
+            LB2[Load Balancer 2]
+            APP2A[App Server 2A]
+            APP2B[App Server 2B]
+            DB2[MongoDB Secondary]
+        end
+    end
+    
+    CLIENT[Client] -->|Primary| LB1
+    CLIENT -.->|Failover| LB2
+    
+    LB1 --> APP1A
+    LB1 --> APP1B
+    LB2 --> APP2A
+    LB2 --> APP2B
+    
+    APP1A --> DB1
+    APP1B --> DB1
+    APP2A --> DB2
+    APP2B --> DB2
+    
+    DB1 -.->|Replication| DB2
+    
+    style CLIENT fill:#e3f2fd
+    style LB1 fill:#c8e6c9
+    style LB2 fill:#ffccbc
+    style DB1 fill:#e1bee7
+    style DB2 fill:#f8bbd0
+                </div>
+            </div>
+            <div class="button-group">
+                <button class="download-btn" onclick="downloadDiagram('diagram6', 'high_availability_redundancy')">
+                    📥 Download as PNG
+                </button>
+            </div>
+        </div>
+
+        <!-- Diagram 7: Auto-Scaling -->
+        <div class="diagram-section">
+            <h2 class="diagram-title">Auto-Scaling Architecture</h2>
+            <p class="diagram-description">
+                Automatic scaling rules and triggers based on CPU usage, memory, and connections,
+                showing scale-up and scale-down workflows.
+            </p>
+            <div class="diagram-container" id="diagram7">
+                <div class="mermaid">
+graph LR
+    subgraph "Auto-Scaling Rules"
+        CPU[CPU Usage > 70%] -->|Trigger| SCALE_UP[Add Server Instance]
+        MEM[Memory > 80%] -->|Trigger| SCALE_UP
+        CONN[Connections > 80%] -->|Trigger| SCALE_UP
+        
+        CPU_LOW[CPU < 30% for 10min] -->|Trigger| SCALE_DOWN[Remove Server Instance]
+        
+        SCALE_UP -->|Deploy| NEW[New App Server]
+        NEW -->|Register| LB[Load Balancer]
+        
+        SCALE_DOWN -->|Drain| OLD[Existing Server]
+        OLD -->|Deregister| LB
+    end
+    
+    style CPU fill:#ffccbc
+    style MEM fill:#ffccbc
+    style CONN fill:#ffccbc
+    style SCALE_UP fill:#c8e6c9
+    style SCALE_DOWN fill:#fff9c4
+                </div>
+            </div>
+            <div class="button-group">
+                <button class="download-btn" onclick="downloadDiagram('diagram7', 'auto_scaling_rules')">
+                    📥 Download as PNG
+                </button>
+            </div>
+        </div>
+
+        <button class="download-all-btn" onclick="downloadAllDiagrams()">
+            📥 Download All Diagrams (ZIP)
+        </button>
+    </div>
+
+    <script>
+        // Initialize Mermaid
+        mermaid.initialize({ 
+            startOnLoad: true,
+            theme: 'default',
+            themeVariables: {
+                fontSize: '16px',
+                fontFamily: 'Arial, sans-serif'
+            },
+            flowchart: {
+                useMaxWidth: true,
+                htmlLabels: true,
+                curve: 'basis'
+            }
+        });
+
+        function showStatus(message, type) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status ${type}`;
+            setTimeout(() => {
+                status.style.display = 'none';
+            }, 5000);
+        }
+
+        async function downloadDiagram(containerId, filename) {
+            try {
+                showStatus('🔄 Generating image...', 'info');
+                
+                const container = document.getElementById(containerId);
+                const canvas = await html2canvas(container, {
+                    scale: 2,
+                    backgroundColor: '#ffffff',
+                    logging: false,
+                    useCORS: true
+                });
+
+                canvas.toBlob(function(blob) {
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.download = `${filename}.png`;
+                    link.href = url;
+                    link.click();
+                    URL.revokeObjectURL(url);
+                    showStatus(`✅ Downloaded: ${filename}.png`, 'success');
+                });
+            } catch (error) {
+                console.error('Error downloading diagram:', error);
+                showStatus('❌ Error downloading diagram. Please try again.', 'error');
+            }
+        }
+
+        async function downloadAllDiagrams() {
+            showStatus('🔄 Generating all diagrams... This may take a moment.', 'info');
+            
+            const diagrams = [
+                { id: 'diagram1', name: 'network_topology' },
+                { id: 'diagram2', name: 'osi_model_layers' },
+                { id: 'diagram3', name: 'security_architecture' },
+                { id: 'diagram4', name: 'ip_addressing_subnets' },
+                { id: 'diagram5', name: 'bandwidth_allocation' },
+                { id: 'diagram6', name: 'high_availability_redundancy' },
+                { id: 'diagram7', name: 'auto_scaling_rules' }
+            ];
+
+            for (let i = 0; i < diagrams.length; i++) {
+                await downloadDiagram(diagrams[i].id, diagrams[i].name);
+                // Small delay between downloads
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+
+            showStatus('✅ All diagrams downloaded successfully!', 'success');
+        }
+
+        // Auto-render on load
+        window.addEventListener('load', () => {
+            showStatus('✅ All diagrams loaded successfully!', 'success');
+        });
+    </script>
+</body>
+</html>

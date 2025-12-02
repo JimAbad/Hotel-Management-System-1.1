@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hotel Management System - Diagrams Export</title>
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'base',
+            securityLevel: 'loose',
+            themeVariables: {
+                fontSize: '14px',
+                fontFamily: 'Arial, sans-serif',
+                primaryColor: '#dae8fc',
+                primaryBorderColor: '#6c8ebf',
+                lineColor: '#333333',
+                secondaryColor: '#fff2cc',
+                tertiaryColor: '#d5e8d4'
+            },
+            flowchart: {
+                useMaxWidth: false,
+                htmlLabels: true,
+                curve: 'basis'
+            },
+            sequence: {
+                useMaxWidth: false,
+                wrap: true,
+                actorMargin: 50
+            },
+            er: {
+                useMaxWidth: false,
+                layoutDirection: 'TB'
+            }
+        });
+
+        window.mermaid = mermaid;
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+            font-weight: 700;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #7f8c8d;
+            margin-bottom: 40px;
+            font-size: 1.1em;
+        }
+
+        .diagram-section {
+            margin-bottom: 60px;
+            background: #ffffff;
+            border-radius: 15px;
+            padding: 30px;
+            border: 1px solid #e9ecef;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            page-break-inside: avoid;
+        }
+
+        .diagram-title {
+            font-size: 1.8em;
+            color: #34495e;
+            margin-bottom: 15px;
+            font-weight: 600;
+            border-bottom: 2px solid #f0f0f0;
+            padding-bottom: 10px;
+        }
+
+        .diagram-description {
+            color: #6c757d;
+            margin-bottom: 20px;
+            font-size: 1.05em;
+            line-height: 1.6;
+        }
+
+        .diagram-container {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            min-height: 300px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow-x: auto;
+        }
+
+        .mermaid {
+            width: 100%;
+            text-align: center;
+        }
+
+        .download-btn {
+            background: #4a90e2;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+
+        .download-btn:hover {
+            background: #357abd;
+            transform: translateY(-1px);
+        }
+
+        .download-all-btn {
+            background: #2ecc71;
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.2em;
+            font-weight: 700;
+            margin: 30px auto;
+            display: block;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 15px rgba(46, 204, 113, 0.3);
+        }
+
+        .download-all-btn:hover {
+            background: #27ae60;
+            transform: translateY(-2px);
+        }
+
+        .status {
+            text-align: center;
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .instructions {
+            background: #fff3cd;
+            border: 1px solid #ffeeba;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .category-header {
+            background: #34495e;
+            color: white;
+            padding: 15px 25px;
+            border-radius: 8px;
+            margin: 50px 0 30px 0;
+            font-size: 1.4em;
+            font-weight: 600;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🏨 Hotel Management System</h1>
+        <p class="subtitle">System Architecture & Database Design</p>
+
+        <div class="instructions">
+            <h3>📋 Instructions:</h3>
+            <ul>
+                <li><strong>Wait for Loading:</strong> Diagrams render automatically.</li>
+                <li><strong>Download:</strong> Use the buttons below each diagram or the "Download All" button.</li>
+            </ul>
+        </div>
+
+        <div id="status" class="status info">⏳ Loading diagrams...</div>
+
+        <button class="download-all-btn" onclick="downloadAllDiagrams()">
+            📥 Download All 8 Diagrams
+        </button>
+
+        <div class="category-header">🏗️ System Architecture</div>
+
+        <!-- Diagram 1 -->
+        <div class="diagram-section">
+            <h2 class="diagram-title">1. Complete Network Architecture</h2>
+            <div class="diagram-container" id="container1">
+                <div class="mermaid">
+                    graph TB
+                    A[Web Browser] -->|HTTPS| B[Frontend React App]
+                    B -->|REST API| C[Express.js Server]
+                    C --> D[(MongoDB Atlas)]
+                    C --> E1[PayMongo Gateway]
+                    C --> E2[Email Service]
+                    C --> E3[QR Code Service]
+
+                    style A fill:#dae8fc,stroke:#6c8ebf,stroke-width:2px
+                    style B fill:#fff2cc,stroke:#d6b656,stroke-width:2px
+                    style C fill:#d5e8d4,stroke:#82b366,stroke-width:2px
+                    style D fill:#e1d5e7,stroke:#9673a6,stroke-width:2px
+                    style E1 fill:#ffe6cc,stroke:#d79b00,stroke-width:2px
+                    style E2 fill:#ffe6cc,stroke:#d79b00,stroke-width:2px
+                    style E3 fill:#ffe6cc,stroke:#d79b00,stroke-width:2px
+                </div>
+            </div>
+            <button class="download-btn" onclick="downloadDiagram('container1', '01_network_architecture')">📥 Download
+                PNG</button>
+        </div>
+
+        <!-- Diagram 2 -->
+        <div class="diagram-section">
+            <h2 class="diagram-title">2. Component Architecture</h2>
+            <div class="diagram-container" id="container2">
+                <div class="mermaid">
+                    graph LR
+                    subgraph "Frontend"
+                    F1[React Router]
+                    F2[Axios Client]
+                    F3[Chart.js]
+                    F4[State Management]
+                    end
+
+                    subgraph "Backend"
+                    B1[Controllers]
+                    B2[Mongoose Models]
+                    B3[API Routes]
+                    B4[Middleware]
+                    end
+
+                    F2 -->|HTTP Requests| B3
+                    B3 --> B4
+                    B4 --> B1
+                    B1 --> B2
+                    B2 -->|ODM| DB[(MongoDB)]
+
+                    style F1 fill:#dae8fc,stroke:#6c8ebf,stroke-width:2px
+                    style F2 fill:#dae8fc,stroke:#6c8ebf,stroke-width:2px
+                    style F3 fill:#dae8fc,stroke:#6c8ebf,stroke-width:2px
+                    style F4 fill:#dae8fc,stroke:#6c8ebf,stroke-width:2px
+                    style B1 fill:#d5e8d4,stroke:#82b366,stroke-width:2px
+                    style B2 fill:#d5e8d4,stroke:#82b366,stroke-width:2px
+                    style B3 fill:#d5e8d4,stroke:#82b366,stroke-width:2px
+                    style B4 fill:#d5e8d4,stroke:#82b366,stroke-width:2px
+                    style DB fill:#e1d5e7,stroke:#9673a6,stroke-width:2px
+                </div>
+            </div>
+            <button class="download-btn" onclick="downloadDiagram('container2', '02_component_architecture')">📥
+                Download PNG</button>
+        </div>
+
+        <div class="category-header">🔄 Data Flow Diagrams</div>
+
+        <!-- Diagram 3 -->
+        <div class="diagram-section">
+            <h2 class="diagram-title">3. Authentication Flow</h2>
+            <div class="diagram-container" id="container3">
+                <div class="mermaid">
+                    sequenceDiagram
+                    participant User
+                    participant Frontend
+                    participant API
+                    participant Database
+
+                    User->>Frontend: Enter Credentials
+                    Frontend->>API: POST /api/auth/login
+                    API->>Database: Query User
+                    Database-->>API: User Data
+                    API->>API: Verify Password (bcrypt)
+                    API->>API: Generate JWT Token
+                    API-->>Frontend: Token + User Info
+                    Frontend->>Frontend: Store Token
+                    Frontend-->>User: Redirect to Dashboard
+                </div>
+            </div>
+            <button class="download-btn" onclick="downloadDiagram('container3', '03_authentication_flow')">📥 Download
+                PNG</button>
+        </div>
+
+        <!-- Diagram 4 -->
+        <div class="diagram-section">
+            <h2 class="diagram-title">4. Booking and Payment Flow</h2>
+            <div class="diagram-container" id="container4">
+                <div class="mermaid">
+                    sequenceDiagram
+                    participant Guest
+                    participant Frontend
+                    participant BookingAPI
+                    participant PaymentAPI
+                    participant Gateway
+                    participant Database
+
+                    Guest->>Frontend: Select Room and Dates
+                    Frontend->>BookingAPI: Create Booking
+                    BookingAPI->>Database: Check Availability
+                    Database-->>BookingAPI: Room Available
+                    BookingAPI->>Database: Save Booking (Pending)
+                    Frontend->>PaymentAPI: Create Payment
+                    PaymentAPI->>Gateway: Generate Payment Link
+                    Gateway-->>PaymentAPI: Payment URL
+                    PaymentAPI-->>Frontend: Payment Details
+                    Frontend-->>Guest: Show Payment Options
+                    Guest->>Gateway: Complete Payment
+                    Gateway->>PaymentAPI: Webhook Notification
+                    PaymentAPI->>Database: Update Payment Status
+                    PaymentAPI->>Database: Update Booking Status
+                </div>
+            </div>
+            <button class="download-btn" onclick="downloadDiagram('container4', '04_booking_payment_flow')">📥 Download
+                PNG</button>
+        </div>
+
+        <!-- Diagram 5 -->
+        <div class="diagram-section">
+            <h2 class="diagram-title">5. Room Management Flow</h2>
+            <div class="diagram-container" id="container5">
+                <div class="mermaid">
+                    sequenceDiagram
+                    participant Admin
+                    participant Frontend
+                    participant Middleware
+                    participant RoomAPI
+                    participant Database
+
+                    Admin->>Frontend: Login as Admin
+                    Frontend->>Frontend: Store JWT Token
+                    Admin->>Frontend: Create/Update Room
+                    Frontend->>RoomAPI: POST /api/rooms
+                    RoomAPI->>Middleware: Verify JWT Token
+                    Middleware->>Middleware: Check Admin Role
+                    Middleware-->>RoomAPI: Authorized
+                    RoomAPI->>Database: Save Room Data
+                    Database-->>RoomAPI: Success
+                    RoomAPI-->>Frontend: Room Created
+                    Frontend-->>Admin: Confirmation
+                </div>
+            </div>
+            <button class="download-btn" onclick="downloadDiagram('container5', '05_room_management_flow')">📥 Download
+                PNG</button>
+        </div>
+
+        <div class="category-header">🔒 Security & Deployment</div>
+
+        <!-- Diagram 6 -->
+        <div class="diagram-section">
+            <h2 class="diagram-title">6. Security Architecture</h2>
+            <div class="diagram-container" id="container6">
+                <div class="mermaid">
+                    graph TB
+                    Internet[Internet Traffic] --> TLS[HTTPS/TLS 1.3 Encryption]
+                    TLS --> SSL[SSL Certificates]
+                    SSL --> CORS[CORS Policy]
+                    CORS --> JWT[JWT Authentication]
+                    JWT --> Hash[bcrypt Password Hashing]
+                    Hash --> Valid[Input Validation]
+                    Valid --> DBSec[MongoDB TLS Connection]
+                    DBSec --> IP[IP Whitelist]
+                    IP --> Auth[Database Authentication]
+
+                    style TLS fill:#dae8fc,stroke:#6c8ebf,stroke-width:2px
+                    style JWT fill:#dae8fc,stroke:#6c8ebf,stroke-width:2px
+                    style Hash fill:#dae8fc,stroke:#6c8ebf,stroke-width:2px
+                    style DBSec fill:#d5e8d4,stroke:#82b366,stroke-width:2px
+                </div>
+            </div>
+            <button class="download-btn" onclick="downloadDiagram('container6', '06_security_architecture')">📥 Download
+                PNG</button>
+        </div>
+
+        <!-- Diagram 7 -->
+        <div class="diagram-section">
+            <h2 class="diagram-title">7. Deployment Architecture</h2>
+            <div class="diagram-container" id="container7">
+                <div class="mermaid">
+                    graph TB
+                    subgraph "Development Environment"
+                    Dev1[Local Frontend<br />localhost:5173]
+                    Dev2[Local Backend<br />localhost:3000]
+                    Dev3[MongoDB Local/Atlas]
+                    end
+
+                    subgraph "Production - Render.com"
+                    Prod1[Static Site<br />CDN Distribution]
+                    Prod2[Node.js Server<br />Auto-scaling]
+                    Prod3[MongoDB Atlas<br />Cloud Cluster]
+                    end
+
+                    subgraph "CI/CD Pipeline"
+                    Git[Git Repository]
+                    Deploy[Render Auto-Deploy]
+                    end
+
+                    Dev1 -->|npm run build| Prod1
+                    Dev2 -->|Deploy| Prod2
+                    Dev3 -->|Migrate| Prod3
+
+                    Git -->|Push| Deploy
+                    Deploy -->|Build| Prod1
+                    Deploy -->|Deploy| Prod2
+
+                    Users[End Users] -->|HTTPS| Prod1
+                    Users -->|API Calls| Prod2
+                    Prod2 --> Prod3
+
+                    style Prod1 fill:#fff2cc,stroke:#d6b656,stroke-width:2px
+                    style Prod2 fill:#d5e8d4,stroke:#82b366,stroke-width:2px
+                    style Prod3 fill:#e1d5e7,stroke:#9673a6,stroke-width:2px
+                </div>
+            </div>
+            <button class="download-btn" onclick="downloadDiagram('container7', '07_deployment_architecture')">📥
+                Download PNG</button>
+        </div>
+
+        <div class="category-header">🗄️ Database Schema</div>
+
+        <!-- Diagram 8 -->
+        <div class="diagram-section">
+            <h2 class="diagram-title">8. Database Entity-Relationship Diagram</h2>
+            <p class="diagram-description">Complete database schema with colored entity groups</p>
+            <div class="diagram-container" id="container8">
+                <div class="mermaid">
+                    erDiagram
+                    %% Define pastel colors
+                    classDef blue fill:#dae8fc,stroke:#6c8ebf,stroke-width:1px;
+                    classDef green fill:#d5e8d4,stroke:#82b366,stroke-width:1px;
+                    classDef yellow fill:#fff2cc,stroke:#d6b656,stroke-width:1px;
+                    classDef purple fill:#e1d5e7,stroke:#9673a6,stroke-width:1px;
+                    classDef red fill:#f8cecc,stroke:#b85450,stroke-width:1px;
+
+                    USERS ||--o{ BOOKINGS : creates
+                    USERS ||--o{ REVIEWS : writes
+                    USERS ||--o{ REQUESTS : submits
+                    ROOMS ||--o{ BOOKINGS : "booked in"
+                    ROOMS ||--o{ REVIEWS : "reviewed for"
+                    BOOKINGS ||--|| PAYMENTS : "paid by"
+                    REQUESTS ||--|| TASKS : "assigned to"
+
+                    USERS {
+                    ObjectId id PK
+                    string email
+                    string password
+                    string firstName
+                    string lastName
+                    string role
+                    string phone
+                    date createdAt
+                    }
+
+                    ROOMS {
+                    ObjectId id PK
+                    string roomNumber
+                    string type
+                    number floor
+                    number price
+                    array amenities
+                    string status
+                    date createdAt
+                    }
+
+                    BOOKINGS {
+                    ObjectId id PK
+                    ObjectId userId FK
+                    ObjectId roomId FK
+                    date checkIn
+                    date checkOut
+                    number totalPrice
+                    string status
+                    date createdAt
+                    }
+
+                    PAYMENTS {
+                    ObjectId id PK
+                    ObjectId bookingId FK
+                    string paymentMethod
+                    number amount
+                    string status
+                    string transactionId
+                    date paidAt
+                    }
+
+                    REVIEWS {
+                    ObjectId id PK
+                    ObjectId userId FK
+                    ObjectId roomId FK
+                    number rating
+                    string comment
+                    date createdAt
+                    }
+
+                    REQUESTS {
+                    ObjectId id PK
+                    ObjectId userId FK
+                    string type
+                    string description
+                    string status
+                    date createdAt
+                    }
+
+                    TASKS {
+                    ObjectId id PK
+                    ObjectId requestId FK
+                    ObjectId assignedTo FK
+                    string status
+                    date dueDate
+                    date completedAt
+                    }
+
+                    %% Apply colors
+                    class USERS blue
+                    class ROOMS green
+                    class BOOKINGS yellow
+                    class PAYMENTS yellow
+                    class REVIEWS purple
+                    class REQUESTS blue
+                    class TASKS green
+                </div>
+            </div>
+            <button class="download-btn" onclick="downloadDiagram('container8', '08_database_schema')">📥 Download
+                PNG</button>
+        </div>
+
+        <button class="download-all-btn" onclick="downloadAllDiagrams()">
+            📥 Download All 8 Diagrams
+        </button>
+    </div>
+
+    <script>
+        let diagramsLoaded = 0;
+        const totalDiagrams = 8;
+
+        function updateStatus() {
+            const status = document.getElementById('status');
+            if (diagramsLoaded >= totalDiagrams) {
+                status.className = 'status success';
+                status.textContent = `✅ All ${totalDiagrams} diagrams loaded successfully!`;
+            } else {
+                status.className = 'status info';
+                status.textContent = `⏳ Loading diagrams... ${diagramsLoaded}/${totalDiagrams} complete`;
+            }
+        }
+
+        // Monitor diagram rendering
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.addedNodes.length > 0) {
+                    mutation.addedNodes.forEach((node) => {
+                        if (node.tagName === 'SVG') {
+                            diagramsLoaded++;
+                            updateStatus();
+                        }
+                    });
+                }
+            });
+        });
+
+        // Observe all diagram containers
+        document.addEventListener('DOMContentLoaded', () => {
+            for (let i = 1; i <= totalDiagrams; i++) {
+                const container = document.getElementById(`container${i}`);
+                if (container) {
+                    observer.observe(container, {
+                        childList: true,
+                        subtree: true
+                    });
+                }
+            }
+
+            // Fallback timeout
+            setTimeout(() => {
+                if (diagramsLoaded < totalDiagrams) {
+                    // Check actual count in case observer missed some
+                    const rendered = document.querySelectorAll('.mermaid svg').length;
+                    diagramsLoaded = rendered;
+                    updateStatus();
+                }
+            }, 5000);
+        });
+
+        async function downloadDiagram(containerId, filename) {
+            try {
+                const container = document.getElementById(containerId);
+                const svg = container.querySelector('svg');
+
+                if (!svg) {
+                    alert('Diagram not loaded yet. Please wait.');
+                    return;
+                }
+
+                const canvas = await html2canvas(container, {
+                    scale: 2,
+                    backgroundColor: '#ffffff',
+                    logging: false,
+                    useCORS: true
+                });
+
+                canvas.toBlob((blob) => {
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.download = `${filename}.png`;
+                    link.href = url;
+                    link.click();
+                    URL.revokeObjectURL(url);
+                });
+            } catch (error) {
+                console.error('Download error:', error);
+                alert('Error downloading diagram.');
+            }
+        }
+
+        async function downloadAllDiagrams() {
+            if (diagramsLoaded < totalDiagrams) {
+                const confirm = window.confirm(`Only ${diagramsLoaded}/${totalDiagrams} diagrams loaded. Download anyway?`);
+                if (!confirm) return;
+            }
+
+            const diagrams = [
+                { id: 'container1', name: '01_network_architecture' },
+                { id: 'container2', name: '02_component_architecture' },
+                { id: 'container3', name: '03_authentication_flow' },
+                { id: 'container4', name: '04_booking_payment_flow' },
+                { id: 'container5', name: '05_room_management_flow' },
+                { id: 'container6', name: '06_security_architecture' },
+                { id: 'container7', name: '07_deployment_architecture' },
+                { id: 'container8', name: '08_database_schema' }
+            ];
+
+            for (const diagram of diagrams) {
+                await downloadDiagram(diagram.id, diagram.name);
+                await new Promise(resolve => setTimeout(resolve, 800));
+            }
+        }
+    </script>
+</body>
+
+</html>

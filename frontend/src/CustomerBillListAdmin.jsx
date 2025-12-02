@@ -76,8 +76,8 @@ const CustomerBillList = () => {
     const totalAmount =
       Number(
         pickFirst(x, ['totalAmount', 'amount', 'total', 'billingAmount']) ??
-          pickFirst(bookingObj, ['totalAmount', 'totalPrice', 'grandTotal', 'amount', 'billingTotal']) ??
-          0
+        pickFirst(bookingObj, ['totalAmount', 'totalPrice', 'grandTotal', 'amount', 'billingTotal']) ??
+        0
       ) || 0;
 
     const checkOutDate =
@@ -264,12 +264,13 @@ const CustomerBillList = () => {
 
     fetchBills();
   }, [API_BASE, BILL_ENDPOINTS, token]);
-
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const result = bills.filter((b) => {
+
+    // 1. Filter individual bills
+    const matchingBills = bills.filter((b) => {
       const status = (b.paymentStatus || "").toLowerCase();
       const name = (b.customerName || "").toLowerCase();
       const ref = (b.referenceNumber || "").toLowerCase();
@@ -282,7 +283,47 @@ const CustomerBillList = () => {
       const isActive = hasValidCheckout && co >= today;
       return passesStatus && passesSearch && isActive;
     });
-    // Sort by most recent check-out first
+
+    // 2. Group by Reference Number to merge bills
+    const groups = {};
+    matchingBills.forEach(bill => {
+      const key = bill.referenceNumber || bill.bookingId || bill._id;
+
+      if (!groups[key]) {
+        groups[key] = {
+          ...bill,
+          totalRoomCharges: 0,
+          totalExtraCharges: 0,
+          totalAmount: 0
+        };
+      }
+
+      // Calculate charges based on description from raw data
+      const desc = bill.raw?.description || "";
+      const amt = bill.totalAmount || 0;
+
+      if (desc.includes('Room booking charge')) {
+        groups[key].totalRoomCharges += amt;
+      } else {
+        groups[key].totalExtraCharges += amt;
+      }
+
+      // Merge status
+      const currentStatus = (groups[key].paymentStatus || "").toLowerCase();
+      const newStatus = (bill.paymentStatus || "").toLowerCase();
+      if (newStatus !== 'paid' && newStatus !== 'completed') {
+        groups[key].paymentStatus = bill.paymentStatus;
+      }
+    });
+
+    // Final calculation: Deduct 10% partial payment from room charges
+    Object.values(groups).forEach(group => {
+      group.totalAmount = (group.totalRoomCharges * 0.9) + group.totalExtraCharges;
+    });
+
+    const result = Object.values(groups);
+
+    // 3. Sort by most recent check-out first
     return result.slice().sort((a, b) => {
       const aRaw = a.checkOutDate || (a.raw?.booking?.checkOut) || (a.raw?.booking?.checkOutDate);
       const bRaw = b.checkOutDate || (b.raw?.booking?.checkOut) || (b.raw?.booking?.checkOutDate);
@@ -294,12 +335,14 @@ const CustomerBillList = () => {
     });
   }, [bills, search, statusFilter]);
 
-  const prettyAmt = (n) => `$${Number(n ?? 0).toFixed(2)}`;
+  const prettyAmt = (n) => `₱${Number(n ?? 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
   const prettyDate = (d) => {
     if (!d) return "-";
     const iso = new Date(d);
     return isNaN(iso) ? String(d) : iso.toISOString().slice(0, 10);
   };
+
   const badgeClass = (s) => {
     const v = (s || "").toLowerCase();
     if (v.includes("partial")) return "partial";
@@ -343,8 +386,6 @@ const CustomerBillList = () => {
       setDetailsLoading(false);
     }
   };
-
-  // Mark as Paid (best-effort against common endpoints)
   const markAsPaid = async (bill) => {
     if (!bill) return;
     if (!window.confirm("Mark this bill as paid?")) return;
