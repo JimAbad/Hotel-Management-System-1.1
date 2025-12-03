@@ -52,12 +52,16 @@ function MyBookings() {
   };
 
   const getRoomHeader = (b) => {
-    if (!b) return 'Room: N/A';
-    if (b.roomNumber) return `Room: ${b.roomNumber}`;
-    const r = b.room;
-    if (r && typeof r === 'object' && r.roomNumber) return `Room: ${r.roomNumber}`;
-    const t = getRoomType(b);
-    return `Room: ${t}`;
+    // If booking.roomNumber is set (not null/empty/0), use it
+    if (b && b.roomNumber !== undefined && b.roomNumber !== null && b.roomNumber !== '' && b.roomNumber !== 0) {
+      return `Room: ${b.roomNumber}`;
+    }
+    // Otherwise, booking.room might be a populated object (but only use it if booking.roomNumber is not set)
+    if (b && b.room && typeof b.room === 'object' && b.room.roomNumber !== undefined && b.room.roomNumber !== null && b.room.roomNumber !== '' && b.room.roomNumber !== 0 && (!('roomNumber' in b) || b.roomNumber == null || b.roomNumber === '' || b.roomNumber === 0)) {
+      return 'Room: To be assigned';
+    }
+    // Default fallback
+    return 'Room: To be assigned';
   };
 
   // Utility function to format date and time
@@ -488,7 +492,7 @@ function MyBookings() {
             </div>
             <div className="modal-body">
               <div className="booking-info">
-                <p><strong>Room:</strong> {selectedBooking?.roomNumber || 'N/A'}</p>
+                <p><strong>Room:</strong> {selectedBooking && (selectedBooking.roomNumber !== undefined && selectedBooking.roomNumber !== null && selectedBooking.roomNumber !== '' && selectedBooking.roomNumber !== 0 ? selectedBooking.roomNumber : 'To be assigned')}</p>
                 <p><strong>Check-in:</strong> {selectedBooking && formatDateTime(selectedBooking.checkIn)}</p>
                 <p><strong>Check-out:</strong> {selectedBooking && formatDateTime(selectedBooking.checkOut)}</p>
               </div>
@@ -544,7 +548,7 @@ function MyBookings() {
             </div>
             <div className="modal-body">
               <div className="booking-info">
-                <p><strong>Room:</strong> {selectedBooking?.roomNumber || 'N/A'}</p>
+                <p><strong>Room:</strong> {selectedBooking && (selectedBooking.roomNumber !== undefined && selectedBooking.roomNumber !== null && selectedBooking.roomNumber !== '' && selectedBooking.roomNumber !== 0 ? selectedBooking.roomNumber : 'To be assigned')}</p>
                 <p><strong>Check-in:</strong> {selectedBooking && formatDateTime(selectedBooking.checkIn)}</p>
                 <p><strong>Check-out:</strong> {selectedBooking && formatDateTime(selectedBooking.checkOut)}</p>
                 <p><strong>Total Price:</strong> ₱{selectedBooking && formatPrice(selectedBooking.totalAmount)}</p>

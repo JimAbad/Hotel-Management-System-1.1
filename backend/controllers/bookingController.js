@@ -69,7 +69,7 @@ const createBooking = asyncHandler(async (req, res) => {
     customerName,
     customerEmail,
     contactNumber,
-    roomNumber,
+    roomType, // accept roomType
     checkIn,
     checkOut,
     adults,
@@ -104,12 +104,7 @@ const createBooking = asyncHandler(async (req, res) => {
   // Generate reference number
   const referenceNumber = 'BK' + Date.now().toString().slice(-8);
 
-  const room = await Room.findOne({ roomNumber });
-  console.log('Found room:', room); // Log the found room
-  if (!room) {
-    res.status(404);
-    throw new Error('Room not found');
-  }
+  // SKIP ROOM lookup, and instead use requested type
 
   // Calculate number of hours
   const checkInDate = new Date(checkIn);
@@ -120,13 +115,13 @@ const createBooking = asyncHandler(async (req, res) => {
 
   // Calculate total amount based on room price (per hour)
   // Economy: 3 hours = ₱200 total (₱59.523/hour) for ₱20 downpayment (10%)
-  const roomPrice = room.roomType === 'Economy' ? 59.523 : room.price;
-  console.log('Room price:', roomPrice, 'Type:', typeof roomPrice); // Log room price and type
-  if (typeof roomPrice !== 'number' || isNaN(roomPrice)) {
-    res.status(500);
-    throw new Error('Room price is not a valid number.');
-  }
-  let subtotal = numberOfHours * roomPrice;
+  let basePrice;
+  if (roomType === 'Economy') basePrice = 59.523;
+  else if (roomType === 'Deluxe') basePrice = 100.00; // set correct price
+  else if (roomType === 'Suite') basePrice = 150.00; // etc
+  // ...set up price table or fetch from Room model defaults if needed
+  // Then calculate total as before
+  let subtotal = numberOfHours * basePrice;
 
   // Check if check-in date is a holiday and apply holiday pricing
   const checkInDateOnly = new Date(checkInDate);
@@ -146,60 +141,9 @@ const createBooking = asyncHandler(async (req, res) => {
   const taxesAndFees = subtotal * 0.12; // Assuming 12% tax
   const totalAmount = subtotal + taxesAndFees;
 
-  // Find an available room on the same floor if the requested room is not available
-  let selectedRoom = room;
-
-  console.log('Initial room status:', room.status);
-  // Check if the room is occupied but has no active PAID booking
-  if (room.status === 'occupied') {
-    const activePaidBooking = await Booking.findOne({
-      room: room._id,
-      status: { $nin: ['cancelled', 'completed'] },
-      checkOut: { $gte: new Date() },
-      paymentStatus: { $in: ['paid', 'partial'] } // Only consider paid bookings as valid occupation
-    });
-
-    if (!activePaidBooking) {
-      console.log(`Room ${room.roomNumber} was occupied but no active PAID booking found. Setting status to available.`);
-      room.status = 'available';
-      await room.save();
-      console.log(`Room ${room.roomNumber} status after save: ${room.status}`);
-    } else {
-      console.log(`Room ${room.roomNumber} is occupied and has an active PAID booking.`);
-    }
-  }
-  console.log('Room status before availability check:', room.status);
-
-  // NEW LOGIC: Rooms are only marked as occupied AFTER payment confirmation
-  // - During booking creation: room stays available (no status change)
-  // - After QRPh payment (webhook): room.status = 'occupied' 
-  // - Payment failed/expired: room remains available
-  // - Only PAID bookings (paymentStatus: 'paid'/'partial') count as valid occupation
-
-  if (room.status !== 'available') {
-    // Find another available room on the same floor
-    const availableRoom = await Room.findOne({
-      floor: room.floor,
-      status: 'available',
-      roomType: room.roomType // Use room.roomType instead of room.type
-    });
-
-    if (availableRoom) {
-      selectedRoom = availableRoom;
-      console.log(`Room ${roomNumber} not available, assigned room ${selectedRoom.roomNumber} instead`);
-    } else {
-      res.status(400);
-      throw new Error(`Room ${roomNumber} is not available and no alternative rooms found on floor ${room.floor}`);
-    }
-  }
-  console.log('Selected room before saving:', selectedRoom); // Log selected room before saving
-
-  // Keep room available until payment is confirmed
-  // selectedRoom.status = 'occupied'; // Moved to payment confirmation
-  // await selectedRoom.save();
-
+  // Rest of the logic – Do not assign room or roomNumber! Always set to null at booking creation.
   const bookingData = {
-    room: selectedRoom._id,
+    room: null,
     user: req.user.id,
     referenceNumber,
     customerName,
@@ -214,7 +158,7 @@ const createBooking = asyncHandler(async (req, res) => {
     roomNumber: null,
     numberOfGuests,
     totalAmount,
-    status: 'pending', // Set initial status to pending
+    status: 'pending',
     paymentStatus: 'pending'
   };
 
@@ -235,9 +179,9 @@ const createBooking = asyncHandler(async (req, res) => {
     const roomBilling = await Billing.create({
       booking: booking._id,
       user: req.user.id,
-      roomNumber: selectedRoom.roomNumber,
+      roomNumber: null, // Billing roomNumber is also null
       amount: totalAmount,
-      description: `Room booking charge for ${selectedRoom.roomNumber} (${numberOfHours} hours)`,
+      description: `Room booking charge for ${null} (${numberOfHours} hours)`, // Description uses null
       status: 'pending',
       paymentMethod: 'online payment'
     });

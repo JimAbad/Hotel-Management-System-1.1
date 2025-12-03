@@ -52,6 +52,12 @@ const CustomerBillList = () => {
     b?.booking?.checkoutDate ||
     null;
 
+  const getRoomDisplay = (b) => {
+    const rn = (b.roomNumber ?? b.raw?.roomNumber ?? b.raw?.booking?.roomNumber);
+    if (rn !== undefined && rn !== null && rn !== '' && rn !== 0) return rn;
+    return 'To be assigned';
+  };
+
   // Normalize into a unified bill shape for rendering
   const normalizeBill = (x) => {
     if (!x) return null;
@@ -500,6 +506,7 @@ const CustomerBillList = () => {
                     <tr key={b._id}>
                       <td>{b.referenceNumber}</td>
                       <td>{b.customerName || "-"}</td>
+                      {/* Always show merged, grouped bill total: */}
                       <td>{prettyAmt(b.totalAmount)}</td>
                       <td>
                         <span className={`status-badge ${badge}`}>{b.paymentStatus}</span>
@@ -536,7 +543,7 @@ const CustomerBillList = () => {
         <div className="modal-overlay" onClick={() => setShowBillModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>Bills for Room {billDetails?.roomNumber || activeBill?.raw?.roomNumber || activeBill?.raw?.booking?.roomNumber || ""}</h3>
+              <h3>Bills for Room {getRoomDisplay(activeBill)}</h3>
               <button onClick={() => setShowBillModal(false)}>✕</button>
             </div>
             <div className="modal-body">

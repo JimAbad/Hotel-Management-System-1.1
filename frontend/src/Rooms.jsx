@@ -364,7 +364,7 @@ function Rooms() {
       };
 
       const bookingData = {
-        roomNumber: modalRoom.roomNumber,
+        roomType: modalRoom.roomType || modalRoom.type,
         customerName: guestName,
         customerEmail: email,
         contactNumber,

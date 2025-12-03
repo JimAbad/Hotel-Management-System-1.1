@@ -110,26 +110,12 @@ const ManageBookingAdmin = () => {
   };
 
   const getRoomDisplay = (b) => {
-    if (!b) return 'N/A';
-    const room = b.room;
-    // If room is an object, try common fields
-    if (room && typeof room === 'object') {
-      if (room.roomNumber !== undefined && room.roomNumber !== null && room.roomNumber !== '') {
-        return room.roomNumber;
-      }
-      if (room.number !== undefined && room.number !== null && room.number !== '') {
-        return room.number;
-      }
-    }
-    // If booking has a direct roomNumber
-    if (b.roomNumber !== undefined && b.roomNumber !== null && b.roomNumber !== '') {
-      return b.roomNumber;
-    }
-    // If room is just a string id/label
-    if (typeof room === 'string' && room) {
-      return room;
-    }
-    return 'N/A';
+    const rn = (b.roomNumber !== undefined && b.roomNumber !== null && b.roomNumber !== '' && b.roomNumber !== 0)
+      ? b.roomNumber
+      : (b.room && typeof b.room === 'object' && b.room.roomNumber !== undefined && b.room.roomNumber !== null && b.room.roomNumber !== '' && b.room.roomNumber !== 0)
+        ? b.room.roomNumber
+        : undefined;
+    return rn !== undefined ? rn : 'To be assigned';
   };
 
   const toDateSafe = (val) => {
