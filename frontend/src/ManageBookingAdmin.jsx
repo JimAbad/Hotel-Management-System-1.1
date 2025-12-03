@@ -50,6 +50,11 @@ const ManageBookingAdmin = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteBookingId, setDeleteBookingId] = useState(null);
 
+  // NEW: extend booking modal state
+  const [showExtendModal, setShowExtendModal] = useState(false);
+  const [extendDate, setExtendDate] = useState('');
+  const [extendHours, setExtendHours] = useState(3); // NEW
+
   useEffect(() => {
     if (token) {
       fetchBookings();
@@ -260,7 +265,44 @@ const ManageBookingAdmin = () => {
     setShowActivityModal(true);
   };
 
-  
+  // NEW: open extend modal
+  const handleOpenExtend = (booking) => {
+    setSelectedBooking(booking);
+    const currentCo = getCheckOut(booking);
+    // default to current checkout date if valid, otherwise today
+    let defaultDate = getTodayStr();
+    const d = toDateSafe(currentCo);
+    if (d) {
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      defaultDate = `${yyyy}-${mm}-${dd}`;
+    }
+    setExtendDate(defaultDate);
+    setExtendHours(3); // NEW: default minimum hours
+    setShowExtendModal(true);
+  };
+
+  // NEW: confirm extend booking
+  const handleConfirmExtend = async () => {
+    if (!selectedBooking || !extendDate || !extendHours || extendHours < 3) return;
+    try {
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+      await axios.put(
+        `${API_BASE}/api/bookings/${selectedBooking._id}`,
+        { checkOutDate: extendDate, extendHours }, // NEW: send hours too
+        config
+      );
+      setShowExtendModal(false);
+      setSelectedBooking(null);
+      setExtendDate('');
+      setExtendHours(3);
+      fetchBookings();
+    } catch (err) {
+      console.error('Error extending booking:', err);
+      alert(err?.response?.data?.message || err.message);
+    }
+  };
 
   const handleEditSubmit = async (e) => {
     e.preventDefault();
@@ -476,6 +518,16 @@ const ManageBookingAdmin = () => {
                       >
                         Assign Room
                       </button>
+
+                      {/* NEW: Extend button */}
+                      <button
+                        className="assign-btn"
+                        disabled={["cancelled","completed"].includes(String(getBookingStatus(b) || '').toLowerCase())}
+                        onClick={() => handleOpenExtend(b)}
+                      >
+                        Extend
+                      </button>
+
                       <button className="delete-btn" onClick={() => handleDelete(b._id)}>
                         Delete
                       </button>
@@ -765,6 +817,79 @@ const ManageBookingAdmin = () => {
           </div>
         </div>
       )}
+
+      {/* NEW: Extend Booking Modal */}
+      {showExtendModal && selectedBooking && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h3>Extend Booking</h3>
+              <button onClick={() => setShowExtendModal(false)}>&times;</button>
+            </div>
+            <div className="modal-body">
+              <p>
+                <strong>Guest:</strong> {selectedBooking.guestName || selectedBooking.customerName || '-'}
+              </p>
+              <p>
+                <strong>Reference:</strong> {selectedBooking.referenceNumber || `BK${String(selectedBooking._id || '').slice(-6)}`}
+              </p>
+              <p>
+                <strong>Current Check-out:</strong> {formatDate(getCheckOut(selectedBooking))}
+              </p>
+
+              <div className="form-group" style={{ marginTop: 12 }}>
+                <label>New Check-out Date:</label>
+                <input
+                  type="date"
+                  value={extendDate}
+                  min={(() => {
+                    const cur = getCheckOut(selectedBooking);
+                    const d = toDateSafe(cur);
+                    if (!d) return getTodayStr();
+                    const yyyy = d.getFullYear();
+                    const mm = String(d.getMonth() + 1).padStart(2, '0');
+                    const dd = String(d.getDate()).padStart(2, '0');
+                    return `${yyyy}-${mm}-${dd}`;
+                  })()}
+                  onChange={(e) => setExtendDate(e.target.value)}
+                />
+              </div>
+
+              {/* NEW: Extend Hours */}
+              <div className="form-group" style={{ marginTop: 12 }}>
+                <label>Extend Hours (min 3):</label>
+                <input
+                  type="number"
+                  min={3}
+                  value={extendHours}
+                  onChange={(e) => {
+                    const v = Number(e.target.value || 0);
+                    setExtendHours(v < 3 ? 3 : v);
+                  }}
+                />
+              </div>
+
+              <div className="form-actions" style={{ marginTop: 16 }}>
+                <button
+                  className="save-btn"
+                  disabled={!extendDate || !extendHours || extendHours < 3}
+                  onClick={handleConfirmExtend}
+                >
+                  Save
+                </button>
+                <button
+                  className="cancel-btn"
+                  type="button"
+                  onClick={() => setShowExtendModal(false)}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showDeleteModal && (
         <div className="modal-overlay">
           <div className="modal-content">
