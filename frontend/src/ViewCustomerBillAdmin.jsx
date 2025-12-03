@@ -50,6 +50,15 @@ const ViewCustomerBillAdmin = () => {
     return matchesSearch && matchesFilter;
   });
 
+  // Format currency with peso sign
+  const formatCurrency = (value) => {
+    const num = Number(value ?? 0);
+    return '₱' + num.toLocaleString('en-PH', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  };
+
   // Handle mark as paid
   const handleMarkAsPaid = async (id) => {
     try {
@@ -97,7 +106,7 @@ const ViewCustomerBillAdmin = () => {
           <option value="Partially Paid">Partially Paid</option>
           <option value="Paid">Paid</option>
         </select>
-      
+      </div>
 
       {/* Table */}
       <table className="bill-table">
@@ -120,12 +129,11 @@ const ViewCustomerBillAdmin = () => {
                 <td>{bill.customerName}</td>
                 <td>{bill.customerEmail}</td>
                 <td>{bill.room}</td>
-                <td>{bill.totalAmount?.toFixed(2)}</td>
+                <td>{formatCurrency(bill.totalAmount)}</td>
                 <td>
                   <span
-                    className={`status-badge ${
-                      bill.paymentStatus === 'Paid' ? 'paid' : 'partial'
-                    }`}
+                    className={`status-badge ${bill.paymentStatus === 'Paid' ? 'paid' : 'partial'
+                      }`}
                   >
                     {bill.paymentStatus}
                   </span>
@@ -157,7 +165,6 @@ const ViewCustomerBillAdmin = () => {
           )}
         </tbody>
       </table>
-    </div>
     </div>
   );
 };

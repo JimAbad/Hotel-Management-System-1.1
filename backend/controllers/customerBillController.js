@@ -1,5 +1,7 @@
 const asyncHandler = require('../middleware/async');
 const Billing = require('../models/Billing');
+const Booking = require('../models/bookingModel');
+const Room = require('../models/roomModel');
 
 exports.getAllCustomerBills = asyncHandler(async (req, res) => {
   // Enrich bills with booking details needed by admin UI
@@ -39,11 +41,81 @@ exports.getCustomerBill = asyncHandler(async (req, res) => {
     })
     .lean();
   if (!bill) return res.status(404).json({ success: false, message: 'Bill not found' });
-  
+
   // Don't return bills for unpaid draft bookings, but show paid draft bookings
   if (bill.booking?.status === 'draft' && bill.booking?.paymentStatus === 'pending') {
     return res.status(404).json({ success: false, message: 'Bill not found' });
   }
-  
+
   res.status(200).json({ success: true, bill });
+});
+
+// New endpoint for detailed bill breakdown
+exports.getDetailedBillBreakdown = asyncHandler(async (req, res) => {
+  const { bookingId } = req.params;
+
+  // Fetch booking with room details
+  const booking = await Booking.findById(bookingId).populate('room').lean();
+  if (!booking) {
+    return res.status(404).json({ success: true, message: 'Booking not found' });
+  }
+
+  // Fetch all billing records for this booking
+  const billingRecords = await Billing.find({ booking: bookingId }).lean();
+
+  // Calculate room charges
+  const checkIn = new Date(booking.checkIn);
+  const checkOut = new Date(booking.checkOut);
+  const diffMs = checkOut - checkIn;
+  const hours = Math.ceil(diffMs / (1000 * 60 * 60));
+
+  // Get room price (handle Economy room special pricing)
+  const roomPrice = booking.room?.roomType === 'Economy' ? 59.523 : (booking.room?.price || 0);
+  const roomSubtotal = hours * roomPrice;
+
+  // Separate food charges from billing records
+  const foodItems = billingRecords.filter(b =>
+    b.description && !b.description.includes('Room booking charge')
+  );
+  const foodSubtotal = foodItems.reduce((sum, item) => sum + (item.amount || 0), 0);
+
+  // Extension charges (placeholder for future feature)
+  const extensionSubtotal = 0;
+
+  // Calculate total
+  const totalAmount = roomSubtotal + foodSubtotal + extensionSubtotal;
+
+  // Build response
+  const breakdown = {
+    referenceNumber: booking.referenceNumber,
+    customerName: booking.customerName,
+    roomNumber: booking.roomNumber || booking.room?.roomNumber || '',
+    checkIn: booking.checkIn,
+    checkOut: booking.checkOut,
+    paymentStatus: booking.paymentStatus || 'pending',
+    breakdown: {
+      roomCharges: {
+        hours,
+        pricePerHour: roomPrice,
+        subtotal: roomSubtotal,
+        description: `Room booking charge for ${booking.roomNumber || booking.room?.roomNumber} (${hours} hours)`
+      },
+      foodCharges: {
+        items: foodItems.map(item => ({
+          description: item.description,
+          amount: item.amount,
+          createdAt: item.createdAt
+        })),
+        subtotal: foodSubtotal
+      },
+      extensionCharges: {
+        hours: 0,
+        subtotal: extensionSubtotal,
+        description: 'No extensions'
+      },
+      totalAmount
+    }
+  };
+
+  res.status(200).json({ success: true, data: breakdown });
 });

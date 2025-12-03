@@ -57,7 +57,7 @@ const ManageBookingAdmin = () => {
     }
   }, [statusFilter, searchQuery, token]);
 
-  
+
 
   // Helper: pick the first existing field name from your API result
   const pick = (obj, keys) => keys.find((k) => obj?.[k] !== undefined && obj?.[k] !== null) && obj[keys.find((k) => obj?.[k] !== undefined && obj?.[k] !== null)];
@@ -167,7 +167,7 @@ const ManageBookingAdmin = () => {
       // skip this booking
       if (String(b?._id || '') === String(booking?._id || '')) continue;
       const st = String(getBookingStatus(b) || '').toLowerCase();
-      const isActive = !['cancelled','completed'].includes(st);
+      const isActive = !['cancelled', 'completed'].includes(st);
       if (!isActive) continue;
       const bn = getRoomDisplay(b);
       if (!bn || String(bn) !== String(rn)) continue;
@@ -218,8 +218,8 @@ const ManageBookingAdmin = () => {
   const getTodayStr = () => {
     const d = new Date();
     const yyyy = d.getFullYear();
-    const mm = String(d.getMonth()+1).padStart(2,'0');
-    const dd = String(d.getDate()).padStart(2,'0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
     return `${yyyy}-${mm}-${dd}`;
   };
   const getNextHalfHour = () => {
@@ -232,8 +232,8 @@ const ManageBookingAdmin = () => {
       d.setHours(d.getHours() + 1);
       d.setMinutes(0);
     }
-    const hh = String(d.getHours()).padStart(2,'0');
-    const mi = String(d.getMinutes()).padStart(2,'0');
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mi = String(d.getMinutes()).padStart(2, '0');
     return `${hh}:${mi}`;
   };
 
@@ -260,7 +260,7 @@ const ManageBookingAdmin = () => {
     setShowActivityModal(true);
   };
 
-  
+
 
   const handleEditSubmit = async (e) => {
     e.preventDefault();
@@ -367,7 +367,7 @@ const ManageBookingAdmin = () => {
     try {
       await axios.put(
         `${API_BASE}/api/bookings/${selectedBooking._id}`,
-        { roomNumber: selectedRoomNumber, bookingStatus: getBookingStatus(selectedBooking) || 'pending' },
+        { roomNumber: selectedRoomNumber },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setShowAssignModal(false);
@@ -471,7 +471,7 @@ const ManageBookingAdmin = () => {
                     <div className="action-buttons">
                       <button
                         className="assign-btn"
-                        disabled={["cancelled","completed"].includes(String(getBookingStatus(b) || '').toLowerCase())}
+                        disabled={["cancelled", "completed"].includes(String(getBookingStatus(b) || '').toLowerCase())}
                         onClick={() => handleAssignRoom(b)}
                       >
                         Assign Room

@@ -6,7 +6,7 @@ import './Login.css';
 import './App.css';
 import FormGroup from './FormGroup';
 
-  const Login = () => {
+const Login = () => {
   const API_BASE = (() => {
     const fallback = 'https://hotel-management-system-1-1-backend.onrender.com';
     const env = import.meta.env.VITE_API_URL;
@@ -18,7 +18,7 @@ import FormGroup from './FormGroup';
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  
+
   // Forgot password states
   const [forgotPasswordModal, setForgotPasswordModal] = useState({
     isOpen: false,
@@ -30,7 +30,7 @@ import FormGroup from './FormGroup';
     message: '',
     isLoading: false
   });
-  
+
   const { login: customerLogin } = useAuth();
   const { login: adminLogin } = useAuthAdmin();
   const navigate = useNavigate();
@@ -110,7 +110,7 @@ import FormGroup from './FormGroup';
       }
 
       const data = await readJson(response);
-      
+
       if (response.ok) {
         setForgotPasswordMessage('Verification code sent to your email');
         nextForgotPasswordStep('verification');
@@ -141,7 +141,7 @@ import FormGroup from './FormGroup';
         setForgotPasswordMessage('Request timed out. Retrying...');
         response = await postWithTimeout(`${API_BASE}/api/auth/verify-reset-code`, { email: forgotPasswordModal.email, code: forgotPasswordModal.verificationCode }, 35000);
       }
-      
+
       if (response.ok) {
         setForgotPasswordMessage('Code verified successfully');
         nextForgotPasswordStep('newPassword');
@@ -185,7 +185,7 @@ import FormGroup from './FormGroup';
       }
 
       const data = await readJson(response);
-      
+
       if (response.ok) {
         setForgotPasswordMessage('Password updated successfully!');
         setTimeout(() => {
@@ -234,10 +234,28 @@ import FormGroup from './FormGroup';
     <div className="login-page">
       <div className="login-left">
         <img src="/images/lumine login.png" alt="Logo" className="login-logo" />
-       
+
       </div>
       <div className="login-container">
         <div className="login-form-card">
+          <button
+            onClick={() => window.history.back()}
+            style={{
+              color: 'white',
+              background: '#B8860B',
+              border: 'none',
+              padding: '8px 16px',
+              borderRadius: '6px',
+              fontSize: '16px',
+              cursor: 'pointer',
+              marginBottom: '16px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+          >
+            Back
+          </button>
           <h2>Login Now</h2>
           {error && <p className="error-message">{error}</p>}
           <form onSubmit={handleSubmit} className="login-form">
@@ -302,7 +320,7 @@ import FormGroup from './FormGroup';
                     {forgotPasswordModal.message}
                   </p>
                 )}
-                <button 
+                <button
                   className="forgot-password-button"
                   onClick={sendResetCode}
                   disabled={forgotPasswordModal.isLoading}
@@ -337,14 +355,14 @@ import FormGroup from './FormGroup';
                     {forgotPasswordModal.message}
                   </p>
                 )}
-                <button 
+                <button
                   className="forgot-password-button"
                   onClick={verifyResetCode}
                   disabled={forgotPasswordModal.isLoading}
                 >
                   {forgotPasswordModal.isLoading ? 'Verifying...' : 'Verify Code'}
                 </button>
-                <button 
+                <button
                   className="forgot-password-back"
                   onClick={() => nextForgotPasswordStep('email')}
                 >
@@ -386,14 +404,14 @@ import FormGroup from './FormGroup';
                     {forgotPasswordModal.message}
                   </p>
                 )}
-                <button 
+                <button
                   className="forgot-password-button"
                   onClick={updatePassword}
                   disabled={forgotPasswordModal.isLoading}
                 >
                   {forgotPasswordModal.isLoading ? 'Updating...' : 'Update Password'}
                 </button>
-                <button 
+                <button
                   className="forgot-password-back"
                   onClick={() => nextForgotPasswordStep('verification')}
                 >

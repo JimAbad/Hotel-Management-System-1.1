@@ -350,7 +350,7 @@ const CustomerBillList = () => {
     return "unpaid";
   };
 
-  // View Bill (modal) — tries bill endpoints, then booking endpoint
+  // View Bill (modal) — fetch detailed breakdown
   const openBillModal = async (bill) => {
     setActiveBill(bill);
     setShowBillModal(true);
@@ -358,8 +358,25 @@ const CustomerBillList = () => {
     setDetailsError(null);
     setDetailsLoading(true);
     try {
-      const id = bill._id;
       const bookingId = bill.bookingId || bill.raw?.bookingId || bill.raw?.booking?._id || bill._id;
+
+      // Try to fetch detailed breakdown first
+      try {
+        const response = await axios.get(
+          `${API_BASE}/api/customer-bills/booking/${bookingId}/breakdown`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        if (response.data?.success && response.data?.data) {
+          setBillDetails(response.data.data);
+          return;
+        }
+      } catch (breakdownError) {
+        console.warn('Breakdown endpoint failed, falling back to basic bill data:', breakdownError);
+      }
+
+      // Fallback to original logic if breakdown fails
+      const id = bill._id;
       const urls = [
         id && `${API_BASE}/api/customer-bills/${id}`,
         bookingId && `${API_BASE}/api/customer-bills/booking/${bookingId}`,
@@ -519,7 +536,7 @@ const CustomerBillList = () => {
         <div className="modal-overlay" onClick={() => setShowBillModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>Bill Details</h3>
+              <h3>Bills for Room {billDetails?.roomNumber || activeBill?.raw?.roomNumber || activeBill?.raw?.booking?.roomNumber || ""}</h3>
               <button onClick={() => setShowBillModal(false)}>✕</button>
             </div>
             <div className="modal-body">
@@ -533,24 +550,118 @@ const CustomerBillList = () => {
               )}
               {!detailsLoading && !detailsError && (
                 <>
-                  <div className="booking-details">
-                    <p><strong>Reference Number:</strong> {activeBill?.referenceNumber}</p>
+                  <div className="booking-details" style={{ color: '#1f2937' }}>
+                    <p><strong>Reference Number:</strong> {billDetails?.referenceNumber || activeBill?.referenceNumber}</p>
                     <p><strong>Customer Name:</strong> {billDetails?.customerName || billDetails?.name || activeBill?.customerName || "-"}</p>
-                    <p><strong>Total Bill Amount:</strong> {prettyAmt(billDetails?.totalAmount ?? activeBill?.totalAmount)}</p>
                     <p><strong>Payment Status:</strong> {billDetails?.paymentStatus || billDetails?.status || activeBill?.paymentStatus || "-"}</p>
-                    <p><strong>Check-Out Date:</strong> {prettyDate(billDetails?.checkOutDate || billDetails?.checkoutDate || activeBill?.checkOutDate)}</p>
+                    {billDetails?.checkIn && <p><strong>Check-In:</strong> {prettyDate(billDetails.checkIn)}</p>}
+                    {billDetails?.checkOut && <p><strong>Check-Out:</strong> {prettyDate(billDetails.checkOut)}</p>}
                   </div>
+
+                  {/* Detailed Breakdown */}
+                  {billDetails?.breakdown && (
+                    <div className="bill-breakdown" style={{ marginTop: '20px', color: '#1f2937' }}>
+                      <h4 style={{ marginBottom: '12px', fontSize: '16px', fontWeight: '600' }}>Bill Breakdown</h4>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+                        <thead>
+                          <tr style={{ borderBottom: '2px solid #e5e7eb' }}>
+                            <th style={{ textAlign: 'left', padding: '8px', fontWeight: '600' }}>Description</th>
+                            <th style={{ textAlign: 'right', padding: '8px', fontWeight: '600' }}>Amount</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {/* Room Charges */}
+                          <tr style={{ borderBottom: '1px solid #f3f4f6' }}>
+                            <td style={{ padding: '8px' }}>
+                              <strong>Room Charges</strong>
+                              <br />
+                              <span style={{ fontSize: '12px', color: '#6b7280' }}>
+                                {billDetails.breakdown.roomCharges.description}
+                              </span>
+                            </td>
+                            <td style={{ textAlign: 'right', padding: '8px' }}>
+                              {prettyAmt(billDetails.breakdown.roomCharges.subtotal)}
+                            </td>
+                          </tr>
+
+                          {/* Food Charges */}
+                          {billDetails.breakdown.foodCharges.items.length > 0 ? (
+                            <>
+                              <tr style={{ borderBottom: '1px solid #f3f4f6' }}>
+                                <td colSpan="2" style={{ padding: '8px' }}>
+                                  <strong>Food Charges</strong>
+                                </td>
+                              </tr>
+                              {billDetails.breakdown.foodCharges.items.map((item, idx) => (
+                                <tr key={idx} style={{ borderBottom: '1px solid #f9fafb' }}>
+                                  <td style={{ padding: '8px 8px 8px 24px', fontSize: '13px' }}>
+                                    {item.description}
+                                  </td>
+                                  <td style={{ textAlign: 'right', padding: '8px', fontSize: '13px' }}>
+                                    {prettyAmt(item.amount)}
+                                  </td>
+                                </tr>
+                              ))}
+                              <tr style={{ borderBottom: '1px solid #f3f4f6' }}>
+                                <td style={{ padding: '8px 8px 8px 24px' }}>
+                                  <em>Food Subtotal</em>
+                                </td>
+                                <td style={{ textAlign: 'right', padding: '8px' }}>
+                                  {prettyAmt(billDetails.breakdown.foodCharges.subtotal)}
+                                </td>
+                              </tr>
+                            </>
+                          ) : (
+                            <tr style={{ borderBottom: '1px solid #f3f4f6' }}>
+                              <td style={{ padding: '8px' }}>
+                                <strong>Food Charges</strong>
+                                <br />
+                                <span style={{ fontSize: '12px', color: '#6b7280' }}>No food orders</span>
+                              </td>
+                              <td style={{ textAlign: 'right', padding: '8px' }}>
+                                {prettyAmt(0)}
+                              </td>
+                            </tr>
+                          )}
+
+                          {/* Extension Charges */}
+                          <tr style={{ borderBottom: '1px solid #f3f4f6' }}>
+                            <td style={{ padding: '8px' }}>
+                              <strong>Extension Charges</strong>
+                              <br />
+                              <span style={{ fontSize: '12px', color: '#6b7280' }}>
+                                {billDetails.breakdown.extensionCharges.description}
+                              </span>
+                            </td>
+                            <td style={{ textAlign: 'right', padding: '8px' }}>
+                              {prettyAmt(billDetails.breakdown.extensionCharges.subtotal)}
+                            </td>
+                          </tr>
+
+                          {/* Total */}
+                          <tr style={{ borderTop: '2px solid #e5e7eb', backgroundColor: '#f9fafb' }}>
+                            <td style={{ padding: '12px 8px', fontWeight: '700', fontSize: '15px' }}>
+                              Total Bill Amount
+                            </td>
+                            <td style={{ textAlign: 'right', padding: '12px 8px', fontWeight: '700', fontSize: '15px' }}>
+                              {prettyAmt(billDetails.breakdown.totalAmount)}
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+
+                  {/* Fallback for non-breakdown data */}
+                  {!billDetails?.breakdown && (
+                    <div style={{ marginTop: '12px', color: '#1f2937' }}>
+                      <p><strong>Total Bill Amount:</strong> {prettyAmt(billDetails?.totalAmount ?? activeBill?.totalAmount)}</p>
+                    </div>
+                  )}
+
                   <div className="form-actions">
-                    <Link
-                      to={`/admin/view-customer-bill/${activeBill?.bookingId || activeBill?._id || ""}`}
-                      className="btn btn-light"
-                      onClick={() => setShowBillModal(false)}
-                    >
-                      Open Full Page
-                    </Link>
-                    <button className="btn btn-ghost" onClick={() => setShowBillModal(false)}>
-                      Close
-                    </button>
+
+
                   </div>
                 </>
               )}
