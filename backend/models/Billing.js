@@ -4,7 +4,7 @@ const billingSchema = new mongoose.Schema({
   booking: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Booking',
-    required: true
+    required: false  // Changed to false to support non-booking bills
   },
   user: {
     type: mongoose.Schema.Types.ObjectId,
@@ -13,7 +13,8 @@ const billingSchema = new mongoose.Schema({
   },
   roomNumber: {
     type: String,
-    required: true
+    required: false, // allow null while room is not yet assigned
+    default: null
   },
   amount: {
     type: Number,
@@ -33,6 +34,30 @@ const billingSchema = new mongoose.Schema({
     enum: ['cash', 'credit card', 'bank transfer', 'online payment'],
     default: 'cash'
   },
+  // Fields for supporting bills from other subsystems
+  billType: {
+    type: String,
+    enum: ['room_charge', 'food_order', 'service_charge', 'other'],
+    default: 'room_charge'
+  },
+  orderId: {
+    type: mongoose.Schema.Types.ObjectId,
+    required: false  // For food orders or other service orders
+  },
+  items: [{
+    name: String,
+    img: String,
+    category: String,
+    price: Number,
+    quantity: Number,
+    addedAt: Date
+  }],
+  comboContents: [{
+    _id: mongoose.Schema.Types.ObjectId,
+    name: String,
+    img: String,
+    category: String
+  }],
   createdAt: {
     type: Date,
     default: Date.now

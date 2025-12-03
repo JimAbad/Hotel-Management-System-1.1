@@ -14,6 +14,9 @@ if (!requireAdmin) throw new Error('authorize(["admin"]) or admin middleware is 
 // list all customer bills
 router.get('/', protect, requireAdmin, bills.getAllCustomerBills);
 
+// get detailed bill breakdown by bookingId
+router.get('/booking/:bookingId/breakdown', protect, requireAdmin, bills.getDetailedBillBreakdown);
+
 // get single bill by bookingId
 router.get('/:bookingId', protect, requireAdmin, bills.getCustomerBill);
 

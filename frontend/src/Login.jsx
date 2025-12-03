@@ -6,7 +6,7 @@ import './Login.css';
 import './App.css';
 import FormGroup from './FormGroup';
 
-  const Login = () => {
+const Login = () => {
   const API_BASE = (() => {
     const fallback = 'https://hotel-management-system-1-1-backend.onrender.com';
     const env = import.meta.env.VITE_API_URL;
@@ -15,14 +15,15 @@ import FormGroup from './FormGroup';
     const base = envNorm && envNorm !== originNorm ? envNorm : fallback;
     return base;
   })();
+
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  
+
   // Forgot password states
   const [forgotPasswordModal, setForgotPasswordModal] = useState({
     isOpen: false,
-    step: 'email', // 'email', 'verification', 'newPassword'
+    step: 'email',
     email: '',
     verificationCode: '',
     newPassword: '',
@@ -30,7 +31,7 @@ import FormGroup from './FormGroup';
     message: '',
     isLoading: false
   });
-  
+
   const { login: customerLogin } = useAuth();
   const { login: adminLogin } = useAuthAdmin();
   const navigate = useNavigate();
@@ -110,7 +111,7 @@ import FormGroup from './FormGroup';
       }
 
       const data = await readJson(response);
-      
+
       if (response.ok) {
         setForgotPasswordMessage('Verification code sent to your email');
         nextForgotPasswordStep('verification');
@@ -141,7 +142,7 @@ import FormGroup from './FormGroup';
         setForgotPasswordMessage('Request timed out. Retrying...');
         response = await postWithTimeout(`${API_BASE}/api/auth/verify-reset-code`, { email: forgotPasswordModal.email, code: forgotPasswordModal.verificationCode }, 35000);
       }
-      
+
       if (response.ok) {
         setForgotPasswordMessage('Code verified successfully');
         nextForgotPasswordStep('newPassword');
@@ -185,7 +186,7 @@ import FormGroup from './FormGroup';
       }
 
       const data = await readJson(response);
-      
+
       if (response.ok) {
         setForgotPasswordMessage('Password updated successfully!');
         setTimeout(() => {
@@ -207,21 +208,18 @@ import FormGroup from './FormGroup';
     e.preventDefault();
     setError('');
     try {
-      // Attempt admin login first
       const adminResult = await adminLogin(username, password);
       if (adminResult.success) {
         navigate('/admin/dashboard');
         return;
       }
 
-      // If admin login failed, attempt customer login
       const customerResult = await customerLogin(username, password);
       if (customerResult.success) {
         navigate('/');
         return;
       }
 
-      // Show specific error message if available
       const message = customerResult.message || adminResult.message || 'Invalid Credentials';
       setError(message);
     } catch (err) {
@@ -232,9 +230,31 @@ import FormGroup from './FormGroup';
 
   return (
     <div className="login-page">
+      <button
+        onClick={() => window.history.back()}
+        style={{
+          position: 'absolute',
+          top: '40px',
+          left: '40px',
+          zIndex: 1000,
+          color: 'white',
+          background: '#B8860B',
+          border: 'none',
+          padding: '12px 24px',
+          borderRadius: '8px',
+          fontSize: '18px',
+          fontWeight: '600',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+        }}
+      >
+        ⇦ Back
+      </button>
       <div className="login-left">
         <img src="/images/lumine login.png" alt="Logo" className="login-logo" />
-       
       </div>
       <div className="login-container">
         <div className="login-form-card">
@@ -249,6 +269,7 @@ import FormGroup from './FormGroup';
               required
               icon="fa-solid fa-user"
             />
+
             <FormGroup
               label="Password"
               type="password"
@@ -257,153 +278,154 @@ import FormGroup from './FormGroup';
               required
               icon="fa-solid fa-lock"
             />
-            <button type="submit" className="login-button">Login</button>
-            <p className="forgot-password-link">
+
+            <div className="form-options">
               <span onClick={openForgotPasswordModal} className="forgot-link">
                 Forgot Password?
               </span>
-            </p>
-            <p className="signup-link">
-              Don't have an account? <Link to="/signup">Sign up</Link>
-            </p>
-          </form>
-        </div>
-      </div>
+            </div>
 
-      {/* Forgot Password Modal */}
-      {forgotPasswordModal.isOpen && (
-        <div className="forgot-password-overlay" onClick={closeForgotPasswordModal}>
-          <div className="forgot-password-modal" onClick={(e) => e.stopPropagation()}>
-            <button className="forgot-password-close" onClick={closeForgotPasswordModal}>
-              <i className="fa-solid fa-times"></i>
+            <button type="submit" className="login-btn">
+              Login
             </button>
 
-            {/* Step 1: Email Input */}
-            {forgotPasswordModal.step === 'email' && (
-              <div className="forgot-password-content">
-                <div className="forgot-password-icon">
-                  <i className="fa-solid fa-envelope"></i>
-                </div>
-                <h3 className="forgot-password-title">Reset Password</h3>
-                <p className="forgot-password-subtitle">
-                  Enter your email address and we'll send you a verification code
-                </p>
-                <FormGroup
-                  label="Email Address"
-                  type="email"
-                  value={forgotPasswordModal.email}
-                  onChange={(e) => updateForgotPasswordField('email', e.target.value)}
-                  required
-                  icon="fa-solid fa-envelope"
-                  placeholder="Enter your email"
-                />
-                {forgotPasswordModal.message && (
-                  <p className={`forgot-password-message ${forgotPasswordModal.message.includes('sent') ? 'success' : 'error'}`}>
-                    {forgotPasswordModal.message}
-                  </p>
-                )}
-                <button 
-                  className="forgot-password-button"
-                  onClick={sendResetCode}
-                  disabled={forgotPasswordModal.isLoading}
-                >
-                  {forgotPasswordModal.isLoading ? 'Sending...' : 'Send Reset Code'}
-                </button>
-              </div>
-            )}
+            <p className="signup-link">
+              Don't have an account? <Link to="/signup">Sign Up</Link>
+            </p>
+          </form>
 
-            {/* Step 2: Verification Code */}
-            {forgotPasswordModal.step === 'verification' && (
-              <div className="forgot-password-content">
-                <div className="forgot-password-icon">
-                  <i className="fa-solid fa-shield-halved"></i>
-                </div>
-                <h3 className="forgot-password-title">Enter Verification Code</h3>
-                <p className="forgot-password-subtitle">
-                  We've sent a 6-digit code to {forgotPasswordModal.email}
-                </p>
-                <FormGroup
-                  label="Verification Code"
-                  type="text"
-                  value={forgotPasswordModal.verificationCode}
-                  onChange={(e) => updateForgotPasswordField('verificationCode', e.target.value)}
-                  required
-                  icon="fa-solid fa-key"
-                  placeholder="Enter 6-digit code"
-                  maxLength="6"
-                />
-                {forgotPasswordModal.message && (
-                  <p className={`forgot-password-message ${forgotPasswordModal.message.includes('successfully') ? 'success' : 'error'}`}>
-                    {forgotPasswordModal.message}
-                  </p>
-                )}
-                <button 
-                  className="forgot-password-button"
-                  onClick={verifyResetCode}
-                  disabled={forgotPasswordModal.isLoading}
-                >
-                  {forgotPasswordModal.isLoading ? 'Verifying...' : 'Verify Code'}
+          {forgotPasswordModal.isOpen && (
+            <div className="forgot-password-overlay" onClick={closeForgotPasswordModal}>
+              <div className="forgot-password-modal" onClick={(e) => e.stopPropagation()}>
+                <button className="forgot-password-close" onClick={closeForgotPasswordModal}>
+                  <i className="fa-solid fa-times"></i>
                 </button>
-                <button 
-                  className="forgot-password-back"
-                  onClick={() => nextForgotPasswordStep('email')}
-                >
-                  Back to Email
-                </button>
-              </div>
-            )}
 
-            {/* Step 3: New Password */}
-            {forgotPasswordModal.step === 'newPassword' && (
-              <div className="forgot-password-content">
-                <div className="forgot-password-icon">
-                  <i className="fa-solid fa-lock"></i>
-                </div>
-                <h3 className="forgot-password-title">Create New Password</h3>
-                <p className="forgot-password-subtitle">
-                  Enter your new password below
-                </p>
-                <FormGroup
-                  label="New Password"
-                  type="password"
-                  value={forgotPasswordModal.newPassword}
-                  onChange={(e) => updateForgotPasswordField('newPassword', e.target.value)}
-                  required
-                  icon="fa-solid fa-lock"
-                  placeholder="Enter new password"
-                />
-                <FormGroup
-                  label="Confirm Password"
-                  type="password"
-                  value={forgotPasswordModal.confirmPassword}
-                  onChange={(e) => updateForgotPasswordField('confirmPassword', e.target.value)}
-                  required
-                  icon="fa-solid fa-lock"
-                  placeholder="Confirm new password"
-                />
-                {forgotPasswordModal.message && (
-                  <p className={`forgot-password-message ${forgotPasswordModal.message.includes('successfully') ? 'success' : 'error'}`}>
-                    {forgotPasswordModal.message}
-                  </p>
+                {forgotPasswordModal.step === 'email' && (
+                  <div className="forgot-password-content">
+                    <div className="forgot-password-icon">
+                      <i className="fa-solid fa-envelope"></i>
+                    </div>
+                    <h3 className="forgot-password-title">Reset Password</h3>
+                    <p className="forgot-password-subtitle">
+                      Enter your email address and we'll send you a verification code
+                    </p>
+                    <FormGroup
+                      label="Email Address"
+                      type="email"
+                      value={forgotPasswordModal.email}
+                      onChange={(e) => updateForgotPasswordField('email', e.target.value)}
+                      required
+                      icon="fa-solid fa-envelope"
+                      placeholder="Enter your email"
+                    />
+                    {forgotPasswordModal.message && (
+                      <p className={`forgot-password-message ${forgotPasswordModal.message.includes('sent') ? 'success' : 'error'}`}>
+                        {forgotPasswordModal.message}
+                      </p>
+                    )}
+                    <button
+                      className="forgot-password-button"
+                      onClick={sendResetCode}
+                      disabled={forgotPasswordModal.isLoading}
+                    >
+                      {forgotPasswordModal.isLoading ? 'Sending...' : 'Send Reset Code'}
+                    </button>
+                  </div>
                 )}
-                <button 
-                  className="forgot-password-button"
-                  onClick={updatePassword}
-                  disabled={forgotPasswordModal.isLoading}
-                >
-                  {forgotPasswordModal.isLoading ? 'Updating...' : 'Update Password'}
-                </button>
-                <button 
-                  className="forgot-password-back"
-                  onClick={() => nextForgotPasswordStep('verification')}
-                >
-                  Back to Verification
-                </button>
+
+                {forgotPasswordModal.step === 'verification' && (
+                  <div className="forgot-password-content">
+                    <div className="forgot-password-icon">
+                      <i className="fa-solid fa-shield-halved"></i>
+                    </div>
+                    <h3 className="forgot-password-title">Enter Verification Code</h3>
+                    <p className="forgot-password-subtitle">
+                      We've sent a 6-digit code to {forgotPasswordModal.email}
+                    </p>
+                    <FormGroup
+                      label="Verification Code"
+                      type="text"
+                      value={forgotPasswordModal.verificationCode}
+                      onChange={(e) => updateForgotPasswordField('verificationCode', e.target.value)}
+                      required
+                      icon="fa-solid fa-key"
+                      placeholder="Enter 6-digit code"
+                      maxLength="6"
+                    />
+                    {forgotPasswordModal.message && (
+                      <p className={`forgot-password-message ${forgotPasswordModal.message.includes('successfully') ? 'success' : 'error'}`}>
+                        {forgotPasswordModal.message}
+                      </p>
+                    )}
+                    <button
+                      className="forgot-password-button"
+                      onClick={verifyResetCode}
+                      disabled={forgotPasswordModal.isLoading}
+                    >
+                      {forgotPasswordModal.isLoading ? 'Verifying...' : 'Verify Code'}
+                    </button>
+                    <button
+                      className="forgot-password-back"
+                      onClick={() => nextForgotPasswordStep('email')}
+                    >
+                      Back to Email
+                    </button>
+                  </div>
+                )}
+
+                {forgotPasswordModal.step === 'newPassword' && (
+                  <div className="forgot-password-content">
+                    <div className="forgot-password-icon">
+                      <i className="fa-solid fa-lock"></i>
+                    </div>
+                    <h3 className="forgot-password-title">Create New Password</h3>
+                    <p className="forgot-password-subtitle">
+                      Enter your new password below
+                    </p>
+                    <FormGroup
+                      label="New Password"
+                      type="password"
+                      value={forgotPasswordModal.newPassword}
+                      onChange={(e) => updateForgotPasswordField('newPassword', e.target.value)}
+                      required
+                      icon="fa-solid fa-lock"
+                      placeholder="Enter new password"
+                    />
+                    <FormGroup
+                      label="Confirm Password"
+                      type="password"
+                      value={forgotPasswordModal.confirmPassword}
+                      onChange={(e) => updateForgotPasswordField('confirmPassword', e.target.value)}
+                      required
+                      icon="fa-solid fa-lock"
+                      placeholder="Confirm new password"
+                    />
+                    {forgotPasswordModal.message && (
+                      <p className={`forgot-password-message ${forgotPasswordModal.message.includes('successfully') ? 'success' : 'error'}`}>
+                        {forgotPasswordModal.message}
+                      </p>
+                    )}
+                    <button
+                      className="forgot-password-button"
+                      onClick={updatePassword}
+                      disabled={forgotPasswordModal.isLoading}
+                    >
+                      {forgotPasswordModal.isLoading ? 'Updating...' : 'Update Password'}
+                    </button>
+                    <button
+                      className="forgot-password-back"
+                      onClick={() => nextForgotPasswordStep('verification')}
+                    >
+                      Back to Verification
+                    </button>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 };

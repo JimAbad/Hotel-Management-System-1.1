@@ -52,6 +52,12 @@ const CustomerBillList = () => {
     b?.booking?.checkoutDate ||
     null;
 
+  const getRoomDisplay = (b) => {
+    const rn = (b.roomNumber ?? b.raw?.roomNumber ?? b.raw?.booking?.roomNumber);
+    if (rn !== undefined && rn !== null && rn !== '' && rn !== 0) return rn;
+    return 'To be assigned';
+  };
+
   // Normalize into a unified bill shape for rendering
   const normalizeBill = (x) => {
     if (!x) return null;
@@ -76,8 +82,8 @@ const CustomerBillList = () => {
     const totalAmount =
       Number(
         pickFirst(x, ['totalAmount', 'amount', 'total', 'billingAmount']) ??
-          pickFirst(bookingObj, ['totalAmount', 'totalPrice', 'grandTotal', 'amount', 'billingTotal']) ??
-          0
+        pickFirst(bookingObj, ['totalAmount', 'totalPrice', 'grandTotal', 'amount', 'billingTotal']) ??
+        0
       ) || 0;
 
     const checkOutDate =
@@ -264,12 +270,13 @@ const CustomerBillList = () => {
 
     fetchBills();
   }, [API_BASE, BILL_ENDPOINTS, token]);
-
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const result = bills.filter((b) => {
+
+    // 1. Filter individual bills
+    const matchingBills = bills.filter((b) => {
       const status = (b.paymentStatus || "").toLowerCase();
       const name = (b.customerName || "").toLowerCase();
       const ref = (b.referenceNumber || "").toLowerCase();
@@ -282,7 +289,47 @@ const CustomerBillList = () => {
       const isActive = hasValidCheckout && co >= today;
       return passesStatus && passesSearch && isActive;
     });
-    // Sort by most recent check-out first
+
+    // 2. Group by Reference Number to merge bills
+    const groups = {};
+    matchingBills.forEach(bill => {
+      const key = bill.referenceNumber || bill.bookingId || bill._id;
+
+      if (!groups[key]) {
+        groups[key] = {
+          ...bill,
+          totalRoomCharges: 0,
+          totalExtraCharges: 0,
+          totalAmount: 0
+        };
+      }
+
+      // Calculate charges based on description from raw data
+      const desc = bill.raw?.description || "";
+      const amt = bill.totalAmount || 0;
+
+      if (desc.includes('Room booking charge')) {
+        groups[key].totalRoomCharges += amt;
+      } else {
+        groups[key].totalExtraCharges += amt;
+      }
+
+      // Merge status
+      const currentStatus = (groups[key].paymentStatus || "").toLowerCase();
+      const newStatus = (bill.paymentStatus || "").toLowerCase();
+      if (newStatus !== 'paid' && newStatus !== 'completed') {
+        groups[key].paymentStatus = bill.paymentStatus;
+      }
+    });
+
+    // Final calculation: Deduct 10% partial payment from room charges
+    Object.values(groups).forEach(group => {
+      group.totalAmount = (group.totalRoomCharges * 0.9) + group.totalExtraCharges;
+    });
+
+    const result = Object.values(groups);
+
+    // 3. Sort by most recent check-out first
     return result.slice().sort((a, b) => {
       const aRaw = a.checkOutDate || (a.raw?.booking?.checkOut) || (a.raw?.booking?.checkOutDate);
       const bRaw = b.checkOutDate || (b.raw?.booking?.checkOut) || (b.raw?.booking?.checkOutDate);
@@ -294,12 +341,14 @@ const CustomerBillList = () => {
     });
   }, [bills, search, statusFilter]);
 
-  const prettyAmt = (n) => `$${Number(n ?? 0).toFixed(2)}`;
+  const prettyAmt = (n) => `₱${Number(n ?? 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
   const prettyDate = (d) => {
     if (!d) return "-";
     const iso = new Date(d);
     return isNaN(iso) ? String(d) : iso.toISOString().slice(0, 10);
   };
+
   const badgeClass = (s) => {
     const v = (s || "").toLowerCase();
     if (v.includes("partial")) return "partial";
@@ -307,7 +356,7 @@ const CustomerBillList = () => {
     return "unpaid";
   };
 
-  // View Bill (modal) — tries bill endpoints, then booking endpoint
+  // View Bill (modal) — fetch detailed breakdown
   const openBillModal = async (bill) => {
     setActiveBill(bill);
     setShowBillModal(true);
@@ -315,8 +364,25 @@ const CustomerBillList = () => {
     setDetailsError(null);
     setDetailsLoading(true);
     try {
-      const id = bill._id;
       const bookingId = bill.bookingId || bill.raw?.bookingId || bill.raw?.booking?._id || bill._id;
+
+      // Try to fetch detailed breakdown first
+      try {
+        const response = await axios.get(
+          `${API_BASE}/api/customer-bills/booking/${bookingId}/breakdown`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        if (response.data?.success && response.data?.data) {
+          setBillDetails(response.data.data);
+          return;
+        }
+      } catch (breakdownError) {
+        console.warn('Breakdown endpoint failed, falling back to basic bill data:', breakdownError);
+      }
+
+      // Fallback to original logic if breakdown fails
+      const id = bill._id;
       const urls = [
         id && `${API_BASE}/api/customer-bills/${id}`,
         bookingId && `${API_BASE}/api/customer-bills/booking/${bookingId}`,
@@ -343,8 +409,6 @@ const CustomerBillList = () => {
       setDetailsLoading(false);
     }
   };
-
-  // Mark as Paid (best-effort against common endpoints)
   const markAsPaid = async (bill) => {
     if (!bill) return;
     if (!window.confirm("Mark this bill as paid?")) return;
@@ -442,6 +506,7 @@ const CustomerBillList = () => {
                     <tr key={b._id}>
                       <td>{b.referenceNumber}</td>
                       <td>{b.customerName || "-"}</td>
+                      {/* Always show merged, grouped bill total: */}
                       <td>{prettyAmt(b.totalAmount)}</td>
                       <td>
                         <span className={`status-badge ${badge}`}>{b.paymentStatus}</span>
@@ -478,7 +543,7 @@ const CustomerBillList = () => {
         <div className="modal-overlay" onClick={() => setShowBillModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>Bill Details</h3>
+              <h3>Bills for Room {getRoomDisplay(activeBill)}</h3>
               <button onClick={() => setShowBillModal(false)}>✕</button>
             </div>
             <div className="modal-body">
@@ -492,24 +557,118 @@ const CustomerBillList = () => {
               )}
               {!detailsLoading && !detailsError && (
                 <>
-                  <div className="booking-details">
-                    <p><strong>Reference Number:</strong> {activeBill?.referenceNumber}</p>
+                  <div className="booking-details" style={{ color: '#1f2937' }}>
+                    <p><strong>Reference Number:</strong> {billDetails?.referenceNumber || activeBill?.referenceNumber}</p>
                     <p><strong>Customer Name:</strong> {billDetails?.customerName || billDetails?.name || activeBill?.customerName || "-"}</p>
-                    <p><strong>Total Bill Amount:</strong> {prettyAmt(billDetails?.totalAmount ?? activeBill?.totalAmount)}</p>
                     <p><strong>Payment Status:</strong> {billDetails?.paymentStatus || billDetails?.status || activeBill?.paymentStatus || "-"}</p>
-                    <p><strong>Check-Out Date:</strong> {prettyDate(billDetails?.checkOutDate || billDetails?.checkoutDate || activeBill?.checkOutDate)}</p>
+                    {billDetails?.checkIn && <p><strong>Check-In:</strong> {prettyDate(billDetails.checkIn)}</p>}
+                    {billDetails?.checkOut && <p><strong>Check-Out:</strong> {prettyDate(billDetails.checkOut)}</p>}
                   </div>
+
+                  {/* Detailed Breakdown */}
+                  {billDetails?.breakdown && (
+                    <div className="bill-breakdown" style={{ marginTop: '20px', color: '#1f2937' }}>
+                      <h4 style={{ marginBottom: '12px', fontSize: '16px', fontWeight: '600' }}>Bill Breakdown</h4>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+                        <thead>
+                          <tr style={{ borderBottom: '2px solid #e5e7eb' }}>
+                            <th style={{ textAlign: 'left', padding: '8px', fontWeight: '600' }}>Description</th>
+                            <th style={{ textAlign: 'right', padding: '8px', fontWeight: '600' }}>Amount</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {/* Room Charges */}
+                          <tr style={{ borderBottom: '1px solid #f3f4f6' }}>
+                            <td style={{ padding: '8px' }}>
+                              <strong>Room Charges</strong>
+                              <br />
+                              <span style={{ fontSize: '12px', color: '#6b7280' }}>
+                                {billDetails.breakdown.roomCharges.description}
+                              </span>
+                            </td>
+                            <td style={{ textAlign: 'right', padding: '8px' }}>
+                              {prettyAmt(billDetails.breakdown.roomCharges.subtotal)}
+                            </td>
+                          </tr>
+
+                          {/* Food Charges */}
+                          {billDetails.breakdown.foodCharges.items.length > 0 ? (
+                            <>
+                              <tr style={{ borderBottom: '1px solid #f3f4f6' }}>
+                                <td colSpan="2" style={{ padding: '8px' }}>
+                                  <strong>Food Charges</strong>
+                                </td>
+                              </tr>
+                              {billDetails.breakdown.foodCharges.items.map((item, idx) => (
+                                <tr key={idx} style={{ borderBottom: '1px solid #f9fafb' }}>
+                                  <td style={{ padding: '8px 8px 8px 24px', fontSize: '13px' }}>
+                                    {item.description}
+                                  </td>
+                                  <td style={{ textAlign: 'right', padding: '8px', fontSize: '13px' }}>
+                                    {prettyAmt(item.amount)}
+                                  </td>
+                                </tr>
+                              ))}
+                              <tr style={{ borderBottom: '1px solid #f3f4f6' }}>
+                                <td style={{ padding: '8px 8px 8px 24px' }}>
+                                  <em>Food Subtotal</em>
+                                </td>
+                                <td style={{ textAlign: 'right', padding: '8px' }}>
+                                  {prettyAmt(billDetails.breakdown.foodCharges.subtotal)}
+                                </td>
+                              </tr>
+                            </>
+                          ) : (
+                            <tr style={{ borderBottom: '1px solid #f3f4f6' }}>
+                              <td style={{ padding: '8px' }}>
+                                <strong>Food Charges</strong>
+                                <br />
+                                <span style={{ fontSize: '12px', color: '#6b7280' }}>No food orders</span>
+                              </td>
+                              <td style={{ textAlign: 'right', padding: '8px' }}>
+                                {prettyAmt(0)}
+                              </td>
+                            </tr>
+                          )}
+
+                          {/* Extension Charges */}
+                          <tr style={{ borderBottom: '1px solid #f3f4f6' }}>
+                            <td style={{ padding: '8px' }}>
+                              <strong>Extension Charges</strong>
+                              <br />
+                              <span style={{ fontSize: '12px', color: '#6b7280' }}>
+                                {billDetails.breakdown.extensionCharges.description}
+                              </span>
+                            </td>
+                            <td style={{ textAlign: 'right', padding: '8px' }}>
+                              {prettyAmt(billDetails.breakdown.extensionCharges.subtotal)}
+                            </td>
+                          </tr>
+
+                          {/* Total */}
+                          <tr style={{ borderTop: '2px solid #e5e7eb', backgroundColor: '#f9fafb' }}>
+                            <td style={{ padding: '12px 8px', fontWeight: '700', fontSize: '15px' }}>
+                              Total Bill Amount
+                            </td>
+                            <td style={{ textAlign: 'right', padding: '12px 8px', fontWeight: '700', fontSize: '15px' }}>
+                              {prettyAmt(billDetails.breakdown.totalAmount)}
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+
+                  {/* Fallback for non-breakdown data */}
+                  {!billDetails?.breakdown && (
+                    <div style={{ marginTop: '12px', color: '#1f2937' }}>
+                      <p><strong>Total Bill Amount:</strong> {prettyAmt(billDetails?.totalAmount ?? activeBill?.totalAmount)}</p>
+                    </div>
+                  )}
+
                   <div className="form-actions">
-                    <Link
-                      to={`/admin/view-customer-bill/${activeBill?.bookingId || activeBill?._id || ""}`}
-                      className="btn btn-light"
-                      onClick={() => setShowBillModal(false)}
-                    >
-                      Open Full Page
-                    </Link>
-                    <button className="btn btn-ghost" onClick={() => setShowBillModal(false)}>
-                      Close
-                    </button>
+
+
                   </div>
                 </>
               )}

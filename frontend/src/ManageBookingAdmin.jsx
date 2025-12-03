@@ -63,7 +63,7 @@ const ManageBookingAdmin = () => {
     }
   }, [statusFilter, searchQuery, token]);
 
-  
+
 
   // Helper: pick the first existing field name from your API result
   const pick = (obj, keys) => keys.find((k) => obj?.[k] !== undefined && obj?.[k] !== null) && obj[keys.find((k) => obj?.[k] !== undefined && obj?.[k] !== null)];
@@ -128,26 +128,12 @@ const ManageBookingAdmin = () => {
   };
 
   const getRoomDisplay = (b) => {
-    if (!b) return 'N/A';
-    const room = b.room;
-    // If room is an object, try common fields
-    if (room && typeof room === 'object') {
-      if (room.roomNumber !== undefined && room.roomNumber !== null && room.roomNumber !== '') {
-        return room.roomNumber;
-      }
-      if (room.number !== undefined && room.number !== null && room.number !== '') {
-        return room.number;
-      }
-    }
-    // If booking has a direct roomNumber
-    if (b.roomNumber !== undefined && b.roomNumber !== null && b.roomNumber !== '') {
-      return b.roomNumber;
-    }
-    // If room is just a string id/label
-    if (typeof room === 'string' && room) {
-      return room;
-    }
-    return 'N/A';
+    const rn = (b.roomNumber !== undefined && b.roomNumber !== null && b.roomNumber !== '' && b.roomNumber !== 0)
+      ? b.roomNumber
+      : (b.room && typeof b.room === 'object' && b.room.roomNumber !== undefined && b.room.roomNumber !== null && b.room.roomNumber !== '' && b.room.roomNumber !== 0)
+        ? b.room.roomNumber
+        : undefined;
+    return rn !== undefined ? rn : 'To be assigned';
   };
 
   const toDateSafe = (val) => {
@@ -168,9 +154,13 @@ const ManageBookingAdmin = () => {
     const targetCo = toDateSafe(getCheckOut(booking));
 
     if (!rn) return false;
-    // Must match type
-    const typeOk = normalizeType(room.roomType) === normalizeType(getRoomTypeFromBooking(booking));
-    if (!typeOk) return false;
+    // Must match type when the booking has a known room type.
+    // For legacy bookings without a stored roomType, allow any matching-status room.
+    const bookingType = normalizeType(getRoomTypeFromBooking(booking));
+    if (bookingType) {
+      const typeOk = normalizeType(room.roomType) === bookingType;
+      if (!typeOk) return false;
+    }
     // Exclude already assigned to this booking
     if (currentRn && String(currentRn) === String(rn)) return false;
     // Must be available by status
@@ -185,7 +175,7 @@ const ManageBookingAdmin = () => {
       // skip this booking
       if (String(b?._id || '') === String(booking?._id || '')) continue;
       const st = String(getBookingStatus(b) || '').toLowerCase();
-      const isActive = !['cancelled','completed'].includes(st);
+      const isActive = !['cancelled', 'completed'].includes(st);
       if (!isActive) continue;
       const bn = getRoomDisplay(b);
       if (!bn || String(bn) !== String(rn)) continue;
@@ -236,8 +226,8 @@ const ManageBookingAdmin = () => {
   const getTodayStr = () => {
     const d = new Date();
     const yyyy = d.getFullYear();
-    const mm = String(d.getMonth()+1).padStart(2,'0');
-    const dd = String(d.getDate()).padStart(2,'0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
     return `${yyyy}-${mm}-${dd}`;
   };
   const getNextHalfHour = () => {
@@ -250,8 +240,8 @@ const ManageBookingAdmin = () => {
       d.setHours(d.getHours() + 1);
       d.setMinutes(0);
     }
-    const hh = String(d.getHours()).padStart(2,'0');
-    const mi = String(d.getMinutes()).padStart(2,'0');
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mi = String(d.getMinutes()).padStart(2, '0');
     return `${hh}:${mi}`;
   };
 
@@ -508,7 +498,7 @@ const ManageBookingAdmin = () => {
     try {
       await axios.put(
         `${API_BASE}/api/bookings/${selectedBooking._id}`,
-        { roomNumber: selectedRoomNumber, bookingStatus: getBookingStatus(selectedBooking) || 'pending' },
+        { roomNumber: selectedRoomNumber },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setShowAssignModal(false);
@@ -612,7 +602,7 @@ const ManageBookingAdmin = () => {
                     <div className="action-buttons">
                       <button
                         className="assign-btn"
-                        disabled={["cancelled","completed"].includes(String(getBookingStatus(b) || '').toLowerCase())}
+                        disabled={["cancelled", "completed"].includes(String(getBookingStatus(b) || '').toLowerCase())}
                         onClick={() => handleAssignRoom(b)}
                       >
                         Assign Room

@@ -26,9 +26,15 @@ const bookingSchema = new mongoose.Schema({
   room: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Room',
-    required: true
+    default: null,        // room will be assigned later by admin
+    required: false
   },
   roomNumber: {
+    type: String,
+    default: null
+  },
+  // Logical room type for this booking (e.g., Economy, Deluxe)
+  roomType: {
     type: String,
     default: null
   },

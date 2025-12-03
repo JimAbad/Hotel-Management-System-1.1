@@ -1,30 +1,42 @@
 .login-page-wrapper {
   display: flex;
-  /* height: 100vh; */ /* Removed to allow navbar to be visible */
+  /* height: 100vh; */
+  /* Removed to allow navbar to be visible */
   background-color: transparent;
-  background-image: url('/images/loginbg.jpg'); /* Ensure this path is correct */
+  background-image: url('/images/loginbg.jpg');
+  /* Ensure this path is correct */
   background-size: cover;
   background-position: center;
-  padding-top: 5rem; /* Add padding to match the height of the navbar */
+  padding-top: 5rem;
+  /* Add padding to match the height of the navbar */
   color: var(--text-color);
 }
 
 .login-page {
   display: flex;
-  justify-content: flex-end; /* Align to the right */
+  justify-content: flex-end;
+  /* Align to the right */
   align-items: center;
   padding: 5rem;
-  padding-right: 10%; /* Adjust as needed to match the image */
-  padding-left: 10%; /* Add padding to match the image */
-  padding-top: 8rem; /* Increased padding to account for fixed navbar */
-  height: calc(100vh - 6rem); /* Adjust height to account for navbar */
-  min-height: calc(100vh - 6rem); /* Ensure minimum height */
-  background-image: url('./img/loginbg.jpg'); /* Use the same background image as login */
+  padding-right: 10%;
+  /* Adjust as needed to match the image */
+  padding-left: 10%;
+  /* Add padding to match the image */
+  padding-top: 8rem;
+  /* Increased padding to account for fixed navbar */
+  height: calc(100vh - 6rem);
+  /* Adjust height to account for navbar */
+  min-height: calc(100vh - 6rem);
+  /* Ensure minimum height */
+  background-image: url('./img/loginbg.jpg');
+  /* Use the same background image as login */
   background-size: cover;
   background-position: center;
   color: var(--text-color);
-  position: relative; /* Ensure proper positioning */
-  z-index: 1; /* Lower z-index than navigation bar */
+  position: relative;
+  /* Ensure proper positioning */
+  z-index: 1;
+  /* Lower z-index than navigation bar */
 }
 
 .login-left {
@@ -44,13 +56,14 @@
 }
 
 .login-container {
-  
+
   /* This container will hold the form card */
   display: flex;
   justify-content: center;
   align-items: center;
   width: 400%;
-  max-width: 400px; /* Adjusted from 300px */
+  max-width: 400px;
+  /* Adjusted from 300px */
 }
 
 .login-form-card {
@@ -59,13 +72,15 @@
   border-radius: 10px;
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
   width: 100%;
-  max-width: 400px; /* Adjusted from 300px */
+  max-width: 400px;
+  /* Adjusted from 300px */
   text-align: center;
 }
 
 .login-form-card h2 {
   font-size: 2rem;
-  color: var(--golden-accent); /* Ensure the title is golden */
+  color: var(--golden-accent);
+  /* Ensure the title is golden */
   margin-bottom: 2rem;
 }
 
@@ -79,7 +94,8 @@
 
 .form-group label i {
   margin-right: 0.5rem;
-  color: var(--golden-accent); /* Ensure icon color matches label */
+  color: var(--golden-accent);
+  /* Ensure icon color matches label */
 }
 
 .form-group {
@@ -90,7 +106,8 @@
 .form-group label {
   display: block;
   margin-bottom: 0.5rem;
-  color: var(--golden-accent); /* Changed from var(--light-text-color) */
+  color: var(--golden-accent);
+  /* Changed from var(--light-text-color) */
   font-size: 1rem;
 }
 
@@ -98,8 +115,10 @@
   width: 100%;
   padding: 0.8rem 10px;
   border-radius: 5px;
-  background-color: #fff; /* Changed from #3a3a3a */
-  color: #333; /* Changed from var(--text-color) */
+  background-color: #fff;
+  /* Changed from #3a3a3a */
+  color: #333;
+  /* Changed from var(--text-color) */
   font-size: 1rem;
 }
 
@@ -369,6 +388,7 @@
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
@@ -379,6 +399,7 @@
     opacity: 0;
     transform: translateY(-50px) scale(0.9);
   }
+
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
@@ -390,6 +411,7 @@
     opacity: 0;
     transform: translateY(-10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -397,9 +419,12 @@
 }
 
 @keyframes pulse {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: scale(1);
   }
+
   50% {
     transform: scale(1.05);
   }
@@ -411,26 +436,25 @@
     width: 95%;
     margin: 1rem;
   }
-  
+
   .forgot-password-content {
     padding: 2rem 1.5rem 1.5rem;
   }
-  
+
   .forgot-password-icon {
     width: 60px;
     height: 60px;
   }
-  
+
   .forgot-password-icon i {
     font-size: 1.5rem;
   }
-  
+
   .forgot-password-title {
     font-size: 1.5rem;
   }
-  
+
   .forgot-password-subtitle {
     font-size: 0.9rem;
   }
 }
-
