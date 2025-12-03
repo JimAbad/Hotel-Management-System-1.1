@@ -80,11 +80,12 @@ exports.getBillings = asyncHandler(async (req, res, next) => {
     .populate({
       path: 'booking',
       select: 'roomNumber room referenceNumber checkIn checkOut paymentStatus status',
-      populate: { path: 'room', select: 'roomNumber roomType' }
+      populate: { path: 'room', select: 'roomNumber roomType price' }
     })
     .lean();
 
-  // 3. Enrich each billing with a stable roomNumber label, even if room is not yet assigned
+  // 3. Enrich each billing with a stable roomNumber label, even if room is not yet assigned,
+  //    and recompute room-charge amounts so they match the admin-side breakdown.
   const enriched = billings.map((b) => {
     const booking = b.booking || {};
     let rn = booking.roomNumber || booking.room?.roomNumber;
@@ -93,9 +94,30 @@ exports.getBillings = asyncHandler(async (req, res, next) => {
       const ref = booking.referenceNumber || String(booking._id || '').slice(-6);
       rn = `To be assigned - ${ref}`;
     }
+
+    let amount = b.amount;
+
+    // If this is a room booking charge, recompute using the same logic as breakdown
+    if (b.description && b.description.includes('Room booking charge')) {
+      const checkIn = booking.checkIn ? new Date(booking.checkIn) : null;
+      const checkOut = booking.checkOut ? new Date(booking.checkOut) : null;
+      if (checkIn && checkOut && !isNaN(checkIn) && !isNaN(checkOut)) {
+        const diffMs = checkOut - checkIn;
+        const hours = Math.ceil(diffMs / (1000 * 60 * 60));
+        const basePrice =
+          booking.room && booking.room.roomType === 'Economy'
+            ? 59.523
+            : Number(booking.room?.price || 0);
+        const subtotal = hours * basePrice;
+        const taxesAndFees = subtotal * 0.12;
+        amount = subtotal + taxesAndFees;
+      }
+    }
+
     return {
       ...b,
-      roomNumber: rn
+      roomNumber: rn,
+      amount
     };
   });
 

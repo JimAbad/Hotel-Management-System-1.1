@@ -33,6 +33,11 @@ const bookingSchema = new mongoose.Schema({
     type: String,
     default: null
   },
+  // Logical room type for this booking (e.g., Economy, Deluxe)
+  roomType: {
+    type: String,
+    default: null
+  },
   checkIn: {
     type: Date,
     required: true

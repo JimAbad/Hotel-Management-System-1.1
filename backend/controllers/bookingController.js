@@ -69,7 +69,7 @@ const createBooking = asyncHandler(async (req, res) => {
     customerName,
     customerEmail,
     contactNumber,
-    roomType, // accept roomType
+    roomType, // logical room type (Economy, Deluxe, Suite, ...)
     checkIn,
     checkOut,
     adults,
@@ -156,6 +156,7 @@ const createBooking = asyncHandler(async (req, res) => {
     contactNumber,
     specialRequests,
     roomNumber: null,
+    roomType: roomType || null,
     numberOfGuests,
     totalAmount,
     status: 'pending',

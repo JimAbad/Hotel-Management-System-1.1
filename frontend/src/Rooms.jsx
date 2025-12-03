@@ -419,7 +419,7 @@ function Rooms() {
         </div>
       )}
       <h1>Available Room Types</h1>
-     <p style={{ color: "red" }}>You can book up to 3 rooms per account only</p>
+     
      
      {holidayInfo.isHoliday && (
        <div style={{

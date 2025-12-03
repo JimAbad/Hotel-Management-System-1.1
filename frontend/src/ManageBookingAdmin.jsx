@@ -136,9 +136,13 @@ const ManageBookingAdmin = () => {
     const targetCo = toDateSafe(getCheckOut(booking));
 
     if (!rn) return false;
-    // Must match type
-    const typeOk = normalizeType(room.roomType) === normalizeType(getRoomTypeFromBooking(booking));
-    if (!typeOk) return false;
+    // Must match type when the booking has a known room type.
+    // For legacy bookings without a stored roomType, allow any matching-status room.
+    const bookingType = normalizeType(getRoomTypeFromBooking(booking));
+    if (bookingType) {
+      const typeOk = normalizeType(room.roomType) === bookingType;
+      if (!typeOk) return false;
+    }
     // Exclude already assigned to this booking
     if (currentRn && String(currentRn) === String(rn)) return false;
     // Must be available by status
