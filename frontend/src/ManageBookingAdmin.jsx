@@ -75,10 +75,29 @@ const ManageBookingAdmin = () => {
   };
 
   // Map backend variations → unified values for the row
+  // Prefer explicitly extended dates if present
   const getCheckIn = (b) =>
-    pick(b, ["checkInDate", "checkinDate", "check_in", "checkIn", "startDate", "fromDate", "dateFrom"]);
+    pick(b, [
+      "newCheckIn",          // if backend ever stores updated check‑in
+      "checkInDate",
+      "checkinDate",
+      "check_in",
+      "checkIn",
+      "startDate",
+      "fromDate",
+      "dateFrom",
+    ]);
+
   const getCheckOut = (b) =>
-    pick(b, ["checkOutDate", "checkoutDate", "check_out", "checkOut", "endDate", "toDate", "dateTo"]);
+    pick(b, [
+      "checkOutDate",
+      "checkoutDate",
+      "check_out",
+      "checkOut",
+      "endDate",
+      "toDate",
+      "dateTo",
+    ]);
   const getBookingStatus = (b) =>
     pick(b, ["status", "bookingStatus", "booking_status", "state", "reservationStatus"]);
 
@@ -417,7 +436,7 @@ const ManageBookingAdmin = () => {
       await axios.put(
         `${API_BASE}/api/bookings/${selectedBooking._id}`,
         {
-          newCheckOut: iso
+          checkOutDate: iso   // update real checkout field used by the list and backend
         },
         config
       );
@@ -426,7 +445,7 @@ const ManageBookingAdmin = () => {
       setSelectedBooking(null);
       setExtendDate('');
       setExtendTime('');
-      fetchBookings();
+      fetchBookings();         // refresh list
     } catch (err) {
       console.error('Error extending booking:', err);
       alert(err?.response?.data?.message || err.message);
