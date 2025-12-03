@@ -50,10 +50,11 @@ const ManageBookingAdmin = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteBookingId, setDeleteBookingId] = useState(null);
 
-  // NEW: extend booking modal state
+ 
   const [showExtendModal, setShowExtendModal] = useState(false);
   const [extendDate, setExtendDate] = useState('');
-  const [extendHours, setExtendHours] = useState(3); // NEW
+  const [extendTime, setExtendTime] = useState(''); 
+  const [extendHours, setExtendHours] = useState(3); // default minimum hours
 
   useEffect(() => {
     if (token) {
@@ -80,6 +81,18 @@ const ManageBookingAdmin = () => {
     pick(b, ["checkOutDate", "checkoutDate", "check_out", "checkOut", "endDate", "toDate", "dateTo"]);
   const getBookingStatus = (b) =>
     pick(b, ["status", "bookingStatus", "booking_status", "state", "reservationStatus"]);
+
+  // NEW: time + label helpers
+  const getCheckInTime = (b) =>
+    pick(b, ["checkInTime", "checkinTime", "check_in_time", "checkIn_time"]);
+  const getCheckOutTime = (b) =>
+    pick(b, ["checkOutTime", "checkoutTime", "check_out_time", "checkOut_time"]);
+
+  const formatDateTimeLabel = (dateVal, timeVal) => {
+    const datePart = formatDate(dateVal);
+    const timePart = timeVal ? ` ${timeVal}` : "";
+    return `${datePart}${timePart}`;
+  };
 
   const getStatusClass = (status) => {
     const s = String(status || "").toLowerCase();
@@ -242,10 +255,75 @@ const ManageBookingAdmin = () => {
     return `${hh}:${mi}`;
   };
 
+  // NEW: build final checkout datetime based on chosen date + hour
+  const buildNewCheckout = (booking, dateOverride, timeOverride) => {
+    const currentDate = toDateSafe(getCheckOut(booking)) || new Date();
+    const base = new Date(currentDate);
 
-  // removed admin billing-derived notifications — centralized in LayoutAdmin bell dropdown
+    if (dateOverride) {
+      const [y, m, d] = dateOverride.split('-').map(Number);
+      if (y && m && d) {
+        base.setFullYear(y, m - 1, d);
+      }
+    }
 
-  // Removed toast popups in favor of bell dropdown notifications
+    if (timeOverride) {
+      const hour = Number(timeOverride); // we will pass plain hour like "1", "2", ...
+      if (!isNaN(hour)) {
+        base.setHours(hour, 0, 0, 0);
+      }
+    } else {
+      const coTime = getCheckOutTime(booking);
+      if (coTime) {
+        const [hh, mm] = coTime.split(':').map(Number);
+        if (!isNaN(hh) && !isNaN(mm)) {
+          base.setHours(hh, mm, 0, 0);
+        }
+      }
+    }
+
+    return base;
+  };
+
+  // NEW: compute allowed checkout hours (00–23) based on rules
+  const getAllowedHours = (booking, dateOverride) => {
+    const now = new Date();
+
+    // today (for comparison)
+    const todayY = now.getFullYear();
+    const todayM = now.getMonth();
+    const todayD = now.getDate();
+
+    // if user selected a date, compare with today
+    let isSameDayAsToday = true;
+    if (dateOverride) {
+      const [y, m, d] = dateOverride.split('-').map(Number);
+      if (y && m && d) {
+        isSameDayAsToday = (y === todayY && m - 1 === todayM && d === todayD);
+      }
+    }
+
+    const opts = [];
+
+    if (isSameDayAsToday) {
+      // Same day as NOW → only allow 3 hours or more after current hour
+      const curH = now.getHours();
+      const startHour = curH + 3;
+      for (let h = startHour; h <= 23; h++) {
+        if (h < 0 || h > 23) continue;
+        opts.push(h);
+      }
+    } else {
+      // Different day → extending by days, allow 1–23
+      for (let h = 1; h <= 23; h++) {
+        opts.push(h);
+      }
+    }
+
+    return opts;
+  };
+
+
 
   const fetchBookingActivities = async (bookingId) => {
     try {
@@ -269,7 +347,7 @@ const ManageBookingAdmin = () => {
   const handleOpenExtend = (booking) => {
     setSelectedBooking(booking);
     const currentCo = getCheckOut(booking);
-    // default to current checkout date if valid, otherwise today
+
     let defaultDate = getTodayStr();
     const d = toDateSafe(currentCo);
     if (d) {
@@ -279,24 +357,45 @@ const ManageBookingAdmin = () => {
       defaultDate = `${yyyy}-${mm}-${dd}`;
     }
     setExtendDate(defaultDate);
-    setExtendHours(3); // NEW: default minimum hours
+
+    const allowed = getAllowedHours(booking, defaultDate);
+    if (allowed.length > 0) {
+      setExtendTime(String(allowed[0]));
+    } else {
+      setExtendTime('');
+    }
+
     setShowExtendModal(true);
   };
 
   // NEW: confirm extend booking
   const handleConfirmExtend = async () => {
-    if (!selectedBooking || !extendDate || !extendHours || extendHours < 3) return;
+    if (!selectedBooking) return;
+    if (!extendDate || !extendTime) return;
+
     try {
       const config = { headers: { Authorization: `Bearer ${token}` } };
+
+      const newCheckoutDateObj = buildNewCheckout(
+        selectedBooking,
+        extendDate,
+        extendTime
+      );
+
+      const iso = newCheckoutDateObj.toISOString();
+
       await axios.put(
         `${API_BASE}/api/bookings/${selectedBooking._id}`,
-        { checkOutDate: extendDate, extendHours }, // NEW: send hours too
+        {
+          newCheckOut: iso
+        },
         config
       );
+
       setShowExtendModal(false);
       setSelectedBooking(null);
       setExtendDate('');
-      setExtendHours(3);
+      setExtendTime('');
       fetchBookings();
     } catch (err) {
       console.error('Error extending booking:', err);
@@ -491,8 +590,8 @@ const ManageBookingAdmin = () => {
                   <td>{b.referenceNumber || `BK${String(b._id || '').slice(-6)}`}</td>
                   <td>{b.guestName || b.customerName || b.name || '-'}</td>
                   <td>{getRoomDisplay(b)}</td>
-                  <td>{formatDate(getCheckIn(b))}</td>
-                  <td>{formatDate(getCheckOut(b))}</td>
+                  <td>{formatDateTimeLabel(getCheckIn(b), getCheckInTime(b))}</td>
+                  <td>{formatDateTimeLabel(getCheckOut(b), getCheckOutTime(b))}</td>
                   <td>
                     {(() => {
                       const status = getBookingStatus(b);
@@ -820,7 +919,7 @@ const ManageBookingAdmin = () => {
 
       {/* NEW: Extend Booking Modal */}
       {showExtendModal && selectedBooking && (
-        <div className="modal-overlay">
+        <div className="modal-overlay extend-booking-modal">
           <div className="modal-content">
             <div className="modal-header">
               <h3>Extend Booking</h3>
@@ -834,11 +933,13 @@ const ManageBookingAdmin = () => {
                 <strong>Reference:</strong> {selectedBooking.referenceNumber || `BK${String(selectedBooking._id || '').slice(-6)}`}
               </p>
               <p>
-                <strong>Current Check-out:</strong> {formatDate(getCheckOut(selectedBooking))}
+                <strong>Current Check-out:</strong> {formatDate(getCheckOut(selectedBooking))} {getCheckOutTime(selectedBooking) || ''}
               </p>
 
               <div className="form-group" style={{ marginTop: 12 }}>
-                <label>New Check-out Date:</label>
+                <label>
+                  New Check-out Day:
+                </label>
                 <input
                   type="date"
                   value={extendDate}
@@ -851,28 +952,42 @@ const ManageBookingAdmin = () => {
                     const dd = String(d.getDate()).padStart(2, '0');
                     return `${yyyy}-${mm}-${dd}`;
                   })()}
-                  onChange={(e) => setExtendDate(e.target.value)}
-                />
-              </div>
-
-              {/* NEW: Extend Hours */}
-              <div className="form-group" style={{ marginTop: 12 }}>
-                <label>Extend Hours (min 3):</label>
-                <input
-                  type="number"
-                  min={3}
-                  value={extendHours}
                   onChange={(e) => {
-                    const v = Number(e.target.value || 0);
-                    setExtendHours(v < 3 ? 3 : v);
+                    const newDate = e.target.value;
+                    setExtendDate(newDate);
+
+                    const hours = getAllowedHours(selectedBooking, newDate);
+                    if (hours.length > 0) {
+                      setExtendTime(String(hours[0]));
+                    } else {
+                      setExtendTime('');
+                    }
                   }}
                 />
               </div>
 
+              <div className="form-group" style={{ marginTop: 12 }}>
+                <label>
+                  New Check-out Time (hours only):
+                </label>
+                <select
+                  value={extendTime}
+                  onChange={(e) => setExtendTime(e.target.value)}
+                >
+                  <option value="">Select hour</option>
+                  {getAllowedHours(selectedBooking, extendDate).map((h) => (
+                    <option key={h} value={String(h)}>
+                      {h}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+
               <div className="form-actions" style={{ marginTop: 16 }}>
                 <button
                   className="save-btn"
-                  disabled={!extendDate || !extendHours || extendHours < 3}
+                  disabled={!extendDate || !extendTime}
                   onClick={handleConfirmExtend}
                 >
                   Save
