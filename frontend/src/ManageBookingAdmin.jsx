@@ -82,15 +82,58 @@ const ManageBookingAdmin = () => {
   const getBookingStatus = (b) =>
     pick(b, ["status", "bookingStatus", "booking_status", "state", "reservationStatus"]);
 
-  // NEW: time + label helpers
-  const getCheckInTime = (b) =>
-    pick(b, ["checkInTime", "checkinTime", "check_in_time", "checkIn_time"]);
-  const getCheckOutTime = (b) =>
-    pick(b, ["checkOutTime", "checkoutTime", "check_out_time", "checkOut_time"]);
+  // TIME HELPERS – ensure these are defined once, here
 
-  const formatDateTimeLabel = (dateVal, timeVal) => {
-    const datePart = formatDate(dateVal);
-    const timePart = timeVal ? ` ${timeVal}` : "";
+  // get check-in / check-out time fields from booking
+  const getCheckInTime = (b) => {
+    const v = getCheckIn(b);
+    if (!v) return null;
+    const d = new Date(v);
+    if (isNaN(d)) return null;
+    return d; // return Date object
+  };
+
+  const getCheckOutTime = (b) => {
+    const v = getCheckOut(b);
+    if (!v) return null;
+    const d = new Date(v);
+    if (isNaN(d)) return null;
+    return d; // return Date object
+  };
+
+  // format a Date or "HH[:mm]" → "h AM/PM"
+  const formatHourLabel = (timeVal) => {
+    if (!timeVal) return "";
+    let h;
+
+    if (timeVal instanceof Date) {
+      if (isNaN(timeVal)) return "";
+      h = timeVal.getHours();
+    } else {
+      const [hhStr] = String(timeVal).split(":");
+      h = Number(hhStr);
+    }
+
+    if (isNaN(h)) return "";
+    h = ((h % 24) + 24) % 24; // 0–23
+    const suffix = h >= 12 ? "PM" : "AM";
+    const display = h % 12 === 0 ? 12 : h % 12;
+    return `${display} ${suffix}`;
+  };
+
+  // combine date + time for table display, with fallback hours
+  const formatDateTimeLabel = (dateVal, timeVal, fallbackHour) => {
+    const datePart = formatDate(dateVal); // uses the same Date for date part
+
+    // try to use the real time (Date from getCheckInTime / getCheckOutTime)
+    let displayLabel = formatHourLabel(timeVal);
+
+    // if there is no time in the Date (or parsing failed), fall back
+    if (!displayLabel && (fallbackHour || fallbackHour === 0)) {
+      displayLabel = formatHourLabel(String(fallbackHour));
+    }
+
+    const timePart = displayLabel ? ` ${displayLabel}` : "";
     return `${datePart}${timePart}`;
   };
 
@@ -264,11 +307,8 @@ const ManageBookingAdmin = () => {
       }
     } else {
       const coTime = getCheckOutTime(booking);
-      if (coTime) {
-        const [hh, mm] = coTime.split(':').map(Number);
-        if (!isNaN(hh) && !isNaN(mm)) {
-          base.setHours(hh, mm, 0, 0);
-        }
+      if (coTime instanceof Date && !isNaN(coTime)) {
+        base.setHours(coTime.getHours(), coTime.getMinutes(), 0, 0);
       }
     }
 
@@ -580,8 +620,8 @@ const ManageBookingAdmin = () => {
                   <td>{b.referenceNumber || `BK${String(b._id || '').slice(-6)}`}</td>
                   <td>{b.guestName || b.customerName || b.name || '-'}</td>
                   <td>{getRoomDisplay(b)}</td>
-                  <td>{formatDateTimeLabel(getCheckIn(b), getCheckInTime(b))}</td>
-                  <td>{formatDateTimeLabel(getCheckOut(b), getCheckOutTime(b))}</td>
+                  <td>{formatDateTimeLabel(getCheckIn(b), getCheckInTime(b), 14 /* 2 PM */)}</td>
+                  <td>{formatDateTimeLabel(getCheckOut(b), getCheckOutTime(b), 12 /* 12 PM */)}</td>
                   <td>
                     {(() => {
                       const status = getBookingStatus(b);
@@ -923,7 +963,9 @@ const ManageBookingAdmin = () => {
                 <strong>Reference:</strong> {selectedBooking.referenceNumber || `BK${String(selectedBooking._id || '').slice(-6)}`}
               </p>
               <p>
-                <strong>Current Check-out:</strong> {formatDate(getCheckOut(selectedBooking))} {getCheckOutTime(selectedBooking) || ''}
+                <strong>Current Check-out:</strong>{" "}
+                {formatDate(getCheckOut(selectedBooking))}{" "}
+                {formatHourLabel(getCheckOutTime(selectedBooking)) || ""}
               </p>
 
               <div className="form-group" style={{ marginTop: 12 }}>
