@@ -57,7 +57,8 @@ exports.getBillings = asyncHandler(async (req, res, next) => {
     paymentStatus: { $in: ['paid', 'partial'] },
     checkOut: { $gte: today },
     status: { $nin: ['cancelled', 'completed'] }
-  }).select('roomNumber room _id');
+  }).select('roomNumber room _id')
+    .populate('room', 'roomNumber');
 
   // Extract unique room numbers
   const activeRoomNumbers = new Set();
