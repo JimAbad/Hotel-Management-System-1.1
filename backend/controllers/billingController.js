@@ -45,50 +45,64 @@ exports.createBilling = asyncHandler(async (req, res, next) => {
 });
 
 // @desc    Get all billings for logged in user (includes food orders, room charges, services)
-// @route   GET /api/billings  
+//          Now based on ACTIVE BOOKINGS, even when room/roomNumber is not yet assigned.
+// @route   GET /api/billings
 // @access  Private
 exports.getBillings = asyncHandler(async (req, res, next) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  // Get all active bookings for this user
+  // 1. Find all active bookings for this user (paid or partial, not cancelled/completed)
   const activeBookings = await Booking.find({
     user: req.user.id,
     paymentStatus: { $in: ['paid', 'partial'] },
     checkOut: { $gte: today },
     status: { $nin: ['cancelled', 'completed'] }
-  }).select('roomNumber room _id')
-    .populate('room', 'roomNumber');
+  })
+    .select('roomNumber room _id referenceNumber')
+    .populate('room', 'roomNumber roomType');
 
-  // Extract unique room numbers
-  const activeRoomNumbers = new Set();
-  activeBookings.forEach(booking => {
-    const roomNum = booking.roomNumber || booking.room?.roomNumber;
-    if (roomNum) activeRoomNumbers.add(String(roomNum));
-  });
+  if (!activeBookings || activeBookings.length === 0) {
+    return res.status(200).json({
+      success: true,
+      count: 0,
+      data: []
+    });
+  }
 
-  // Fetch ALL bills for the user's active room numbers
-  // This includes: room charges, food orders, service charges, etc.
+  const bookingIdSet = activeBookings.map((b) => b._id);
+
+  // 2. Fetch ALL billing records tied to those bookings
   const billings = await Billing.find({
     user: req.user.id,
-    roomNumber: { $in: Array.from(activeRoomNumbers) }
+    booking: { $in: bookingIdSet }
   })
     .populate({
       path: 'booking',
-      select: 'roomNumber checkIn checkOut paymentStatus status'
+      select: 'roomNumber room referenceNumber checkIn checkOut paymentStatus status',
+      populate: { path: 'room', select: 'roomNumber roomType' }
     })
     .lean();
 
-  // Filter to only include bills for active rooms
-  const validBillings = billings.filter(billing => {
-    const roomNum = String(billing.roomNumber || '').trim();
-    return activeRoomNumbers.has(roomNum);
+  // 3. Enrich each billing with a stable roomNumber label, even if room is not yet assigned
+  const enriched = billings.map((b) => {
+    const booking = b.booking || {};
+    let rn = booking.roomNumber || booking.room?.roomNumber;
+    if (!rn) {
+      // No assigned room yet — use a unique, user-friendly placeholder
+      const ref = booking.referenceNumber || String(booking._id || '').slice(-6);
+      rn = `To be assigned - ${ref}`;
+    }
+    return {
+      ...b,
+      roomNumber: rn
+    };
   });
 
   res.status(200).json({
     success: true,
-    count: validBillings.length,
-    data: validBillings
+    count: enriched.length,
+    data: enriched
   });
 });
 
