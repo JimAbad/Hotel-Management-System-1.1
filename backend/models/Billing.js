@@ -13,7 +13,8 @@ const billingSchema = new mongoose.Schema({
   },
   roomNumber: {
     type: String,
-    required: true
+    required: false, // allow null while room is not yet assigned
+    default: null
   },
   amount: {
     type: Number,

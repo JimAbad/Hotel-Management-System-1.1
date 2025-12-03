@@ -26,7 +26,8 @@ const bookingSchema = new mongoose.Schema({
   room: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Room',
-    required: true
+    default: null,        // room will be assigned later by admin
+    required: false
   },
   roomNumber: {
     type: String,
