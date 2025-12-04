@@ -1126,7 +1126,7 @@ const ManageBookingAdmin = () => {
 
                 <div className="info-row">
                   <span className="label">Room type:</span>
-                  <span>{selectedBooking.roomType || 'N/A'}</span>
+                  <span>{getRoomTypeFromBooking(selectedBooking) || 'N/A'}</span>
                 </div>
 
                 <div className="info-row">
