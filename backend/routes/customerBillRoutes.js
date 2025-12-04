@@ -20,4 +20,7 @@ router.get('/booking/:bookingId/breakdown', protect, requireAdmin, bills.getDeta
 // get single bill by bookingId
 router.get('/:bookingId', protect, requireAdmin, bills.getCustomerBill);
 
+// mark a bill as paid
+router.put('/:id/mark-paid', bills.markBillAsPaid);
+
 module.exports = router;

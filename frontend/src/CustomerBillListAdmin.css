@@ -374,6 +374,15 @@ tr:hover {
   color: #374151;
 }
 
+.btn.btn-ghost.danger {
+  color: #b91c1c;
+  border-color: #fecaca;
+}
+
+.btn.btn-ghost.danger:hover {
+  background-color: #fee2e2;
+}
+
 .loading,
 .empty {
   margin: 16px 0;

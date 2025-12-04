@@ -165,3 +165,24 @@ exports.getDetailedBillBreakdown = asyncHandler(async (req, res) => {
 
   res.status(200).json({ success: true, data: breakdown });
 });
+
+// New endpoint for listing all bills with additional details
+exports.getAllBillsWithDetails = asyncHandler(async (req, res) => {
+  const bills = await Billing.find({})
+    .populate({
+      path: 'booking',
+      select: 'referenceNumber customerName checkOut roomNumber status paymentStatus'
+    })
+    .lean();
+
+  const result = bills.map((billing) => ({
+    bookingId: billing.bookingId,
+    totalAmount: billing.totalAmount,
+    description: billing.description,
+    // NOTE: there is also a "billingId" field here:
+    billingId: billing._id,
+    paymentStatus: billing.paymentStatus || "Unpaid",
+  }));
+
+  res.status(200).json({ success: true, data: result });
+});

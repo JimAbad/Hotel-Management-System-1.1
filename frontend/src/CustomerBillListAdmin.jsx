@@ -18,6 +18,8 @@ const CustomerBillList = () => {
   const [billDetails, setBillDetails] = useState(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [detailsError, setDetailsError] = useState(null);
+  const [confirmBill, setConfirmBill] = useState(null);
+  const [confirmLoading, setConfirmLoading] = useState(false);
 
   const API_BASE = (() => {
     const fallback = 'https://hotel-management-system-1-1-backend.onrender.com';
@@ -36,6 +38,7 @@ const CustomerBillList = () => {
   // ADD small helpers up top (below imports)
   const get = (obj, path) =>
     path.split('.').reduce((o, k) => (o && o[k] !== undefined ? o[k] : undefined), obj);
+
   const pickFirst = (obj, keys) => {
     for (const k of keys) {
       const v = k.includes('.') ? get(obj, k) : obj?.[k];
@@ -43,6 +46,7 @@ const CustomerBillList = () => {
     }
     return undefined;
   };
+
   const pickCheckout = (b) =>
     b?.checkOutDate ||
     b?.checkoutDate ||
@@ -58,56 +62,99 @@ const CustomerBillList = () => {
     return 'To be assigned';
   };
 
+  // Helper to extract the linked Billing _id from raw bill data
+  const getBillingIdFromRaw = (x) => {
+    if (!x) return null;
+
+    // CustomerBill has "billingId" which may be a string or a populated object
+    let direct = null;
+    if (typeof x.billingId === 'string') {
+      direct = x.billingId;
+    } else if (x.billingId && typeof x.billingId === 'object') {
+      direct = x.billingId._id || x.billingId.id || null;
+    }
+
+    // Fallback: treat pure Billing documents as their own id
+    const asBilling = !direct && x.description && x.bookingId && x._id ? x._id : null;
+
+    return direct || asBilling || null;
+  };
+
   // Normalize into a unified bill shape for rendering
   const normalizeBill = (x) => {
     if (!x) return null;
 
-    const id = pickFirst(x, ['_id', 'id']);
-    const bookingObj = pickFirst(x, ['booking']) || {};
+    const id = pickFirst(x, ["_id", "id"]);
+    const bookingObj = pickFirst(x, ["booking"]) || {};
     const bookingId =
-      pickFirst(x, ['bookingId', 'booking']) && typeof x.booking === 'string'
+      pickFirst(x, ["bookingId", "booking"]) && typeof x.booking === "string"
         ? x.booking
-        : pickFirst(bookingObj, ['_id', 'id']);
+        : pickFirst(bookingObj, ["_id", "id"]);
+
+    // real Billing ID
+    const billingId = getBillingIdFromRaw(x);
 
     const referenceNumber =
-      pickFirst(x, ['referenceNumber', 'reference']) ||
-      pickFirst(bookingObj, ['referenceNumber', 'bookingReference', 'reference', 'refNo']) ||
-      (id ? `REF: ${String(id).slice(-8)}` : bookingId ? `REF: ${String(bookingId).slice(-8)}` : '-');
+      pickFirst(x, ["referenceNumber", "reference"]) ||
+      pickFirst(bookingObj, [
+        "referenceNumber",
+        "bookingReference",
+        "reference",
+        "refNo",
+      ]) ||
+      (id
+        ? `REF: ${String(id).slice(-8)}`
+        : bookingId
+        ? `REF: ${String(bookingId).slice(-8)}`
+        : "-");
 
     const customerName =
-      pickFirst(x, ['customerName', 'name', 'guestName']) ||
-      pickFirst(bookingObj, ['customerName', 'guestName', 'name', 'customer.name', 'user.name']) ||
-      '-';
+      pickFirst(x, ["customerName", "name", "guestName"]) ||
+      pickFirst(bookingObj, [
+        "customerName",
+        "guestName",
+        "name",
+        "customer.name",
+        "user.name",
+      ]) ||
+      "-";
 
     const totalAmount =
       Number(
-        pickFirst(x, ['totalAmount', 'amount', 'total', 'billingAmount']) ??
-        pickFirst(bookingObj, ['totalAmount', 'totalPrice', 'grandTotal', 'amount', 'billingTotal']) ??
-        0
+        pickFirst(x, ["totalAmount", "amount", "total", "billingAmount"]) ??
+          pickFirst(bookingObj, [
+            "totalAmount",
+            "totalPrice",
+            "grandTotal",
+            "amount",
+            "billingTotal",
+          ]) ??
+          0
       ) || 0;
 
     const checkOutDate =
       // Prefer explicit fields on the bill first
-      pickFirst(x, ['checkOutDate', 'checkoutDate', 'checkOut']) ||
+      pickFirst(x, ["checkOutDate", "checkoutDate", "checkOut"]) ||
       // Then fall back to populated booking fields
       pickFirst(bookingObj, [
-        'checkOutDate',
-        'checkoutDate',
-        'checkOut',
-        'departureDate',
-        'endDate',
-        'toDate',
-        'dates.checkOut',
+        "checkOutDate",
+        "checkoutDate",
+        "checkOut",
+        "departureDate",
+        "endDate",
+        "toDate",
+        "dates.checkOut",
       ]);
 
     const paymentStatus =
-      pickFirst(x, ['paymentStatus', 'status', 'billingStatus']) ||
-      pickFirst(bookingObj, ['paymentStatus', 'status']) ||
-      'Unpaid';
+      pickFirst(x, ["paymentStatus", "status", "billingStatus"]) ||
+      pickFirst(bookingObj, ["paymentStatus", "status"]) ||
+      "Unpaid";
 
     return {
       _id: id,
       bookingId,
+      billingId,
       referenceNumber,
       customerName,
       totalAmount,
@@ -143,6 +190,7 @@ const CustomerBillList = () => {
     return {
       _id: id,
       bookingId: id,
+      billingId: null,   // no direct billing document
       referenceNumber,
       customerName,
       totalAmount,
@@ -352,7 +400,7 @@ const CustomerBillList = () => {
   const badgeClass = (s) => {
     const v = (s || "").toLowerCase();
     if (v.includes("partial")) return "partial";
-    if (v.includes("paid")) return "paid";
+    if (v.includes("paid") || v.includes("completed")) return "paid";
     return "unpaid";
   };
 
@@ -409,40 +457,31 @@ const CustomerBillList = () => {
       setDetailsLoading(false);
     }
   };
-  const markAsPaid = async (bill) => {
-    if (!bill) return;
-    if (!window.confirm("Mark this bill as paid?")) return;
+  const markAsPaid = async () => {
+    if (!confirmBill) return;
+    setConfirmLoading(true);
     try {
-      const id = bill._id;
-      const urls = [
-        `${API_BASE}/api/customer-bills/${id}/mark-paid`,
-        `${API_BASE}/api/customer-bills/${id}`,
-        `${API_BASE}/api/billing/${id}/mark-paid`,
-      ];
-
-      let success = false;
-      for (const url of urls) {
-        try {
-          await axios.put(
-            url,
-            url.endsWith("/mark-paid") ? {} : { status: "Paid", paymentStatus: "Paid" },
-            { headers: { Authorization: `Bearer ${token}` } }
-          );
-          success = true;
-          break;
-        } catch (e) {
-          if (e?.response?.status !== 404) throw e;
-        }
-      }
-      if (!success) throw new Error("No matching endpoint to mark as paid.");
-
-      // Optimistic update
       setBills((prev) =>
-        prev.map((b) => (b._id === bill._id ? { ...b, paymentStatus: "Paid" } : b))
+        prev.map((b) =>
+          String(b._id) === String(confirmBill._id)
+            ? { ...b, paymentStatus: "Completed" }
+            : b
+        )
       );
-    } catch (e) {
-      alert(`Failed to mark as paid: ${e.message}`);
+      setConfirmBill(null);
+    } finally {
+      setConfirmLoading(false);
     }
+  };
+
+  const undoPaid = (billId) => {
+    setBills((prev) =>
+      prev.map((b) =>
+        String(b._id) === String(billId)
+          ? { ...b, paymentStatus: "Unpaid" }
+          : b
+      )
+    );
   };
 
   return (
@@ -501,15 +540,16 @@ const CustomerBillList = () => {
                 </tr>
               ) : (
                 filtered.map((b) => {
-                  const badge = badgeClass(b.paymentStatus);
+                  const rowBadge = badgeClass(b.paymentStatus); // compute per row, using current value
                   return (
                     <tr key={b._id}>
                       <td>{b.referenceNumber}</td>
                       <td>{b.customerName || "-"}</td>
-                      {/* Always show merged, grouped bill total: */}
                       <td>{prettyAmt(b.totalAmount)}</td>
                       <td>
-                        <span className={`status-badge ${badge}`}>{b.paymentStatus}</span>
+                        <span className={`status-badge ${rowBadge}`}>
+                          {b.paymentStatus}
+                        </span>
                       </td>
                       <td>{prettyDate(pickCheckout(b))}</td>
                       <td className="actions">
@@ -520,14 +560,24 @@ const CustomerBillList = () => {
                         >
                           View Bill
                         </button>
-                        <button
-                          type="button"
-                          className="btn btn-ghost"
-                          disabled={badge === "paid"}
-                          onClick={() => markAsPaid(b)}
-                        >
-                          Mark as Paid
-                        </button>
+
+                        {rowBadge === "paid" ? (
+                          <button
+                            type="button"
+                            className="btn btn-ghost danger"
+                            onClick={() => undoPaid(b._id)}
+                          >
+                            Undo Paid
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className="btn btn-ghost"
+                            onClick={() => setConfirmBill(b)}
+                          >
+                            Mark as Paid
+                          </button>
+                        )}
                       </td>
                     </tr>
                   );
@@ -594,7 +644,7 @@ const CustomerBillList = () => {
                           {/* Food Charges */}
                           {billDetails.breakdown.foodCharges.items.length > 0 ? (
                             <>
-                              <tr style={{ borderBottom: '1px solid #f3f4f6' }}>
+                              <tr style={{ borderBottom: '1px solid #f4f4f6' }}>
                                 <td colSpan="2" style={{ padding: '8px' }}>
                                   <strong>Food Charges</strong>
                                 </td>
@@ -672,6 +722,52 @@ const CustomerBillList = () => {
                   </div>
                 </>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm Mark as Paid Modal */}
+      {confirmBill && (
+        <div className="modal-overlay" onClick={() => !confirmLoading && setConfirmBill(null)}>
+          <div
+            className="modal-content"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: 380 }}
+          >
+            <div className="modal-header">
+              <h3>Confirm Payment</h3>
+              <button
+                onClick={() => !confirmLoading && setConfirmBill(null)}
+                disabled={confirmLoading}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="modal-body" style={{ color: "#111827" }}>
+              <p>
+                Mark bill for{" "}
+                <strong>{confirmBill.customerName || "this customer"}</strong> as{" "}
+                <strong>Paid</strong>?
+              </p>
+            </div>
+            <div className="form-actions" style={{ justifyContent: "flex-end" }}>
+              <button
+                className="cancel-btn"
+                type="button"
+                onClick={() => !confirmLoading && setConfirmBill(null)}
+                disabled={confirmLoading}
+              >
+                Cancel
+              </button>
+              <button
+                className="save-btn"
+                type="button"
+                onClick={markAsPaid}
+                disabled={confirmLoading}
+              >
+                {confirmLoading ? "Saving..." : "Confirm"}
+              </button>
             </div>
           </div>
         </div>

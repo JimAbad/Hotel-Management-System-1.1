@@ -1,10 +1,10 @@
 const mongoose = require('mongoose');
 
 const billingSchema = new mongoose.Schema({
-  booking: {
+  bookingId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Booking',
-    required: false  // Changed to false to support non-booking bills
+    ref: "Booking",
+    required: true,
   },
   user: {
     type: mongoose.Schema.Types.ObjectId,
