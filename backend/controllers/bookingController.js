@@ -69,7 +69,7 @@ const createBooking = asyncHandler(async (req, res) => {
     customerName,
     customerEmail,
     contactNumber,
-    roomType, // logical room type (Economy, Deluxe, Suite, ...)
+    roomType,        // "Economy" | "Deluxe" | "Suite"
     checkIn,
     checkOut,
     adults,

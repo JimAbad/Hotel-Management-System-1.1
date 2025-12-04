@@ -21,6 +21,10 @@ router.get('/booking/:bookingId/breakdown', protect, requireAdmin, bills.getDeta
 router.get('/:bookingId', protect, requireAdmin, bills.getCustomerBill);
 
 // mark a bill as paid
-router.put('/:id/mark-paid', bills.markBillAsPaid);
+// TEMP: disabled because bills.markBillAsPaid is not a valid handler and crashes the server
+// router.put('/:id/mark-paid', bills.markBillAsPaid);
+
+// update customer bill status
+// router.put('/:id', updateCustomerBillStatus);
 
 module.exports = router;

@@ -55,6 +55,7 @@ const ManageBookingAdmin = () => {
   const [extendDate, setExtendDate] = useState('');
   const [extendTime, setExtendTime] = useState(''); 
   const [extendHours, setExtendHours] = useState(3); // default minimum hours
+  const [showInfoModal, setShowInfoModal] = useState(false);
 
   useEffect(() => {
     if (token) {
@@ -517,11 +518,29 @@ const ManageBookingAdmin = () => {
   const handleConfirmBooking = async () => {
     try {
       const config = { headers: { Authorization: `Bearer ${token}` } };
-      await axios.post(`${API_BASE}/api/bookings`, newBooking, config);
+
+      // map form → backend payload
+      const payload = {
+        customerName: newBooking.guestName,
+        customerEmail: newBooking.email,
+        contactNumber: newBooking.contactNumber,
+        roomType: newBooking.roomType,
+        checkIn: newBooking.checkInDate,
+        checkOut: newBooking.checkOutDate,
+        adults: Number(newBooking.adults),
+        children: Number(newBooking.children),
+        guestName: newBooking.guestName,
+        specialRequests: newBooking.specialRequest,
+      };
+
+      const res = await axios.post(`${API_BASE}/api/bookings`, payload, config);
+      console.log('Booking created:', res.data);
+
       setShowConfirmModal(true);
       setTimeout(() => {
         setShowConfirmModal(false);
         setShowAddModal(false);
+        setReservationSummary(null);
         setNewBooking({
           roomType: '',
           guestName: '',
@@ -536,7 +555,7 @@ const ManageBookingAdmin = () => {
         fetchBookings();
       }, 1200);
     } catch (err) {
-      console.error('Error creating booking:', err);
+      console.error('Error creating booking:', err?.response?.data || err.message);
       alert(err?.response?.data?.message || err.message);
     }
   };
@@ -652,8 +671,15 @@ const ManageBookingAdmin = () => {
                     })()}
                   </td>
                   <td>
-                    {/* Details button stays “More Info” */}
-                    <button className="activity-btn" title="More Info" onClick={() => handleViewActivity(b)}>
+                    {/* Details button now opens polished More Info modal */}
+                    <button
+                      className="activity-btn"
+                      title="More Info"
+                      onClick={() => {
+                        setSelectedBooking(b);
+                        setShowInfoModal(true);
+                      }}
+                    >
                       More Info
                     </button>
                   </td>
@@ -1068,6 +1094,79 @@ const ManageBookingAdmin = () => {
             <div className="form-actions" style={{ justifyContent: 'flex-end' }}>
               <button className="cancel-btn cancel-danger" onClick={() => setShowDeleteModal(false)}>Cancel</button>
               <button className="ok-btn" onClick={confirmDeleteBooking}>Okay</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showInfoModal && selectedBooking && (
+        <div className="modal-overlay">
+          <div className="modal-content info-modal">
+            <div className="modal-header">
+              <h3>More info</h3>
+              <button onClick={() => setShowInfoModal(false)}>×</button>
+            </div>
+
+            <div className="modal-body">
+              <div className="info-main">
+                <div className="info-row">
+                  <span className="label">Guest:</span>
+                  <span>{selectedBooking.customerName || selectedBooking.guestName || 'N/A'}</span>
+                </div>
+
+                <div className="info-row">
+                  <span className="label">Reference:</span>
+                  <span>{selectedBooking.referenceNumber || selectedBooking.reference || 'N/A'}</span>
+                </div>
+
+                <div className="info-row">
+                  <span className="label">Status:</span>
+                  <span>{selectedBooking.bookingStatus || selectedBooking.status || 'N/A'}</span>
+                </div>
+
+                <div className="info-row">
+                  <span className="label">Room type:</span>
+                  <span>{selectedBooking.roomType || 'N/A'}</span>
+                </div>
+
+                <div className="info-row">
+                  <span className="label">Number of guests:</span>
+                  <span>
+                    {Number(selectedBooking.adults || 0) +
+                      Number(selectedBooking.children || 0)}
+                  </span>
+                </div>
+                <div className="info-row">
+                  <span className="label">Adult:</span>
+                  <span>{selectedBooking.adults ?? '0'}</span>
+                </div>
+                <div className="info-row">
+                  <span className="label">Children:</span>
+                  <span>{selectedBooking.children ?? '0'}</span>
+                </div>
+                <div className="info-row">
+                  <span className="label">Total:</span>
+                  <span>
+                    {Number(selectedBooking.adults || 0) +
+                      Number(selectedBooking.children || 0)}
+                  </span>
+                </div>
+              </div>
+
+              <div className="info-special">
+                <div className="label">Special Request</div>
+                <div className="special-box">
+                  {selectedBooking.specialRequest ||
+                    selectedBooking.specialRequests ||
+                    'None'}
+                </div>
+              </div>
+            </div>
+
+            <div className="modal-footer" style={{ padding: '8px 16px', textAlign: 'right' }}>
+              <button className="ok-btn" onClick={() => setShowInfoModal(false)}>
+                Done
+              </button>
             </div>
           </div>
         </div>
