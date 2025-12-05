@@ -198,6 +198,23 @@ const updateBookingStatus = asyncHandler(async (req, res) => {
     booking.status = 'occupied';
   }
 
+  // CRITICAL: Actually assign roomNumber to the booking!
+  if (roomNumber != null && roomNumber !== '') {
+    booking.roomNumber = roomNumber;
+    // Also look up and assign the Room ObjectId
+    const room = await Room.findOne({ roomNumber: String(roomNumber) });
+    if (room) {
+      booking.room = room._id;
+      // Update room status to occupied
+      room.status = 'occupied';
+      await room.save();
+    }
+    // If room is being assigned, set status to occupied
+    if (booking.status === 'pending') {
+      booking.status = 'occupied';
+    }
+  }
+
   try {
     const Billing = require('../models/Billing');
     const BookingActivity = require('../models/bookingActivityModel');
