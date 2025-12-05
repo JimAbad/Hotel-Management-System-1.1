@@ -4,7 +4,7 @@ const Booking = require('../models/bookingModel');
 const Room = require('../models/roomModel');
 
 // Shared helper: build the detailed breakdown from BILLINGS COLLECTION ONLY
-// Room charges, food charges, etc. must exist as billing records
+// Fetches by BOTH booking ID AND roomNumber to include food orders
 const buildBookingBreakdown = async (bookingId) => {
   if (!bookingId) return null;
 
@@ -12,8 +12,17 @@ const buildBookingBreakdown = async (bookingId) => {
   const booking = await Booking.findById(bookingId).populate('room').lean();
   if (!booking) return null;
 
-  // Fetch ALL billing records for this booking from the billings collection
-  const billingRecords = await Billing.find({ booking: bookingId }).lean();
+  // Get the roomNumber from the booking
+  const roomNumber = booking.roomNumber || booking.room?.roomNumber;
+
+  // Fetch ALL billing records by BOTH booking ID AND roomNumber
+  // This includes food orders that may not have a booking association
+  const billingRecords = await Billing.find({
+    $or: [
+      { booking: bookingId },
+      ...(roomNumber ? [{ roomNumber: String(roomNumber) }] : [])
+    ]
+  }).lean();
 
   // If no billing records exist, return null (no bills to show)
   if (!billingRecords || billingRecords.length === 0) {
@@ -21,20 +30,21 @@ const buildBookingBreakdown = async (bookingId) => {
   }
 
   // Separate room charges from food/other charges based on billing records
+  // Handle both 'amount' and 'totalPrice' fields
   const roomChargeRecords = billingRecords.filter(
     (b) => b.description && b.description.includes('Room booking charge')
   );
   const foodItems = billingRecords.filter(
-    (b) => b.description && !b.description.includes('Room booking charge')
+    (b) => !b.description || !b.description.includes('Room booking charge')
   );
 
-  // Calculate subtotals from actual billing records
+  // Calculate subtotals from actual billing records (handle both amount and totalPrice)
   const roomSubtotal = roomChargeRecords.reduce(
-    (sum, item) => sum + (item.amount || 0),
+    (sum, item) => sum + (item.amount ?? item.totalPrice ?? 0),
     0
   );
   const foodSubtotal = foodItems.reduce(
-    (sum, item) => sum + (item.amount || 0),
+    (sum, item) => sum + (item.amount ?? item.totalPrice ?? 0),
     0
   );
 
@@ -53,7 +63,7 @@ const buildBookingBreakdown = async (bookingId) => {
   return {
     referenceNumber: booking.referenceNumber,
     customerName: booking.customerName,
-    roomNumber: booking.roomNumber || booking.room?.roomNumber || '',
+    roomNumber: roomNumber || '',
     checkIn: booking.checkIn,
     checkOut: booking.checkOut,
     paymentStatus: booking.paymentStatus || 'pending',
@@ -64,12 +74,12 @@ const buildBookingBreakdown = async (bookingId) => {
         subtotal: roomSubtotal,
         description: roomChargeRecords.length > 0
           ? roomChargeRecords[0].description
-          : `Room booking charge for ${booking.roomNumber || booking.room?.roomNumber} (${hours} hours)`
+          : `Room booking charge for ${roomNumber} (${hours} hours)`
       },
       foodCharges: {
         items: foodItems.map((item) => ({
-          description: item.description,
-          amount: item.amount,
+          description: item.description || (item.items?.length > 0 ? `Food order (${item.items.length} items)` : 'Food order'),
+          amount: item.amount ?? item.totalPrice ?? 0,
           createdAt: item.createdAt
         })),
         subtotal: foodSubtotal

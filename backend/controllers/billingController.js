@@ -117,6 +117,7 @@ exports.getBillings = asyncHandler(async (req, res, next) => {
   // 5. Enrich each billing with display properties
   //    - roomNumber for display uses the CURRENT booking's roomNumber (handles reassignment)
   //    - Individual bills retain their original data for audit trail
+  //    - Handle both 'amount' and 'totalPrice' fields for food orders
   const enriched = billings.map((b) => {
     // Determine the display roomNumber
     let displayRoomNumber = b.roomNumber;
@@ -135,9 +136,16 @@ exports.getBillings = asyncHandler(async (req, res, next) => {
       displayRoomNumber = `To be assigned - ${ref}`;
     }
 
-    // Use the amount directly from the billing record - no recomputation
-    // This ensures we show exactly what's in the billings collection
-    const amount = b.amount;
+    // Use amount if present, otherwise fall back to totalPrice (for food orders)
+    const amount = b.amount ?? b.totalPrice ?? 0;
+
+    // Generate description if missing (for food orders that may not have one)
+    let description = b.description;
+    if (!description && b.items && b.items.length > 0) {
+      description = `Food order (${b.items.length} items)`;
+    } else if (!description) {
+      description = b.billType === 'food_order' ? 'Food order' : 'Bill';
+    }
 
     // Indicate if this bill is from another user (for transparency)
     const isFromOtherUser = b.user && String(b.user._id || b.user) !== String(req.user.id);
@@ -145,8 +153,9 @@ exports.getBillings = asyncHandler(async (req, res, next) => {
     return {
       ...b,
       roomNumber: displayRoomNumber,
-      originalRoomNumber: b.roomNumber, // Keep original for reference
+      originalRoomNumber: b.roomNumber,
       amount,
+      description,
       isFromOtherUser,
       otherUserName: isFromOtherUser ? b.user?.name : null
     };
