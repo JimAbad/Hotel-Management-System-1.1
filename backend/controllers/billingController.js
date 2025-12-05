@@ -235,216 +235,176 @@ exports.deleteBilling = asyncHandler(async (req, res, next) => {
   });
 });
 
-// @desc    Get all billings (admin only) - includes food orders, room charges, services
-// @route   GET /api/billings/admin
-// @access  Private/Admin
-exports.getAdminBillings = asyncHandler(async (req, res, next) => {
-  // Fetch ALL billing records including food orders without booking references
-  const billings = await Billing.find()
-    .populate({
-      path: 'booking',
-      select: 'roomNumber checkIn checkOut paymentStatus status'
-    })
-    .populate({
-      path: 'user',
-      select: 'name email'
-    })
-    .lean();
+const { roomNumber } = req.params;
 
-  // Filter logic: keep all bills without bookings (food/service orders)
-  // For bills with bookings, only show if paid/partial
-  const validBillings = billings.filter(billing => {
-    // Keep bills without bookings (food orders, service charges)
-    if (!billing.booking) return true;
+// Ensure we only show bills for active (ongoing or upcoming) bookings
+// Active = checkOut >= today AND status not in ['cancelled','completed']
+const today = new Date();
 
-    // For bills with bookings, show draft only if paid
-    if (billing.booking.status === 'draft') {
-      return billing.booking.paymentStatus === 'paid' || billing.booking.paymentStatus === 'partial';
-    }
-    return true;
-  });
-
-  res.status(200).json({
-    success: true,
-    count: validBillings.length,
-    data: validBillings
-  });
-});
-
-// @desc    Get billings by room number for the CURRENT active booking only
-// @route   GET /api/billings/room/:roomNumber
-// @access  Private
-exports.getRoomBillings = asyncHandler(async (req, res, next) => {
-  const { roomNumber } = req.params;
-
-  // Ensure we only show bills for active (ongoing or upcoming) bookings
-  // Active = checkOut >= today AND status not in ['cancelled','completed']
-  const today = new Date();
-
-  // If we don't have a user context, we cannot safely scope bills — return empty
-  if (!req.user || !req.user.id) {
-    return res.status(200).json({
-      success: true,
-      count: 0,
-      data: [],
-      roomNumber,
-      totalRoomCharges: 0,
-      totalExtraCharges: 0,
-      remainingBalance: 0,
-      paidAmount: 0
-    });
-  }
-
-  // Resolve room by number so we can match bookings even when booking.roomNumber is null
-  const roomDoc = await Room.findOne({ roomNumber }).select('_id roomNumber');
-
-  // Find active bookings for this user and room
-  let activeBookings = [];
-  if (roomDoc) {
-    activeBookings = await Booking.find({
-      user: req.user.id,
-      room: roomDoc._id,
-      status: { $nin: ['cancelled', 'completed'] },
-      checkOut: { $gte: today },
-      paymentStatus: { $in: ['paid', 'partial'] }
-    }).select('_id checkIn checkOut totalAmount');
-  }
-  // Fallback to booking.roomNumber match
-  if (!activeBookings || activeBookings.length === 0) {
-    activeBookings = await Booking.find({
-      user: req.user.id,
-      roomNumber,
-      status: { $nin: ['cancelled', 'completed'] },
-      checkOut: { $gte: today },
-      paymentStatus: { $in: ['paid', 'partial'] }
-    }).select('_id checkIn checkOut totalAmount');
-  }
-
-  // If there are no active bookings, there should be no current bill
-  if (!activeBookings || activeBookings.length === 0) {
-    return res.status(200).json({
-      success: true,
-      count: 0,
-      data: [],
-      roomNumber,
-      totalRoomCharges: 0,
-      totalExtraCharges: 0,
-      remainingBalance: 0,
-      paidAmount: 0
-    });
-  }
-
-  // Optionally scope to the most recent active booking (in case of multiple)
-  // We pick the booking with the latest checkIn date
-  const mostRecentActiveBooking = activeBookings.sort(
-    (a, b) => new Date(b.checkIn) - new Date(a.checkIn)
-  )[0];
-
-  // Fetch billing items tied ONLY to this active booking
-  const billings = await Billing.find({
-    booking: mostRecentActiveBooking._id,
-    user: req.user.id
-  })
-    .populate({
-      path: 'booking',
-      select: 'roomNumber checkIn checkOut totalAmount'
-    })
-    .sort({ createdAt: -1 });
-
-  // Recompute room charge using hourly pricing for this room (as before)
-  const pricePerHour = roomDoc ? Number(roomDoc.price) : 0;
-
-  // Normalize billing items
-  const mergedBillings = [];
-  billings.forEach((billing) => {
-    const hours = billing?.booking
-      ? Math.ceil(
-        (new Date(billing.booking.checkOut) - new Date(billing.booking.checkIn)) /
-        (1000 * 60 * 60)
-      )
-      : null;
-    const recomputedAmount =
-      hours != null && pricePerHour > 0
-        ? (() => {
-          const subtotal = hours * pricePerHour;
-          const taxesAndFees = subtotal * 0.12;
-          return subtotal + taxesAndFees;
-        })()
-        : billing.amount || 0;
-
-    mergedBillings.push({
-      _id: billing._id,
-      roomNumber: billing.roomNumber || roomNumber,
-      description:
-        billing.description && billing.description.includes('Room booking charge')
-          ? `Room booking charge for ${roomNumber} (${hours ?? 0} hours)`
-          : billing.description || 'Room charge',
-      amount:
-        billing.description && billing.description.includes('Room booking charge')
-          ? recomputedAmount
-          : billing.amount || 0,
-      status: billing.status || 'pending',
-      date: billing.createdAt || new Date(),
-      type: 'room_charge',
-      bookingData: billing.booking || null
-    });
-  });
-
-  // Sort by date (newest first)
-  mergedBillings.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-  // If no items, return empty response scoped to the room
-  if (mergedBillings.length === 0) {
-    return res.status(200).json({
-      success: true,
-      count: 0,
-      data: [],
-      roomNumber,
-      totalRoomCharges: 0,
-      totalExtraCharges: 0,
-      remainingBalance: 0,
-      paidAmount: 0
-    });
-  }
-
-  // Totals
-  let totalRoomCharges = 0;
-  let totalExtraCharges = 0;
-  let paidAmount = 0;
-
-  mergedBillings.forEach((billing) => {
-    if (
-      billing &&
-      billing.type === 'room_charge' &&
-      billing.description &&
-      billing.description.includes('Room booking charge')
-    ) {
-      totalRoomCharges += billing.amount || 0;
-    } else if (billing) {
-      totalExtraCharges += billing.amount || 0;
-    }
-
-    if (billing && (billing.status === 'paid' || billing.status === 'completed')) {
-      paidAmount += billing.amount || 0;
-    }
-  });
-
-  const remainingBalance = Math.max(
-    0,
-    totalRoomCharges * 0.9 + totalExtraCharges - paidAmount
-  );
-
+// If we don't have a user context, we cannot safely scope bills — return empty
+if (!req.user || !req.user.id) {
   return res.status(200).json({
     success: true,
-    count: mergedBillings.length,
-    data: mergedBillings,
+    count: 0,
+    data: [],
     roomNumber,
-    totalRoomCharges,
-    totalExtraCharges,
-    remainingBalance,
-    paidAmount
+    totalRoomCharges: 0,
+    totalExtraCharges: 0,
+    remainingBalance: 0,
+    paidAmount: 0
+  });
+}
+
+// Resolve room by number so we can match bookings even when booking.roomNumber is null
+const roomDoc = await Room.findOne({ roomNumber }).select('_id roomNumber');
+
+// Find active bookings for this user and room
+let activeBookings = [];
+if (roomDoc) {
+  activeBookings = await Booking.find({
+    user: req.user.id,
+    room: roomDoc._id,
+    status: { $nin: ['cancelled', 'completed'] },
+    checkOut: { $gte: today },
+    paymentStatus: { $in: ['paid', 'partial'] }
+  }).select('_id checkIn checkOut totalAmount');
+}
+// Fallback to booking.roomNumber match
+if (!activeBookings || activeBookings.length === 0) {
+  activeBookings = await Booking.find({
+    user: req.user.id,
+    roomNumber,
+    status: { $nin: ['cancelled', 'completed'] },
+    checkOut: { $gte: today },
+    paymentStatus: { $in: ['paid', 'partial'] }
+  }).select('_id checkIn checkOut totalAmount');
+}
+
+// If there are no active bookings, there should be no current bill
+if (!activeBookings || activeBookings.length === 0) {
+  return res.status(200).json({
+    success: true,
+    count: 0,
+    data: [],
+    roomNumber,
+    totalRoomCharges: 0,
+    totalExtraCharges: 0,
+    remainingBalance: 0,
+    paidAmount: 0
+  });
+}
+
+// Optionally scope to the most recent active booking (in case of multiple)
+// We pick the booking with the latest checkIn date
+const mostRecentActiveBooking = activeBookings.sort(
+  (a, b) => new Date(b.checkIn) - new Date(a.checkIn)
+)[0];
+
+// Fetch billing items tied ONLY to this active booking
+const billings = await Billing.find({
+  booking: mostRecentActiveBooking._id,
+  user: req.user.id
+})
+  .populate({
+    path: 'booking',
+    select: 'roomNumber checkIn checkOut totalAmount'
+  })
+  .sort({ createdAt: -1 });
+
+// Recompute room charge using hourly pricing for this room (as before)
+const pricePerHour = roomDoc ? Number(roomDoc.price) : 0;
+
+// Normalize billing items
+const mergedBillings = [];
+billings.forEach((billing) => {
+  const hours = billing?.booking
+    ? Math.ceil(
+      (new Date(billing.booking.checkOut) - new Date(billing.booking.checkIn)) /
+      (1000 * 60 * 60)
+    )
+    : null;
+  const recomputedAmount =
+    hours != null && pricePerHour > 0
+      ? (() => {
+        const subtotal = hours * pricePerHour;
+        const taxesAndFees = subtotal * 0.12;
+        return subtotal + taxesAndFees;
+      })()
+      : billing.amount || 0;
+
+  mergedBillings.push({
+    _id: billing._id,
+    roomNumber: billing.roomNumber || roomNumber,
+    description:
+      billing.description && billing.description.includes('Room booking charge')
+        ? `Room booking charge for ${roomNumber} (${hours ?? 0} hours)`
+        : billing.description || 'Room charge',
+    amount:
+      billing.description && billing.description.includes('Room booking charge')
+        ? recomputedAmount
+        : billing.amount || 0,
+    status: billing.status || 'pending',
+    date: billing.createdAt || new Date(),
+    type: 'room_charge',
+    bookingData: billing.booking || null
   });
 });
+
+// Sort by date (newest first)
+mergedBillings.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+// If no items, return empty response scoped to the room
+if (mergedBillings.length === 0) {
+  return res.status(200).json({
+    success: true,
+    count: 0,
+    data: [],
+    roomNumber,
+    totalRoomCharges: 0,
+    totalExtraCharges: 0,
+    remainingBalance: 0,
+    paidAmount: 0
+  });
+}
+
+// Totals
+let totalRoomCharges = 0;
+let totalExtraCharges = 0;
+let paidAmount = 0;
+
+mergedBillings.forEach((billing) => {
+  if (
+    billing &&
+    billing.type === 'room_charge' &&
+    billing.description &&
+    billing.description.includes('Room booking charge')
+  ) {
+    totalRoomCharges += billing.amount || 0;
+  } else if (billing) {
+    totalExtraCharges += billing.amount || 0;
+  }
+
+  if (billing && (billing.status === 'paid' || billing.status === 'completed')) {
+    paidAmount += billing.amount || 0;
+  }
+});
+
+const remainingBalance = Math.max(
+  0,
+  totalRoomCharges * 0.9 + totalExtraCharges - paidAmount
+);
+
+return res.status(200).json({
+  success: true,
+  count: mergedBillings.length,
+  data: mergedBillings,
+  roomNumber,
+  totalRoomCharges,
+  totalExtraCharges,
+  remainingBalance,
+  paidAmount
+});
+
 
 // @desc    Get all rooms with their billing summary for the logged-in user
 // @route   GET /api/billings/summary

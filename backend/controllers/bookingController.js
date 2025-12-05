@@ -78,28 +78,6 @@ const createBooking = asyncHandler(async (req, res) => {
     specialRequests
   } = req.body;
 
-  // Check booking limit (3 bookings per user) - exclude pending bookings
-  const userActiveBookings = await Booking.countDocuments({
-    $and: [
-      {
-        $or: [
-          { customerEmail: customerEmail },
-          { user: req.user.id }
-        ]
-      },
-      {
-        status: { $nin: ['pending', 'cancelled', 'completed'] }
-      },
-      {
-        checkOut: { $gte: new Date() }
-      }
-    ]
-  });
-
-  if (userActiveBookings >= 3) {
-    res.status(400);
-    throw new Error('Booking limit reached. You can only have a maximum of 3 active bookings at a time.');
-  }
 
   // Generate reference number
   const referenceNumber = 'BK' + Date.now().toString().slice(-8);
@@ -202,6 +180,7 @@ const createBooking = asyncHandler(async (req, res) => {
 const updateBookingStatus = asyncHandler(async (req, res) => {
   const { status, bookingStatus, checkOutDate, roomNumber } = req.body;
   const booking = await Booking.findById(req.params.id);
+  const prevRoomNumber = booking.roomNumber;
 
   if (!booking) {
     res.status(404);
@@ -214,55 +193,43 @@ const updateBookingStatus = asyncHandler(async (req, res) => {
   if (checkOutDate != null) {
     const d = new Date(checkOutDate);
     if (!isNaN(d)) booking.checkOut = d;
+  } else if ((bookingStatus || status) && (bookingStatus === 'pending' || status === 'pending')) {
+    // If trying to set to pending but room is assigned, override to occupied
+    booking.status = 'occupied';
   }
 
-  const prevRoomNumber = booking.roomNumber;
-  if (roomNumber != null && roomNumber !== '') {
-    booking.roomNumber = roomNumber;
-    const room = await Room.findOne({ roomNumber });
-    if (room) booking.room = room._id;
-
-    // Always set status to 'occupied' when a room is assigned
-    // unless explicitly setting to another status
-    if (!bookingStatus && !status) {
-      booking.status = 'occupied';
-    } else if ((bookingStatus || status) && (bookingStatus === 'pending' || status === 'pending')) {
-      // If trying to set to pending but room is assigned, override to occupied
-      booking.status = 'occupied';
-    }
-
-    try {
-      const Billing = require('../models/Billing');
-      const BookingActivity = require('../models/bookingActivityModel');
-      const billings = await Billing.find({ booking: booking._id });
-      for (const b of billings) {
-        const needsUpdate = String(b.roomNumber || '') === String(prevRoomNumber || '') || (b.description || '').includes('Room booking charge');
-        if (needsUpdate) {
-          b.roomNumber = roomNumber;
-          if ((b.description || '').includes('Room booking charge')) {
-            const hours = booking.checkIn && booking.checkOut
-              ? Math.ceil((new Date(booking.checkOut) - new Date(booking.checkIn)) / (1000 * 60 * 60))
-              : null;
-            b.description = hours != null
-              ? `Room booking charge for ${roomNumber} (${hours} hours)`
-              : `Room booking charge for ${roomNumber}`;
-          }
-          await b.save();
+  try {
+    const Billing = require('../models/Billing');
+    const BookingActivity = require('../models/bookingActivityModel');
+    const billings = await Billing.find({ booking: booking._id });
+    for (const b of billings) {
+      const needsUpdate = String(b.roomNumber || '') === String(prevRoomNumber || '') || (b.description || '').includes('Room booking charge');
+      if (needsUpdate) {
+        b.roomNumber = roomNumber;
+        if ((b.description || '').includes('Room booking charge')) {
+          const hours = booking.checkIn && booking.checkOut
+            ? Math.ceil((new Date(booking.checkOut) - new Date(booking.checkIn)) / (1000 * 60 * 60))
+            : null;
+          b.description = hours != null
+            ? `Room booking charge for ${roomNumber} (${hours} hours)`
+            : `Room booking charge for ${roomNumber}`;
         }
+        await b.save();
       }
-
-      // Log activity for notifications
-      const prevRn = prevRoomNumber ? String(prevRoomNumber) : '';
-      const newRn = String(roomNumber);
-      const isReassign = prevRn && prevRn !== newRn;
-      const activityText = isReassign
-        ? `Room reassigned: ${prevRn} → ${newRn}`
-        : `Room assigned: ${newRn}`;
-      await BookingActivity.create({ booking: booking._id, activity: activityText, status: 'pending' });
-    } catch (e) {
-      console.warn('Room/billing sync or activity log failed:', e?.message);
     }
+
+    // Log activity for notifications
+    const prevRn = prevRoomNumber ? String(prevRoomNumber) : '';
+    const newRn = String(roomNumber);
+    const isReassign = prevRn && prevRn !== newRn;
+    const activityText = isReassign
+      ? `Room reassigned: ${prevRn} → ${newRn}`
+      : `Room assigned: ${newRn}`;
+    await BookingActivity.create({ booking: booking._id, activity: activityText, status: 'pending' });
+  } catch (e) {
+    console.warn('Room/billing sync or activity log failed:', e?.message);
   }
+
   const updatedBooking = await booking.save();
 
   // If booking status changed to 'completed', update room status
