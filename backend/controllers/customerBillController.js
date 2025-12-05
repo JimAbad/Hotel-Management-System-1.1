@@ -3,41 +3,51 @@ const Billing = require('../models/Billing');
 const Booking = require('../models/bookingModel');
 const Room = require('../models/roomModel');
 
-// Shared helper: build the same detailed breakdown used by the View Bill popup
+// Shared helper: build the detailed breakdown from BILLINGS COLLECTION ONLY
+// Room charges, food charges, etc. must exist as billing records
 const buildBookingBreakdown = async (bookingId) => {
   if (!bookingId) return null;
 
-  // Fetch booking with room details
+  // Fetch booking with room details (for display info only)
   const booking = await Booking.findById(bookingId).populate('room').lean();
   if (!booking) return null;
 
-  // Fetch all billing records for this booking
+  // Fetch ALL billing records for this booking from the billings collection
   const billingRecords = await Billing.find({ booking: bookingId }).lean();
 
-  // Calculate room charges
-  const checkIn = new Date(booking.checkIn);
-  const checkOut = new Date(booking.checkOut);
-  const diffMs = checkOut - checkIn;
-  const hours = Math.ceil(diffMs / (1000 * 60 * 60));
+  // If no billing records exist, return null (no bills to show)
+  if (!billingRecords || billingRecords.length === 0) {
+    return null;
+  }
 
-  // Get room price (handle Economy room special pricing)
-  const roomPrice =
-    booking.room?.roomType === 'Economy' ? 59.523 : (booking.room?.price || 0);
-  const roomSubtotal = hours * roomPrice;
-
-  // Separate food charges from billing records
+  // Separate room charges from food/other charges based on billing records
+  const roomChargeRecords = billingRecords.filter(
+    (b) => b.description && b.description.includes('Room booking charge')
+  );
   const foodItems = billingRecords.filter(
     (b) => b.description && !b.description.includes('Room booking charge')
+  );
+
+  // Calculate subtotals from actual billing records
+  const roomSubtotal = roomChargeRecords.reduce(
+    (sum, item) => sum + (item.amount || 0),
+    0
   );
   const foodSubtotal = foodItems.reduce(
     (sum, item) => sum + (item.amount || 0),
     0
   );
 
+  // Get hours from booking for display purposes
+  const checkIn = new Date(booking.checkIn);
+  const checkOut = new Date(booking.checkOut);
+  const diffMs = checkOut - checkIn;
+  const hours = Math.ceil(diffMs / (1000 * 60 * 60));
+
   // Extension charges (placeholder for future feature)
   const extensionSubtotal = 0;
 
-  // Calculate total
+  // Calculate total from actual billing records
   const totalAmount = roomSubtotal + foodSubtotal + extensionSubtotal;
 
   return {
@@ -50,9 +60,11 @@ const buildBookingBreakdown = async (bookingId) => {
     breakdown: {
       roomCharges: {
         hours,
-        pricePerHour: roomPrice,
+        pricePerHour: roomSubtotal > 0 ? roomSubtotal / hours : 0,
         subtotal: roomSubtotal,
-        description: `Room booking charge for ${booking.roomNumber || booking.room?.roomNumber} (${hours} hours)`
+        description: roomChargeRecords.length > 0
+          ? roomChargeRecords[0].description
+          : `Room booking charge for ${booking.roomNumber || booking.room?.roomNumber} (${hours} hours)`
       },
       foodCharges: {
         items: foodItems.map((item) => ({

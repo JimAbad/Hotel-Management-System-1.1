@@ -46,6 +46,7 @@ exports.createBilling = asyncHandler(async (req, res, next) => {
 
 // @desc    Get all billings for logged in user (includes food orders, room charges, services)
 //          Now based on ACTIVE BOOKINGS, even when room/roomNumber is not yet assigned.
+//          ALSO includes bills from OTHER USERS with the same roomNumber (shared room billing)
 // @route   GET /api/billings
 // @access  Private
 exports.getBillings = asyncHandler(async (req, res, next) => {
@@ -59,8 +60,8 @@ exports.getBillings = asyncHandler(async (req, res, next) => {
     checkOut: { $gte: today },
     status: { $nin: ['cancelled', 'completed'] }
   })
-    .select('roomNumber room _id referenceNumber')
-    .populate('room', 'roomNumber roomType');
+    .select('roomNumber room _id referenceNumber checkIn checkOut')
+    .populate('room', 'roomNumber roomType price');
 
   if (!activeBookings || activeBookings.length === 0) {
     return res.status(200).json({
@@ -72,52 +73,82 @@ exports.getBillings = asyncHandler(async (req, res, next) => {
 
   const bookingIdSet = activeBookings.map((b) => b._id);
 
-  // 2. Fetch ALL billing records tied to those bookings
+  // 2. Extract all roomNumbers from user's active bookings
+  const roomNumbers = activeBookings
+    .map((b) => b.roomNumber || b.room?.roomNumber)
+    .filter(Boolean)
+    .map(String);
+
+  // 3. Fetch ALL billing records from database:
+  //    - Bills tied to user's booking IDs, OR
+  //    - Bills with matching roomNumber (includes bills from other users on same room)
   const billings = await Billing.find({
-    user: req.user.id,
-    booking: { $in: bookingIdSet }
+    $or: [
+      { booking: { $in: bookingIdSet } },
+      { roomNumber: { $in: roomNumbers } }
+    ]
   })
     .populate({
       path: 'booking',
-      select: 'roomNumber room referenceNumber checkIn checkOut paymentStatus status',
+      select: 'roomNumber room referenceNumber checkIn checkOut paymentStatus status user',
       populate: { path: 'room', select: 'roomNumber roomType price' }
+    })
+    .populate({
+      path: 'user',
+      select: 'name email'
     })
     .lean();
 
-  // 3. Enrich each billing with a stable roomNumber label, even if room is not yet assigned,
-  //    and recompute room-charge amounts so they match the admin-side breakdown.
+  // 4. Build a map of user's booking roomNumbers for display grouping
+  const userBookingMap = {};
+  activeBookings.forEach((b) => {
+    const rn = String(b.roomNumber || b.room?.roomNumber || '');
+    if (rn) {
+      userBookingMap[rn] = {
+        bookingId: b._id,
+        referenceNumber: b.referenceNumber,
+        checkIn: b.checkIn,
+        checkOut: b.checkOut,
+        room: b.room
+      };
+    }
+  });
+
+  // 5. Enrich each billing with display properties
+  //    - roomNumber for display uses the CURRENT booking's roomNumber (handles reassignment)
+  //    - Individual bills retain their original data for audit trail
   const enriched = billings.map((b) => {
+    // Determine the display roomNumber
+    let displayRoomNumber = b.roomNumber;
+
+    // If this bill is tied to a booking, use the booking's current roomNumber
     const booking = b.booking || {};
-    let rn = booking.roomNumber || booking.room?.roomNumber;
-    if (!rn) {
-      // No assigned room yet — use a unique, user-friendly placeholder
-      const ref = booking.referenceNumber || String(booking._id || '').slice(-6);
-      rn = `To be assigned - ${ref}`;
+    if (booking.roomNumber) {
+      displayRoomNumber = booking.roomNumber;
+    } else if (booking.room?.roomNumber) {
+      displayRoomNumber = booking.room.roomNumber;
     }
 
-    let amount = b.amount;
-
-    // If this is a room booking charge, recompute using the same logic as breakdown
-    if (b.description && b.description.includes('Room booking charge')) {
-      const checkIn = booking.checkIn ? new Date(booking.checkIn) : null;
-      const checkOut = booking.checkOut ? new Date(booking.checkOut) : null;
-      if (checkIn && checkOut && !isNaN(checkIn) && !isNaN(checkOut)) {
-        const diffMs = checkOut - checkIn;
-        const hours = Math.ceil(diffMs / (1000 * 60 * 60));
-        const basePrice =
-          booking.room && booking.room.roomType === 'Economy'
-            ? 59.523
-            : Number(booking.room?.price || 0);
-        const subtotal = hours * basePrice;
-        const taxesAndFees = subtotal * 0.12;
-        amount = subtotal + taxesAndFees;
-      }
+    // Fallback for bills without room assignment
+    if (!displayRoomNumber) {
+      const ref = booking.referenceNumber || String(booking._id || b._id || '').slice(-6);
+      displayRoomNumber = `To be assigned - ${ref}`;
     }
+
+    // Use the amount directly from the billing record - no recomputation
+    // This ensures we show exactly what's in the billings collection
+    const amount = b.amount;
+
+    // Indicate if this bill is from another user (for transparency)
+    const isFromOtherUser = b.user && String(b.user._id || b.user) !== String(req.user.id);
 
     return {
       ...b,
-      roomNumber: rn,
-      amount
+      roomNumber: displayRoomNumber,
+      originalRoomNumber: b.roomNumber, // Keep original for reference
+      amount,
+      isFromOtherUser,
+      otherUserName: isFromOtherUser ? b.user?.name : null
     };
   });
 
@@ -213,90 +244,6 @@ exports.updateBilling = asyncHandler(async (req, res, next) => {
 });
 
 
-
-// @desc    Get all billings for logged in user (includes food orders, room charges, services)
-//          Now based on ACTIVE BOOKINGS, even when room/roomNumber is not yet assigned.
-// @route   GET /api/billings
-// @access  Private
-exports.getBillings = asyncHandler(async (req, res, next) => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  // 1. Find all active bookings for this user (paid or partial, not cancelled/completed)
-  const activeBookings = await Booking.find({
-    user: req.user.id,
-    paymentStatus: { $in: ['paid', 'partial'] },
-    checkOut: { $gte: today },
-    status: { $nin: ['cancelled', 'completed'] }
-  })
-    .select('roomNumber room _id referenceNumber')
-    .populate('room', 'roomNumber roomType');
-
-  if (!activeBookings || activeBookings.length === 0) {
-    return res.status(200).json({
-      success: true,
-      count: 0,
-      data: []
-    });
-  }
-
-  const bookingIdSet = activeBookings.map((b) => b._id);
-
-  // 2. Fetch ALL billing records tied to those bookings
-  const billings = await Billing.find({
-    user: req.user.id,
-    booking: { $in: bookingIdSet }
-  })
-    .populate({
-      path: 'booking',
-      select: 'roomNumber room referenceNumber checkIn checkOut paymentStatus status',
-      populate: { path: 'room', select: 'roomNumber roomType price' }
-    })
-    .lean();
-
-  // 3. Enrich each billing with a stable roomNumber label, even if room is not yet assigned,
-  //    and recompute room-charge amounts so they match the admin-side breakdown.
-  const enriched = billings.map((b) => {
-    const booking = b.booking || {};
-    let rn = booking.roomNumber || booking.room?.roomNumber;
-    if (!rn) {
-      // No assigned room yet — use a unique, user-friendly placeholder
-      const ref = booking.referenceNumber || String(booking._id || '').slice(-6);
-      rn = `To be assigned - ${ref}`;
-    }
-
-    let amount = b.amount;
-
-    // If this is a room booking charge, recompute using the same logic as breakdown
-    if (b.description && b.description.includes('Room booking charge')) {
-      const checkIn = booking.checkIn ? new Date(booking.checkIn) : null;
-      const checkOut = booking.checkOut ? new Date(booking.checkOut) : null;
-      if (checkIn && checkOut && !isNaN(checkIn) && !isNaN(checkOut)) {
-        const diffMs = checkOut - checkIn;
-        const hours = Math.ceil(diffMs / (1000 * 60 * 60));
-        const basePrice =
-          booking.room && booking.room.roomType === 'Economy'
-            ? 59.523
-            : Number(booking.room?.price || 0);
-        const subtotal = hours * basePrice;
-        const taxesAndFees = subtotal * 0.12;
-        amount = subtotal + taxesAndFees;
-      }
-    }
-
-    return {
-      ...b,
-      roomNumber: rn,
-      amount
-    };
-  });
-
-  res.status(200).json({
-    success: true,
-    count: enriched.length,
-    data: enriched
-  });
-});
 
 // @desc    Get all billings for a specific booking
 // @route   GET /api/billings/booking/:bookingId
