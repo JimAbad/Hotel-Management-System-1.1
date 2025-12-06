@@ -4,85 +4,56 @@ const Billing = require('../models/Billing');
 const BookingActivity = require('../models/bookingActivityModel');
 
 /**
- * Checks for expired bookings and updates their status to completed
- * Also updates room status from occupied to available for expired bookings
+ * Checks for bookings past checkout time and updates their status to 'time to check-out'
+ * The booking will only be marked as 'completed' when admin manually checks out the guest
+ * Room status remains occupied until admin performs the checkout
  */
 const processExpiredBookings = async () => {
   try {
-    console.log('Starting expired bookings check...');
-    
+    console.log('Starting checkout time check...');
+
     const currentDateTime = new Date();
-    
-    // Find all active bookings where checkout date/time has passed
-    const expiredBookings = await Booking.find({
-      status: { $nin: ['cancelled', 'completed'] },
+
+    // Find all active bookings where checkout date/time has passed (excluding already marked ones)
+    const bookingsPastCheckout = await Booking.find({
+      status: { $nin: ['cancelled', 'completed', 'time to check-out'] },
       checkOut: { $lt: currentDateTime }
     }).populate('room');
-    
-    console.log(`Found ${expiredBookings.length} expired bookings to process`);
-    
+
+    console.log(`Found ${bookingsPastCheckout.length} bookings past checkout time to process`);
+
     let processedCount = 0;
-    let roomsUpdated = 0;
-    
-    for (const booking of expiredBookings) {
+
+    for (const booking of bookingsPastCheckout) {
       try {
-        // Update booking status to completed
-        booking.status = 'completed';
+        // Update booking status to 'time to check-out' instead of 'completed'
+        // Admin will manually check out the guest when they leave
+        booking.status = 'time to check-out';
         await booking.save();
-        
+
         // Create booking activity record
         await BookingActivity.create({
           booking: booking._id,
-          activity: 'Booking automatically completed - checkout time passed',
-          status: 'completed'
+          activity: 'Checkout time has passed - awaiting admin checkout',
+          status: 'pending'
         });
-        
-        // Update billing status to completed if it's still pending
-        await Billing.updateMany(
-          { 
-            booking: booking._id,
-            status: { $in: ['pending', 'partial'] }
-          },
-          { 
-            status: 'paid',
-            updatedAt: new Date()
-          }
-        );
-        
-        // Update room status to available if no other active PAID bookings exist
-        if (booking.room) {
-          const otherActiveBookings = await Booking.findOne({
-            room: booking.room._id,
-            _id: { $ne: booking._id },
-            status: { $nin: ['cancelled', 'completed'] },
-            checkOut: { $gte: currentDateTime },
-            paymentStatus: { $in: ['paid', 'partial'] } // Only consider paid bookings
-          });
-          
-          if (!otherActiveBookings) {
-            const room = await Room.findById(booking.room._id);
-            if (room && room.status === 'occupied') {
-              room.status = 'available';
-              await room.save();
-              roomsUpdated++;
-              console.log(`Updated room ${room.roomNumber} status from occupied to available`);
-            }
-          }
-        }
-        
+
+        // DO NOT update billing status or room status here
+        // These will be updated when admin manually checks out the booking
+
         processedCount++;
-        console.log(`Processed expired booking ${booking.referenceNumber} for room ${booking.roomNumber}`);
-        
+        console.log(`Updated booking ${booking.referenceNumber} to 'time to check-out' for room ${booking.roomNumber}`);
+
       } catch (error) {
-        console.error(`Error processing expired booking ${booking.referenceNumber}:`, error);
+        console.error(`Error processing booking ${booking.referenceNumber}:`, error);
       }
     }
-    
-    console.log(`Expired bookings processing completed. Processed ${processedCount} bookings, updated ${roomsUpdated} rooms.`);
-    return { processedBookings: processedCount, updatedRooms: roomsUpdated };
-    
+
+    console.log(`Checkout time check completed. Updated ${processedCount} bookings to 'time to check-out'.`);
+    return { processedBookings: processedCount, updatedRooms: 0 };
+
   } catch (error) {
-    console.error('Error processing expired bookings:', error);
+    console.error('Error processing bookings past checkout:', error);
     throw error;
   }
 };
@@ -93,17 +64,17 @@ const processExpiredBookings = async () => {
 const startBookingExpirationUpdater = () => {
   // Run every 30 minutes
   const INTERVAL = 30 * 60 * 1000; // 30 minutes in milliseconds
-  
+
   console.log('Starting booking expiration updater service...');
-  
+
   // Run immediately on startup
   processExpiredBookings().catch(console.error);
-  
+
   // Schedule periodic updates
   setInterval(() => {
     processExpiredBookings().catch(console.error);
   }, INTERVAL);
-  
+
   console.log(`Booking expiration updater scheduled to run every ${INTERVAL / (60 * 1000)} minutes`);
 };
 

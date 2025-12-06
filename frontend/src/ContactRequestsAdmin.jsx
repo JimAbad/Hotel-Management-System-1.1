@@ -82,7 +82,7 @@ const ContactRequestsAdmin = () => {
     try {
       setSubmitting(true);
       const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
-      
+
       // Handle different categories
       if (category === 'Miscellaneous' && miscOption === 'Comply') {
         // Keep in contact requests with complied status
@@ -95,7 +95,7 @@ const ContactRequestsAdmin = () => {
         const payload = { scheduledAt, category: requestCategory, priority };
         await axios.post(`${API_URL}/api/contact-messages/${active._id}/create-task`, payload, { headers });
       }
-      
+
       setActive(null);
       const headers2 = { Authorization: `Bearer ${token}` };
       const { data } = await axios.get(`${API_URL}/api/contact-messages`, { headers: headers2 });
@@ -146,8 +146,8 @@ const ContactRequestsAdmin = () => {
                   <td>{x.name || '-'}</td>
                   <td>{x.roomNumber || '-'}</td>
                   <td>{x.message || '-'}</td>
-                  <td>{x.priority || 'low'}</td>
-                  <td>{x.status === 'handled' ? 'assigned' : (x.status === 'complied' ? 'complied' : (x.status || 'new'))}</td>
+                  <td>{x.taskPriority ? x.taskPriority.toUpperCase() : (x.priority || 'low').toUpperCase()}</td>
+                  <td>{x.taskStatus ? x.taskStatus.toUpperCase() : (x.status === 'handled' ? 'ASSIGNED' : (x.status === 'complied' ? 'COMPLIED' : (x.status || 'NEW').toUpperCase()))}</td>
                   <td>{formatDateTime(x.createdAt)}</td>
                   <td>
                     {x.status === 'assigned' || x.status === 'handled' ? (

@@ -31,9 +31,9 @@ const getAllBookings = asyncHandler(async (req, res) => {
   }
 
   // For admin view, show all bookings regardless of payment status
-  // This ensures admins can see all bookings including unpaid pending ones
+  // This ensures admins can see all bookings including 'time to check-out' ones
   if (!includePendingPayment || String(includePendingPayment).toLowerCase() !== 'true') {
-    // Show all bookings except cancelled/completed ones
+    // Show all bookings except cancelled/completed ones (includes 'time to check-out')
     query.status = { $nin: ['cancelled', 'completed'] };
   } else {
     // When including pending payments, show all bookings
@@ -75,7 +75,9 @@ const createBooking = asyncHandler(async (req, res) => {
     adults,
     children,
     guestName,
-    specialRequests
+    specialRequests,
+    paymentMethod,
+    paymentStatus
   } = req.body;
 
 
@@ -92,13 +94,13 @@ const createBooking = asyncHandler(async (req, res) => {
   const numberOfGuests = adults + children;
 
   // Calculate total amount based on room price (per hour)
-  // Economy: 3 hours = ₱200 total (₱59.523/hour) for ₱20 downpayment (10%)
+  // Updated rates: Economy ₱100/hr, Deluxe ₱150/hr, Suite ₱250/hr
   let basePrice;
-  if (roomType === 'Economy') basePrice = 59.523;
-  else if (roomType === 'Deluxe') basePrice = 100.00; // set correct price
-  else if (roomType === 'Suite') basePrice = 150.00; // etc
-  // ...set up price table or fetch from Room model defaults if needed
-  // Then calculate total as before
+  if (roomType === 'Economy') basePrice = 100;
+  else if (roomType === 'Deluxe') basePrice = 150;
+  else if (roomType === 'Suite') basePrice = 250;
+  else basePrice = 100; // default fallback
+
   let subtotal = numberOfHours * basePrice;
 
   // Check if check-in date is a holiday and apply holiday pricing
@@ -116,10 +118,11 @@ const createBooking = asyncHandler(async (req, res) => {
     console.log(`Holiday pricing applied: ${holiday.name} - ${holiday.priceMultiplier * 100}% of regular price`);
   }
 
-  const taxesAndFees = subtotal * 0.12; // Assuming 12% tax
-  const totalAmount = subtotal + taxesAndFees;
+  // Total amount is the subtotal (no additional tax)
+  const totalAmount = subtotal;
 
   // Rest of the logic – Do not assign room or roomNumber! Always set to null at booking creation.
+  // Use paymentStatus and paymentMethod from request if provided (for admin cash bookings)
   const bookingData = {
     room: null,
     user: req.user.id,
@@ -137,8 +140,8 @@ const createBooking = asyncHandler(async (req, res) => {
     roomType: roomType || null,
     numberOfGuests,
     totalAmount,
-    status: 'pending',
-    paymentStatus: 'pending'
+    status: paymentStatus === 'paid' ? 'pending' : 'pending',
+    paymentStatus: paymentStatus || 'pending'
   };
 
   console.log('Booking data before creation:', bookingData);
@@ -161,8 +164,8 @@ const createBooking = asyncHandler(async (req, res) => {
       roomNumber: null, // Billing roomNumber is also null
       amount: totalAmount,
       description: `Room booking charge for ${null} (${numberOfHours} hours)`, // Description uses null
-      status: 'pending',
-      paymentMethod: 'online payment'
+      status: paymentStatus === 'paid' ? 'paid' : 'pending',
+      paymentMethod: paymentMethod || 'online payment'
     });
 
     console.log('Created room billing record:', roomBilling);
@@ -558,6 +561,86 @@ const checkExpiredBookings = asyncHandler(async (req, res) => {
   }
 });
 
+// @desc    Manually checkout a booking (admin action)
+// @route   PUT /api/bookings/:id/checkout
+// @access  Admin
+const checkoutBooking = asyncHandler(async (req, res) => {
+  const booking = await Booking.findById(req.params.id).populate('room');
+
+  if (!booking) {
+    res.status(404);
+    throw new Error('Booking not found');
+  }
+
+  // Check if booking is already completed
+  if (booking.status === 'completed') {
+    res.status(400);
+    throw new Error('Booking is already checked out');
+  }
+
+  const oldStatus = booking.status;
+
+  // Update booking status to completed
+  booking.status = 'completed';
+  await booking.save();
+
+  // Create booking activity record
+  await BookingActivity.create({
+    booking: booking._id,
+    activity: `Guest checked out by admin (was: ${oldStatus})`,
+    status: 'completed'
+  });
+
+  // Update room status to available if no other active bookings exist
+  if (booking.room) {
+    const otherActiveBooking = await Booking.findOne({
+      room: booking.room._id,
+      _id: { $ne: booking._id },
+      status: { $nin: ['cancelled', 'completed'] },
+      checkOut: { $gte: new Date() },
+      paymentStatus: { $in: ['paid', 'partial'] }
+    });
+
+    if (!otherActiveBooking) {
+      const room = await Room.findById(booking.room._id);
+      if (room) {
+        room.status = 'checked-out';
+        await room.save();
+        console.log(`Room ${room.roomNumber} status updated to checked-out after checkout`);
+      }
+    }
+  }
+
+  res.json({
+    message: 'Booking checked out successfully',
+    booking: booking,
+    previousStatus: oldStatus
+  });
+});
+
+// Mark booking as fully paid (updates both booking and billing)
+const markFullyPaid = asyncHandler(async (req, res) => {
+  const booking = await Booking.findById(req.params.id);
+  if (!booking) {
+    return res.status(404).json({ message: 'Booking not found' });
+  }
+
+  // Update booking paymentStatus to 'paid'
+  booking.paymentStatus = 'paid';
+  await booking.save();
+
+  // Update all billing records for this booking to 'paid'
+  await Billing.updateMany(
+    { booking: booking._id },
+    { status: 'paid' }
+  );
+
+  res.json({
+    message: 'Booking marked as fully paid',
+    booking: booking
+  });
+});
+
 module.exports = {
   createBooking,
   getAllBookings,
@@ -570,4 +653,7 @@ module.exports = {
   deleteCancelledBookings,
   updateRoomStatus,
   checkExpiredBookings,
+  checkoutBooking,
+  markFullyPaid,
 };
+

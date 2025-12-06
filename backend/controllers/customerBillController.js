@@ -107,13 +107,19 @@ exports.getAllCustomerBills = asyncHandler(async (req, res) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  // Collect unique active booking IDs
+  // Collect unique booking IDs (exclude completed/checked-out bookings)
   const activeBookingIds = new Set();
   (docs || []).forEach((d) => {
     const booking = d.booking;
     if (!booking) return;
+
+    // Exclude completed bookings (checked-out bookings)
+    if (booking.status === 'completed') return;
+
     const co = booking.checkOut ? new Date(booking.checkOut) : null;
-    if (!co || isNaN(co) || co < today) return;
+    // Only show bills if checkout date is in the future or today
+    if (co && !isNaN(co) && co < today) return;
+
     // Exclude unpaid pending bookings, but show paid pending bookings
     if (
       booking.status === 'pending' &&

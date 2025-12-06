@@ -26,6 +26,7 @@ const ManageBookingAdmin = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [rooms, setRooms] = useState([]);
+  const [holidays, setHolidays] = useState([]);
   const [assignableRooms, setAssignableRooms] = useState([]);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState(null);
@@ -41,7 +42,9 @@ const ManageBookingAdmin = () => {
     contactNumber: '',
     email: '',
     checkInDate: '',
+    checkInTime: '',
     checkOutDate: '',
+    checkOutTime: '',
     adults: '1',
     children: '0',
     specialRequest: ''
@@ -49,13 +52,29 @@ const ManageBookingAdmin = () => {
   const [reservationSummary, setReservationSummary] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteBookingId, setDeleteBookingId] = useState(null);
+  const [showCheckoutModal, setShowCheckoutModal] = useState(false);
+  const [checkoutBookingId, setCheckoutBookingId] = useState(null);
 
   useEffect(() => {
     if (token) {
       fetchBookings();
       fetchRooms();
+      fetchHolidays();
     }
   }, [statusFilter, searchQuery, token]);
+
+  const fetchHolidays = async () => {
+    try {
+      const res = await axios.get(`${API_BASE}/api/holidays`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const list = Array.isArray(res.data) ? res.data : res?.data?.holidays || res?.data?.data || [];
+      setHolidays(Array.isArray(list) ? list : []);
+    } catch (e) {
+      console.error('Failed to load holidays', e);
+      setHolidays([]);
+    }
+  };
 
 
 
@@ -65,7 +84,16 @@ const ManageBookingAdmin = () => {
   const formatDate = (val) => {
     if (!val) return "-";
     const d = new Date(val);
-    return isNaN(d) ? String(val) : d.toLocaleDateString();
+    if (isNaN(d)) return String(val);
+    // Include both date and time
+    return d.toLocaleString('en-US', {
+      month: 'numeric',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
   };
 
   // Map backend variations → unified values for the row
@@ -83,6 +111,7 @@ const ManageBookingAdmin = () => {
     if (["occupied"].includes(s)) return "confirmed";
     if (["cancelled", "canceled"].includes(s)) return "cancelled";
     if (["completed", "checked-out", "finished"].includes(s)) return "completed";
+    if (["time to check-out"].includes(s)) return "checkout-pending";
     return "";
   };
 
@@ -189,11 +218,13 @@ const ManageBookingAdmin = () => {
 
   const fetchRooms = async () => {
     try {
-      const res = await axios.get(`${API_BASE}/api/rooms`, {
+      // Fetch all rooms (no pagination limit) for accurate availability checking
+      const res = await axios.get(`${API_BASE}/api/rooms?limit=100`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const list = Array.isArray(res.data) ? res.data : res?.data?.rooms || res?.data?.data || [];
       const normalized = Array.isArray(list) ? list : [];
+      console.log('Fetched rooms:', normalized.length, 'rooms');
       setRooms(normalized);
       return normalized;
     } catch (e) {
@@ -226,6 +257,82 @@ const ManageBookingAdmin = () => {
     const mi = String(d.getMinutes()).padStart(2, '0');
     return `${hh}:${mi}`;
   };
+
+  // Generate 30-minute interval time options
+  const generateTimeOptions = () => {
+    const options = [];
+    for (let h = 0; h < 24; h++) {
+      for (let m = 0; m < 60; m += 30) {
+        const hh = String(h).padStart(2, '0');
+        const mm = String(m).padStart(2, '0');
+        const time24 = `${hh}:${mm}`;
+        const hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+        const ampm = h < 12 ? 'AM' : 'PM';
+        const label = `${hour12}:${mm} ${ampm}`;
+        options.push({ value: time24, label });
+      }
+    }
+    return options;
+  };
+
+  const timeOptions = generateTimeOptions();
+
+  // Filter time options based on current date/time
+  const getFilteredTimeOptions = (isCheckIn = true, selectedDate = '') => {
+    const today = getTodayStr();
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMin = now.getMinutes();
+
+    return timeOptions.filter(opt => {
+      const [h, m] = opt.value.split(':').map(Number);
+      // If selected date is today, disable past times
+      if (selectedDate === today) {
+        if (h < currentHour) return false;
+        if (h === currentHour && m <= currentMin) return false;
+      }
+      // If check-out and same date as check-in, must be after check-in time
+      if (!isCheckIn && newBooking.checkInDate === newBooking.checkOutDate && newBooking.checkInTime) {
+        const [ciH, ciM] = newBooking.checkInTime.split(':').map(Number);
+        if (h < ciH) return false;
+        if (h === ciH && m <= ciM) return false;
+      }
+      return true;
+    });
+  };
+
+  // Check room availability by type
+  const getRoomAvailability = () => {
+    const availability = { Economy: false, Deluxe: false, Suite: false };
+
+    console.log('Checking room availability, rooms:', rooms);
+
+    (rooms || []).forEach(room => {
+      const rt = String(room.roomType || room.type || '').toLowerCase().trim();
+      const roomStatus = String(room.status || '').toLowerCase().trim();
+      const isAvailable = roomStatus === 'available';
+
+      console.log(`Room ${room.roomNumber}: type="${rt}", status="${roomStatus}", isAvailable=${isAvailable}`);
+
+      if (isAvailable) {
+        if (rt.includes('economy') || rt.includes('standard') || rt.includes('solo') || rt.includes('basic')) {
+          availability.Economy = true;
+        }
+        if (rt.includes('deluxe')) {
+          availability.Deluxe = true;
+        }
+        if (rt.includes('suite') || rt.includes('family')) {
+          availability.Suite = true;
+        }
+      }
+    });
+
+    console.log('Room availability result:', availability);
+
+    return availability;
+  };
+
+  const roomAvailability = getRoomAvailability();
 
 
   // removed admin billing-derived notifications — centralized in LayoutAdmin bell dropdown
@@ -290,17 +397,37 @@ const ManageBookingAdmin = () => {
   const handleAddBooking = () => setShowAddModal(true);
 
   const calculateReservationSummary = () => {
-    const rateByType = { standard: 100, deluxe: 150, suite: 250 };
+    const rateByType = { economy: 100, deluxe: 150, suite: 250 };
     const baseRate = rateByType[String(newBooking.roomType || '').toLowerCase()] ?? 100;
+
+    // Combine date and time for accurate calculation
+    const checkInDateTime = new Date(`${newBooking.checkInDate}T${newBooking.checkInTime || '00:00'}`);
+    const checkOutDateTime = new Date(`${newBooking.checkOutDate}T${newBooking.checkOutTime || '00:00'}`);
+
     const hours = Math.ceil(
-      (new Date(newBooking.checkOutDate) - new Date(newBooking.checkInDate)) / (1000 * 60 * 60)
+      (checkOutDateTime - checkInDateTime) / (1000 * 60 * 60)
     );
-    const total = baseRate * Math.max(hours, 1);
+    let subtotal = baseRate * Math.max(hours, 1);
+
+    // Check if check-in date is a holiday
+    const checkInDateOnly = newBooking.checkInDate;
+    const holiday = holidays.find(h => {
+      const hDate = new Date(h.date).toISOString().split('T')[0];
+      return hDate === checkInDateOnly && h.isActive;
+    });
+
+    let holidayInfo = '';
+    if (holiday) {
+      const multiplier = holiday.priceMultiplier || 1.05;
+      subtotal = subtotal * multiplier;
+      holidayInfo = ` (includes ${Math.round((multiplier - 1) * 100)}% holiday surcharge)`;
+    }
+
     return {
-      dates: `${new Date(newBooking.checkInDate).toLocaleDateString()} - ${new Date(newBooking.checkOutDate).toLocaleDateString()}`,
+      dates: `${checkInDateTime.toLocaleString()} - ${checkOutDateTime.toLocaleString()}`,
       guests: `${newBooking.adults} Adult${Number(newBooking.adults) > 1 ? 's' : ''}, ${newBooking.children} Child${Number(newBooking.children) > 1 ? 'ren' : ''}`,
-      rate: `₱${baseRate.toLocaleString()} per hour`,
-      total: `₱${total.toLocaleString()}`
+      rate: `₱${baseRate.toLocaleString()} per hour${holidayInfo}`,
+      total: `₱${subtotal.toLocaleString()}`
     };
   };
 
@@ -317,7 +444,20 @@ const ManageBookingAdmin = () => {
   const handleConfirmBooking = async () => {
     try {
       const config = { headers: { Authorization: `Bearer ${token}` } };
-      await axios.post(`${API_BASE}/api/bookings`, newBooking, config);
+
+      // Build the booking data with cash payment (admin bookings are paid in cash)
+      const bookingData = {
+        ...newBooking,
+        // Combine date and time for checkIn/checkOut
+        checkIn: `${newBooking.checkInDate}T${newBooking.checkInTime || '12:00'}`,
+        checkOut: `${newBooking.checkOutDate}T${newBooking.checkOutTime || '12:00'}`,
+        paymentMethod: 'cash',
+        paymentStatus: 'paid',
+        customerName: newBooking.guestName,
+        customerEmail: newBooking.email
+      };
+
+      await axios.post(`${API_BASE}/api/bookings`, bookingData, config);
       setShowConfirmModal(true);
       setTimeout(() => {
         setShowConfirmModal(false);
@@ -328,7 +468,9 @@ const ManageBookingAdmin = () => {
           contactNumber: '',
           email: '',
           checkInDate: '',
+          checkInTime: '',
           checkOutDate: '',
+          checkOutTime: '',
           adults: '1',
           children: '0',
           specialRequest: ''
@@ -371,6 +513,26 @@ const ManageBookingAdmin = () => {
     }
   };
 
+  const handleCheckoutClick = (booking) => {
+    if (!booking || !booking._id) return;
+    setCheckoutBookingId(booking._id);
+    setShowCheckoutModal(true);
+  };
+
+  const confirmCheckout = async () => {
+    if (!checkoutBookingId) return;
+    try {
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+      await axios.put(`${API_BASE}/api/bookings/${checkoutBookingId}/checkout`, {}, config);
+      setShowCheckoutModal(false);
+      setCheckoutBookingId(null);
+      fetchBookings();
+    } catch (err) {
+      console.error('Error checking out booking:', err);
+      alert(err?.response?.data?.message || err.message || 'Failed to check out booking');
+    }
+  };
+
   // ADD: compute filtered rows based on search + status
   const filtered = React.useMemo(() => {
     const q = (searchQuery || "").toLowerCase();
@@ -404,9 +566,8 @@ const ManageBookingAdmin = () => {
           >
             <option value="">Filter by Booking Status</option>
             <option value="pending">Pending</option>
-            <option value="confirmed">Confirmed</option>
-            <option value="cancelled">Cancelled</option>
-            <option value="completed">Completed</option>
+            <option value="occupied">Occupied</option>
+
           </select>
           <button onClick={handleAddBooking} className="add-booking-btn">
             Add Booking +
@@ -461,11 +622,19 @@ const ManageBookingAdmin = () => {
                     <div className="action-buttons">
                       <button
                         className="assign-btn"
-                        disabled={["cancelled", "completed"].includes(String(getBookingStatus(b) || '').toLowerCase())}
+                        disabled={["cancelled", "completed", "time to check-out"].includes(String(getBookingStatus(b) || '').toLowerCase())}
                         onClick={() => handleAssignRoom(b)}
                       >
                         Assign Room
                       </button>
+                      {['occupied', 'time to check-out'].includes(String(getBookingStatus(b) || '').toLowerCase()) && (
+                        <button
+                          className="checkout-btn"
+                          onClick={() => handleCheckoutClick(b)}
+                        >
+                          Check-Out
+                        </button>
+                      )}
                       <button className="delete-btn" onClick={() => handleDelete(b._id)}>
                         Delete
                       </button>
@@ -573,7 +742,7 @@ const ManageBookingAdmin = () => {
               {!reservationSummary ? (
                 <form onSubmit={handleNewBookingSubmit}>
                   <div className="form-group">
-                    <label>Room Type:</label>
+                    <label style={{ color: '#000', fontWeight: '500' }}>Room Type:</label>
                     <select
                       name="roomType"
                       value={newBooking.roomType}
@@ -581,13 +750,19 @@ const ManageBookingAdmin = () => {
                       required
                     >
                       <option value="">Select Room Type</option>
-                      <option value="standard">Standard</option>
-                      <option value="deluxe">Deluxe</option>
-                      <option value="suite">Suite</option>
+                      <option value="Economy" disabled={!roomAvailability.Economy}>
+                        Economy {!roomAvailability.Economy ? '(Unavailable)' : ''}
+                      </option>
+                      <option value="Deluxe" disabled={!roomAvailability.Deluxe}>
+                        Deluxe {!roomAvailability.Deluxe ? '(Unavailable)' : ''}
+                      </option>
+                      <option value="Suite" disabled={!roomAvailability.Suite}>
+                        Suite {!roomAvailability.Suite ? '(Unavailable)' : ''}
+                      </option>
                     </select>
                   </div>
                   <div className="form-group">
-                    <label>Guest Name:</label>
+                    <label style={{ color: '#000', fontWeight: '500' }}>Guest Name:</label>
                     <input
                       type="text"
                       name="guestName"
@@ -597,7 +772,7 @@ const ManageBookingAdmin = () => {
                     />
                   </div>
                   <div className="form-group">
-                    <label>Contact Number:</label>
+                    <label style={{ color: '#000', fontWeight: '500' }}>Contact Number:</label>
                     <input
                       type="tel"
                       name="contactNumber"
@@ -607,7 +782,7 @@ const ManageBookingAdmin = () => {
                     />
                   </div>
                   <div className="form-group">
-                    <label>Email:</label>
+                    <label style={{ color: '#000', fontWeight: '500' }}>Email:</label>
                     <input
                       type="email"
                       name="email"
@@ -616,28 +791,62 @@ const ManageBookingAdmin = () => {
                       required
                     />
                   </div>
-                  <div className="form-group">
-                    <label>Check-in Date:</label>
-                    <input
-                      type="date"
-                      name="checkInDate"
-                      value={newBooking.checkInDate}
-                      onChange={handleNewBookingChange}
-                      required
-                    />
+                  <div style={{ display: 'flex', gap: '16px' }}>
+                    <div className="form-group" style={{ flex: 1 }}>
+                      <label style={{ color: '#000', fontWeight: '500' }}>Check-in Date:</label>
+                      <input
+                        type="date"
+                        name="checkInDate"
+                        value={newBooking.checkInDate}
+                        onChange={handleNewBookingChange}
+                        min={getTodayStr()}
+                        required
+                      />
+                    </div>
+                    <div className="form-group" style={{ flex: 1 }}>
+                      <label style={{ color: '#000', fontWeight: '500' }}>Check-in Time:</label>
+                      <select
+                        name="checkInTime"
+                        value={newBooking.checkInTime}
+                        onChange={handleNewBookingChange}
+                        required
+                      >
+                        <option value="">Select Time</option>
+                        {getFilteredTimeOptions(true, newBooking.checkInDate).map(opt => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '16px' }}>
+                    <div className="form-group" style={{ flex: 1 }}>
+                      <label style={{ color: '#000', fontWeight: '500' }}>Check-out Date:</label>
+                      <input
+                        type="date"
+                        name="checkOutDate"
+                        value={newBooking.checkOutDate}
+                        onChange={handleNewBookingChange}
+                        min={newBooking.checkInDate || getTodayStr()}
+                        required
+                      />
+                    </div>
+                    <div className="form-group" style={{ flex: 1 }}>
+                      <label style={{ color: '#000', fontWeight: '500' }}>Check-out Time:</label>
+                      <select
+                        name="checkOutTime"
+                        value={newBooking.checkOutTime}
+                        onChange={handleNewBookingChange}
+                        required
+                      >
+                        <option value="">Select Time</option>
+                        {getFilteredTimeOptions(false, newBooking.checkOutDate).map(opt => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                   <div className="form-group">
-                    <label>Check-out Date:</label>
-                    <input
-                      type="date"
-                      name="checkOutDate"
-                      value={newBooking.checkOutDate}
-                      onChange={handleNewBookingChange}
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Number of Adults:</label>
+                    <label style={{ color: '#000', fontWeight: '500' }}>Number of Adults:</label>
                     <input
                       type="number"
                       name="adults"
@@ -648,7 +857,7 @@ const ManageBookingAdmin = () => {
                     />
                   </div>
                   <div className="form-group">
-                    <label>Number of Children:</label>
+                    <label style={{ color: '#000', fontWeight: '500' }}>Number of Children:</label>
                     <input
                       type="number"
                       name="children"
@@ -658,7 +867,7 @@ const ManageBookingAdmin = () => {
                     />
                   </div>
                   <div className="form-group">
-                    <label>Special Requests:</label>
+                    <label style={{ color: '#000', fontWeight: '500' }}>Special Requests:</label>
                     <textarea
                       name="specialRequest"
                       value={newBooking.specialRequest}
@@ -767,6 +976,22 @@ const ManageBookingAdmin = () => {
             <div className="form-actions" style={{ justifyContent: 'flex-end' }}>
               <button className="cancel-btn cancel-danger" onClick={() => setShowDeleteModal(false)}>Cancel</button>
               <button className="ok-btn" onClick={confirmDeleteBooking}>Okay</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showCheckoutModal && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h3 style={{ color: 'black' }}>Confirm Check-Out</h3>
+            </div>
+            <div className="modal-body" style={{ color: 'black' }}>
+              Proceed to check-out?
+            </div>
+            <div className="form-actions" style={{ justifyContent: 'flex-end' }}>
+              <button className="cancel-btn cancel-danger" onClick={() => { setShowCheckoutModal(false); setCheckoutBookingId(null); }}>Cancel</button>
+              <button className="ok-btn" onClick={confirmCheckout}>Confirm</button>
             </div>
           </div>
         </div>

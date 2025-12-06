@@ -1,5 +1,5 @@
 const express = require('express');
-const { createBooking, getAllBookings, getBookingById, updateBookingStatus, updatePaymentStatus, generatePaymentQrCode, getMyBookings, cancelBooking, deleteCancelledBookings, checkExpiredBookings } = require('../controllers/bookingController');
+const { createBooking, getAllBookings, getBookingById, updateBookingStatus, updatePaymentStatus, generatePaymentQrCode, getMyBookings, cancelBooking, deleteCancelledBookings, checkExpiredBookings, checkoutBooking, markFullyPaid } = require('../controllers/bookingController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
 const router = express.Router();
@@ -20,6 +20,8 @@ router.get('/', authorize(['admin']), getAllBookings);
 router.get('/:id', authorize(['admin']), getBookingById);
 router.put('/:id', authorize(['admin']), updateBookingStatus);
 router.put('/:id/payment-status', authorize(['admin']), updatePaymentStatus);
+router.put('/:id/checkout', authorize(['admin']), checkoutBooking);
+router.put('/:id/mark-fully-paid', authorize(['admin']), markFullyPaid);
 router.post('/generate-qr', authorize(['admin']), generatePaymentQrCode);
 router.delete('/:id', authorize(['admin']), cancelBooking);
 
