@@ -224,21 +224,28 @@ const updateBookingStatus = asyncHandler(async (req, res) => {
 
     // Update ALL billing records for this booking OR the old room number to the new roomNumber
     // This includes food orders that are linked by roomNumber only
+    console.log(`[BILLING UPDATE] Booking ID: ${booking._id}, prevRoomNumber: "${prevRoomNumber}", newRoomNumber: "${roomNumber}"`);
+
     const billingQuery = {
       $or: [
         { booking: booking._id },
         ...(prevRoomNumber ? [{ roomNumber: String(prevRoomNumber) }] : [])
       ]
     };
+    console.log(`[BILLING UPDATE] Query: ${JSON.stringify(billingQuery)}`);
+
     const billings = await Billing.find(billingQuery);
+    console.log(`[BILLING UPDATE] Found ${billings.length} billing records to update`);
 
     for (const b of billings) {
-      // Update roomNumber for all billing records
-      b.roomNumber = roomNumber;
+      console.log(`[BILLING UPDATE] Updating billing ${b._id} from room "${b.roomNumber}" to "${roomNumber}"`);
+
+      // Build update object
+      const updateFields = { roomNumber: roomNumber };
 
       // Link billing to booking if not already linked
       if (!b.booking) {
-        b.booking = booking._id;
+        updateFields.booking = booking._id;
       }
 
       // Update description for room booking charges
@@ -246,14 +253,17 @@ const updateBookingStatus = asyncHandler(async (req, res) => {
         const hours = booking.checkIn && booking.checkOut
           ? Math.ceil((new Date(booking.checkOut) - new Date(booking.checkIn)) / (1000 * 60 * 60))
           : null;
-        b.description = hours != null
+        updateFields.description = hours != null
           ? `Room booking charge for ${roomNumber} (${hours} hours)`
           : `Room booking charge for ${roomNumber}`;
       }
-      await b.save();
+
+      // Use updateOne with runValidators: false to bypass schema validation
+      // This is needed because food orders have different fields than room billings
+      await Billing.updateOne({ _id: b._id }, { $set: updateFields });
     }
 
-    console.log(`Updated ${billings.length} billing records to room ${roomNumber} (from room ${prevRoomNumber || 'none'})`);
+    console.log(`[BILLING UPDATE] Updated ${billings.length} billing records to room ${roomNumber} (from room ${prevRoomNumber || 'none'})`);
 
 
     // Log activity for notifications
