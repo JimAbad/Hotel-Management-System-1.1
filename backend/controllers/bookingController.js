@@ -222,11 +222,24 @@ const updateBookingStatus = asyncHandler(async (req, res) => {
     const Billing = require('../models/Billing');
     const BookingActivity = require('../models/bookingActivityModel');
 
-    // Update ALL billing records for this booking to the new roomNumber
-    const billings = await Billing.find({ booking: booking._id });
+    // Update ALL billing records for this booking OR the old room number to the new roomNumber
+    // This includes food orders that are linked by roomNumber only
+    const billingQuery = {
+      $or: [
+        { booking: booking._id },
+        ...(prevRoomNumber ? [{ roomNumber: String(prevRoomNumber) }] : [])
+      ]
+    };
+    const billings = await Billing.find(billingQuery);
+
     for (const b of billings) {
       // Update roomNumber for all billing records
       b.roomNumber = roomNumber;
+
+      // Link billing to booking if not already linked
+      if (!b.booking) {
+        b.booking = booking._id;
+      }
 
       // Update description for room booking charges
       if ((b.description || '').includes('Room booking charge')) {
@@ -240,7 +253,7 @@ const updateBookingStatus = asyncHandler(async (req, res) => {
       await b.save();
     }
 
-    console.log(`Updated ${billings.length} billing records to room ${roomNumber}`);
+    console.log(`Updated ${billings.length} billing records to room ${roomNumber} (from room ${prevRoomNumber || 'none'})`);
 
 
     // Log activity for notifications
@@ -617,9 +630,15 @@ const checkoutBooking = asyncHandler(async (req, res) => {
     }
   }
 
-  // Delete ALL billing records for this booking (room charges, food orders, etc.)
-  const deleteResult = await Billing.deleteMany({ booking: booking._id });
-  console.log(`Deleted ${deleteResult.deletedCount} billing records for booking ${booking._id}`);
+  // Delete ALL billing records for this booking OR roomNumber (room charges, food orders, etc.)
+  const billingDeleteQuery = {
+    $or: [
+      { booking: booking._id },
+      ...(booking.roomNumber ? [{ roomNumber: String(booking.roomNumber) }] : [])
+    ]
+  };
+  const deleteResult = await Billing.deleteMany(billingDeleteQuery);
+  console.log(`Deleted ${deleteResult.deletedCount} billing records for booking ${booking._id} / room ${booking.roomNumber}`);
 
   res.json({
     message: 'Booking checked out successfully',
