@@ -221,22 +221,27 @@ const updateBookingStatus = asyncHandler(async (req, res) => {
   try {
     const Billing = require('../models/Billing');
     const BookingActivity = require('../models/bookingActivityModel');
+
+    // Update ALL billing records for this booking to the new roomNumber
     const billings = await Billing.find({ booking: booking._id });
     for (const b of billings) {
-      const needsUpdate = String(b.roomNumber || '') === String(prevRoomNumber || '') || (b.description || '').includes('Room booking charge');
-      if (needsUpdate) {
-        b.roomNumber = roomNumber;
-        if ((b.description || '').includes('Room booking charge')) {
-          const hours = booking.checkIn && booking.checkOut
-            ? Math.ceil((new Date(booking.checkOut) - new Date(booking.checkIn)) / (1000 * 60 * 60))
-            : null;
-          b.description = hours != null
-            ? `Room booking charge for ${roomNumber} (${hours} hours)`
-            : `Room booking charge for ${roomNumber}`;
-        }
-        await b.save();
+      // Update roomNumber for all billing records
+      b.roomNumber = roomNumber;
+
+      // Update description for room booking charges
+      if ((b.description || '').includes('Room booking charge')) {
+        const hours = booking.checkIn && booking.checkOut
+          ? Math.ceil((new Date(booking.checkOut) - new Date(booking.checkIn)) / (1000 * 60 * 60))
+          : null;
+        b.description = hours != null
+          ? `Room booking charge for ${roomNumber} (${hours} hours)`
+          : `Room booking charge for ${roomNumber}`;
       }
+      await b.save();
     }
+
+    console.log(`Updated ${billings.length} billing records to room ${roomNumber}`);
+
 
     // Log activity for notifications
     const prevRn = prevRoomNumber ? String(prevRoomNumber) : '';
@@ -249,6 +254,7 @@ const updateBookingStatus = asyncHandler(async (req, res) => {
   } catch (e) {
     console.warn('Room/billing sync or activity log failed:', e?.message);
   }
+
 
   const updatedBooking = await booking.save();
 
@@ -610,6 +616,10 @@ const checkoutBooking = asyncHandler(async (req, res) => {
       }
     }
   }
+
+  // Delete ALL billing records for this booking (room charges, food orders, etc.)
+  const deleteResult = await Billing.deleteMany({ booking: booking._id });
+  console.log(`Deleted ${deleteResult.deletedCount} billing records for booking ${booking._id}`);
 
   res.json({
     message: 'Booking checked out successfully',
