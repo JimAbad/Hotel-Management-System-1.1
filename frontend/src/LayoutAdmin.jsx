@@ -24,8 +24,8 @@ const LayoutAdmin = () => {
       const needAssign = list.filter(b => {
         const rn = b.roomNumber || (b.room && b.room.roomNumber);
         const st = String(b.status || '').toLowerCase();
-        const paid = ['paid','partial'].includes(String(b.paymentStatus || '').toLowerCase());
-        return paid && !rn && !['cancelled','completed'].includes(st);
+        const paid = ['paid', 'partial'].includes(String(b.paymentStatus || '').toLowerCase());
+        return paid && !rn && !['cancelled', 'completed'].includes(st);
       }).map(b => ({ id: b._id, text: `Booking ${b.referenceNumber || String(b._id).slice(-6)} needs room assignment` }));
 
       const billsResp = await fetch(`${API_URL}/api/billings/admin`, { headers });
@@ -108,7 +108,7 @@ const LayoutAdmin = () => {
               {notifications.filter(n => !(readIds || []).includes(n.id)).length === 0 ? (
                 <div className="notif-empty">No notifications</div>
               ) : (
-                notifications.filter(n => !(readIds || []).includes(n.id)).slice(0,20).map(n => (
+                notifications.filter(n => !(readIds || []).includes(n.id)).slice(0, 20).map(n => (
                   <div key={n.id} className="notif-item"><span>{n.text}</span><button className="notif-close" onClick={() => markOneAsRead(n.id)}>×</button></div>
                 ))
               )}
@@ -153,9 +153,8 @@ const LayoutAdmin = () => {
       {showLogoutConfirm && (
         <div className="logout-modal-overlay">
           <div className="logout-confirmation-modal">
-            <div className="logout-modal-header">
-              <h3 className="logout-modal-title">Confirm Logout</h3>
-              <button className="logout-modal-close" onClick={() => setShowLogoutConfirm(false)}>×</button>
+            <div className="logout-modal-header" style={{ justifyContent: 'center' }}>
+              <h3 className="logout-modal-title" style={{ margin: 0 }}>Confirm Logout</h3>
             </div>
             <div className="logout-modal-body">
               Are you sure you want to logout?

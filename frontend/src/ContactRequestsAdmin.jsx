@@ -15,6 +15,7 @@ const ContactRequestsAdmin = () => {
   const [miscOption, setMiscOption] = useState('Submit');
   const [priority, setPriority] = useState('low');
   const [submitting, setSubmitting] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
 
 
 
@@ -108,6 +109,20 @@ const ContactRequestsAdmin = () => {
     }
   };
 
+  const handleDelete = async (item) => {
+    try {
+      const headers = { Authorization: `Bearer ${token}` };
+      await axios.delete(`${API_URL}/api/contact-messages/${item._id}`, { headers });
+      // Refresh the list
+      const { data } = await axios.get(`${API_URL}/api/contact-messages`, { headers });
+      const arr = Array.isArray(data) ? data : data?.data || [];
+      setItems(arr);
+      setDeleteConfirm(null);
+    } catch (e) {
+      alert(e?.response?.data?.message || e.message || 'Failed to delete contact request');
+    }
+  };
+
   return (
     <div className="container" style={{ color: 'black' }}>
       <h2>Contact Requests</h2>
@@ -149,7 +164,7 @@ const ContactRequestsAdmin = () => {
                   <td>{x.taskPriority ? x.taskPriority.toUpperCase() : (x.priority || 'low').toUpperCase()}</td>
                   <td>{x.taskStatus ? x.taskStatus.toUpperCase() : (x.status === 'handled' ? 'ASSIGNED' : (x.status === 'complied' ? 'COMPLIED' : (x.status || 'NEW').toUpperCase()))}</td>
                   <td>{formatDateTime(x.createdAt)}</td>
-                  <td>
+                  <td style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                     {x.status === 'assigned' || x.status === 'handled' ? (
                       <button disabled style={{ background: '#ddd', color: '#333', borderRadius: 8, padding: '8px 12px', cursor: 'not-allowed' }}>Assigned</button>
                     ) : x.status === 'complied' ? (
@@ -157,6 +172,7 @@ const ContactRequestsAdmin = () => {
                     ) : (
                       <button onClick={() => openSchedule(x)} style={{ background: '#B8860B', color: 'white', borderRadius: 8, padding: '8px 12px' }}>Create Task</button>
                     )}
+                    <button onClick={() => setDeleteConfirm(x)} style={{ background: '#dc3545', color: 'white', borderRadius: 8, padding: '8px 12px' }}>Delete</button>
                   </td>
                 </tr>
               ))
@@ -203,6 +219,25 @@ const ContactRequestsAdmin = () => {
             <div className="confirm-actions">
               <button className="btn-yes" onClick={submitTask} disabled={submitting}>Confirm</button>
               <button className="btn-cancel" onClick={() => setActive(null)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirm && (
+        <div className="confirm-overlay">
+          <div className="confirm-modal">
+            <h3 style={{ color: 'black' }}>Delete Contact Request</h3>
+            <p style={{ color: 'black', marginBottom: 12 }}>
+              Are you sure you want to delete this contact request from <strong>{deleteConfirm.name}</strong>?
+            </p>
+            <p style={{ color: '#666', fontSize: 14, marginBottom: 16 }}>
+              This action cannot be undone.
+            </p>
+            <div className="confirm-actions">
+              <button className="btn-yes" style={{ background: '#dc3545' }} onClick={() => handleDelete(deleteConfirm)}>Delete</button>
+              <button className="btn-cancel" style={{ background: '#6c757d', color: 'white' }} onClick={() => setDeleteConfirm(null)}>Cancel</button>
             </div>
           </div>
         </div>

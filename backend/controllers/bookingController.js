@@ -680,6 +680,73 @@ const markFullyPaid = asyncHandler(async (req, res) => {
   });
 });
 
+// @desc    Extend booking checkout time and create billing for extension
+// @route   PUT /api/bookings/:id/extend
+// @access  Admin
+const extendBooking = asyncHandler(async (req, res) => {
+  const { newCheckOut } = req.body;
+
+  if (!newCheckOut) {
+    return res.status(400).json({ message: 'New checkout date/time is required' });
+  }
+
+  const booking = await Booking.findById(req.params.id);
+  if (!booking) {
+    return res.status(404).json({ message: 'Booking not found' });
+  }
+
+  const oldCheckOut = new Date(booking.checkOut);
+  const newCheckOutDate = new Date(newCheckOut);
+
+  // Validate minimum 3 hours extension
+  const minExtension = new Date(oldCheckOut.getTime() + (3 * 60 * 60 * 1000));
+  if (newCheckOutDate < minExtension) {
+    return res.status(400).json({ message: 'Minimum extension is 3 hours from current checkout time' });
+  }
+
+  // Calculate extension hours
+  const extensionMs = newCheckOutDate - oldCheckOut;
+  const extensionHours = Math.ceil(extensionMs / (1000 * 60 * 60));
+
+  // Determine hourly rate based on room type
+  const roomType = booking.roomType || 'Economy';
+  let hourlyRate = 100; // Default Economy
+  if (roomType === 'Deluxe') hourlyRate = 150;
+  else if (roomType === 'Suite') hourlyRate = 250;
+
+  const extensionAmount = extensionHours * hourlyRate;
+
+  // Update booking checkout time
+  booking.checkOut = newCheckOutDate;
+  await booking.save();
+
+  // Create billing record for extension
+  const extensionBilling = await Billing.create({
+    booking: booking._id,
+    user: booking.user,
+    roomNumber: booking.roomNumber,
+    amount: extensionAmount,
+    description: `Booking extension (${extensionHours} hours) for room ${booking.roomNumber || 'N/A'}`,
+    status: 'pending',
+    paymentMethod: 'cash'
+  });
+
+  // Create booking activity
+  await BookingActivity.create({
+    booking: booking._id,
+    activity: `Checkout extended by ${extensionHours} hours. New checkout: ${newCheckOutDate.toLocaleString()}. Additional charge: ₱${extensionAmount.toLocaleString()}`,
+    status: 'completed'
+  });
+
+  res.json({
+    message: 'Booking extended successfully',
+    booking,
+    extensionBilling,
+    extensionHours,
+    extensionAmount
+  });
+});
+
 module.exports = {
   createBooking,
   getAllBookings,
@@ -694,5 +761,6 @@ module.exports = {
   checkExpiredBookings,
   checkoutBooking,
   markFullyPaid,
+  extendBooking,
 };
 

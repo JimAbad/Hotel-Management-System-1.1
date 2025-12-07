@@ -54,6 +54,11 @@ const ManageBookingAdmin = () => {
   const [deleteBookingId, setDeleteBookingId] = useState(null);
   const [showCheckoutModal, setShowCheckoutModal] = useState(false);
   const [checkoutBookingId, setCheckoutBookingId] = useState(null);
+  const [showExtendModal, setShowExtendModal] = useState(false);
+  const [extendBooking, setExtendBooking] = useState(null);
+  const [extendDate, setExtendDate] = useState('');
+  const [extendTime, setExtendTime] = useState('');
+  const [extendResult, setExtendResult] = useState(null); // { success: bool, message: string, amount: number }
 
   useEffect(() => {
     if (token) {
@@ -291,11 +296,19 @@ const ManageBookingAdmin = () => {
         if (h < currentHour) return false;
         if (h === currentHour && m <= currentMin) return false;
       }
-      // If check-out and same date as check-in, must be after check-in time
-      if (!isCheckIn && newBooking.checkInDate === newBooking.checkOutDate && newBooking.checkInTime) {
+      // If check-out, must be MINIMUM 3 HOURS after check-in time
+      if (!isCheckIn && newBooking.checkInTime) {
         const [ciH, ciM] = newBooking.checkInTime.split(':').map(Number);
-        if (h < ciH) return false;
-        if (h === ciH && m <= ciM) return false;
+        // Calculate minimum checkout time (check-in + 3 hours)
+        let minCheckoutH = ciH + 3;
+        let minCheckoutM = ciM;
+
+        // Handle day overflow - if same date as check-in
+        if (newBooking.checkInDate === newBooking.checkOutDate) {
+          // Check-out must be at least 3 hours after check-in
+          if (h < minCheckoutH) return false;
+          if (h === minCheckoutH && m < minCheckoutM) return false;
+        }
       }
       return true;
     });
@@ -533,6 +546,83 @@ const ManageBookingAdmin = () => {
     }
   };
 
+  // Extend booking handlers
+  const openExtendModal = (booking) => {
+    setExtendBooking(booking);
+    const currentCheckout = new Date(getCheckOut(booking));
+    // Set minimum to 3 hours after current checkout
+    const minDate = new Date(currentCheckout.getTime() + (3 * 60 * 60 * 1000));
+    const yyyy = minDate.getFullYear();
+    const mm = String(minDate.getMonth() + 1).padStart(2, '0');
+    const dd = String(minDate.getDate()).padStart(2, '0');
+    setExtendDate(`${yyyy}-${mm}-${dd}`);
+    setExtendTime('');
+    setShowExtendModal(true);
+  };
+
+  const getMinExtendDateTime = () => {
+    if (!extendBooking) return { minDate: getTodayStr(), minTime: '00:00' };
+    const currentCheckout = new Date(getCheckOut(extendBooking));
+    const minDateTime = new Date(currentCheckout.getTime() + (3 * 60 * 60 * 1000));
+    const yyyy = minDateTime.getFullYear();
+    const mm = String(minDateTime.getMonth() + 1).padStart(2, '0');
+    const dd = String(minDateTime.getDate()).padStart(2, '0');
+    return {
+      minDate: `${yyyy}-${mm}-${dd}`,
+      minDateTime: minDateTime
+    };
+  };
+
+  const getExtendTimeOptions = () => {
+    if (!extendBooking) return timeOptions;
+    const { minDateTime, minDate } = getMinExtendDateTime();
+
+    return timeOptions.filter(opt => {
+      const [h, m] = opt.value.split(':').map(Number);
+      // If selected date is the minimum date, filter out times before minimum
+      if (extendDate === minDate) {
+        const minHour = minDateTime.getHours();
+        const minMin = minDateTime.getMinutes();
+        if (h < minHour) return false;
+        if (h === minHour && m < minMin) return false;
+      }
+      return true;
+    });
+  };
+
+  const confirmExtend = async () => {
+    if (!extendBooking || !extendDate || !extendTime) {
+      setExtendResult({ success: false, message: 'Please select both date and time for extension' });
+      return;
+    }
+    try {
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+      // Create Date object from local date and time to preserve the user's intended time
+      const [year, month, day] = extendDate.split('-').map(Number);
+      const [hour, minute] = extendTime.split(':').map(Number);
+      const localDate = new Date(year, month - 1, day, hour, minute);
+      const newCheckOut = localDate.toISOString();
+      const response = await axios.put(`${API_BASE}/api/bookings/${extendBooking._id}/extend`, { newCheckOut }, config);
+      setShowExtendModal(false);
+      setExtendBooking(null);
+      setExtendDate('');
+      setExtendTime('');
+      setExtendResult({
+        success: true,
+        message: 'Booking extended successfully!',
+        amount: response.data.extensionAmount,
+        hours: response.data.extensionHours
+      });
+      fetchBookings();
+    } catch (err) {
+      console.error('Error extending booking:', err);
+      setExtendResult({
+        success: false,
+        message: err?.response?.data?.message || err.message || 'Failed to extend booking'
+      });
+    }
+  };
+
   // ADD: compute filtered rows based on search + status
   const filtered = React.useMemo(() => {
     const q = (searchQuery || "").toLowerCase();
@@ -635,9 +725,16 @@ const ManageBookingAdmin = () => {
                           Check-Out
                         </button>
                       )}
-                      <button className="delete-btn" onClick={() => handleDelete(b._id)}>
-                        Delete
-                      </button>
+                      {['occupied', 'time to check-out'].includes(String(getBookingStatus(b) || '').toLowerCase()) && (
+                        <button
+                          className="extend-btn"
+                          style={{ backgroundColor: '#0A1A45', color: 'white' }}
+                          onClick={() => openExtendModal(b)}
+                        >
+                          Extend
+                        </button>
+                      )}
+
                     </div>
                   </td>
                 </tr>
@@ -652,17 +749,19 @@ const ManageBookingAdmin = () => {
         <div className="modal-overlay">
           <div className="modal-content">
             <div className="modal-header">
-              <h3>Booking Activities</h3>
+              <h3 style={{ textAlign: 'center', flexGrow: 1 }}>Customer Details</h3>
               <button onClick={() => setShowActivityModal(false)}>&times;</button>
             </div>
             <div className="modal-body">
               <div className="booking-details">
-                <p><strong>Guest:</strong> {selectedBooking?.guestName}</p>
+                <p><strong>Guest:</strong> {selectedBooking?.guestName || selectedBooking?.customerName}</p>
+                <p><strong>Email:</strong> {selectedBooking?.customerEmail || selectedBooking?.email || 'N/A'}</p>
+                <p><strong>Contact Number:</strong> {selectedBooking?.contactNumber || 'N/A'}</p>
                 <p><strong>Reference:</strong> {selectedBooking?.referenceNumber}</p>
-                <p><strong>Status:</strong> {selectedBooking?.bookingStatus}</p>
+                <p><strong>Booking Status:</strong> <span className={`status ${getStatusClass(getBookingStatus(selectedBooking))}`}>{getBookingStatus(selectedBooking) || 'N/A'}</span></p>
               </div>
               <div className="activity-list">
-                {activities.map((activity, index) => (
+                {activities.filter(activity => activity.timestamp && !isNaN(new Date(activity.timestamp))).map((activity, index) => (
                   <div key={index} className="activity-item">
                     <span className="activity-date">{formatDate(activity.timestamp)} {new Date(activity.timestamp).toLocaleTimeString()}</span>
                     <span className="activity-description">{activity.description}</span>
@@ -992,6 +1091,123 @@ const ManageBookingAdmin = () => {
             <div className="form-actions" style={{ justifyContent: 'flex-end' }}>
               <button className="cancel-btn cancel-danger" onClick={() => { setShowCheckoutModal(false); setCheckoutBookingId(null); }}>Cancel</button>
               <button className="ok-btn" onClick={confirmCheckout}>Confirm</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Extend Booking Modal */}
+      {showExtendModal && extendBooking && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '450px' }}>
+            <div className="modal-header">
+              <h3 style={{ color: 'black' }}>Extend Booking</h3>
+              <button onClick={() => { setShowExtendModal(false); setExtendBooking(null); }}>&times;</button>
+            </div>
+            <div className="modal-body" style={{ color: 'black' }}>
+              <p style={{ marginBottom: '12px' }}>
+                <strong>Guest:</strong> {extendBooking.guestName || extendBooking.customerName}
+              </p>
+              <p style={{ marginBottom: '12px' }}>
+                <strong>Room:</strong> {getRoomDisplay(extendBooking)}
+              </p>
+              <p style={{ marginBottom: '16px' }}>
+                <strong>Current Check-out:</strong> {formatDate(getCheckOut(extendBooking))}
+              </p>
+              <hr style={{ marginBottom: '16px', border: 'none', borderTop: '1px solid #ddd' }} />
+              <p style={{ marginBottom: '8px', fontWeight: '600' }}>New Check-out Date & Time:</p>
+              <p style={{ marginBottom: '12px', fontSize: '13px', color: '#666' }}>
+                Minimum 3 hours extension from current checkout time.
+              </p>
+              <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500' }}>Date</label>
+                  <input
+                    type="date"
+                    value={extendDate}
+                    min={getMinExtendDateTime().minDate}
+                    onChange={(e) => { setExtendDate(e.target.value); setExtendTime(''); }}
+                    style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500' }}>Time</label>
+                  <select
+                    value={extendTime}
+                    onChange={(e) => setExtendTime(e.target.value)}
+                    style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
+                  >
+                    <option value="">Select time</option>
+                    {getExtendTimeOptions().map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div className="form-actions" style={{ justifyContent: 'flex-end', gap: '10px' }}>
+              <button
+                className="cancel-btn"
+                style={{ background: '#6c757d', color: 'white' }}
+                onClick={() => { setShowExtendModal(false); setExtendBooking(null); }}
+              >
+                Cancel
+              </button>
+              <button
+                className="ok-btn"
+                style={{ background: '#0A1A45', color: 'white' }}
+                onClick={confirmExtend}
+                disabled={!extendDate || !extendTime}
+              >
+                Extend
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Extend Result Modal (Success/Error) */}
+      {extendResult && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '400px' }}>
+            <div className="modal-header" style={{ justifyContent: 'center' }}>
+              <h3 style={{ color: extendResult.success ? '#28a745' : '#dc3545', margin: 0, paddingRight: '15px' }}>
+                {extendResult.success ? 'Success' : '✕ Error'}
+              </h3>
+            </div>
+            <div className="modal-body" style={{ color: 'black', textAlign: 'center' }}>
+              <p style={{ marginBottom: '12px', fontSize: '16px' }}>{extendResult.message}</p>
+              {extendResult.success && extendResult.amount && (
+                <div style={{
+                  background: '#f8f9fa',
+                  padding: '16px',
+                  borderRadius: '8px',
+                  marginTop: '12px'
+                }}>
+                  <p style={{ margin: 0, fontSize: '14px', color: '#666' }}>Additional Charge</p>
+                  <p style={{ margin: '8px 0 0', fontSize: '24px', fontWeight: 'bold', color: '#28a745' }}>
+                    ₱{extendResult.amount?.toLocaleString()}
+                  </p>
+                  {extendResult.hours && (
+                    <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#666' }}>
+                      ({extendResult.hours} hours extension)
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="form-actions" style={{ justifyContent: 'center' }}>
+              <button
+                className="ok-btn"
+                style={{
+                  background: extendResult.success ? '#28a745' : '#dc3545',
+                  color: 'white',
+                  minWidth: '100px'
+                }}
+                onClick={() => setExtendResult(null)}
+              >
+                OK
+              </button>
             </div>
           </div>
         </div>

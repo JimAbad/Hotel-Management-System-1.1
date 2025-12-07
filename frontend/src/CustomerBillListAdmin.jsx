@@ -602,7 +602,7 @@ const CustomerBillList = () => {
                             <>
                               <tr style={{ borderBottom: '1px solid #f3f4f6' }}>
                                 <td colSpan="2" style={{ padding: '8px' }}>
-                                  <strong>Food Charges</strong>
+                                  <strong>Other Charges (Foods/Services)</strong>
                                 </td>
                               </tr>
                               {billDetails.breakdown.foodCharges.items.map((item, idx) => (
@@ -637,19 +637,7 @@ const CustomerBillList = () => {
                             </tr>
                           )}
 
-                          {/* Extension Charges */}
-                          <tr style={{ borderBottom: '1px solid #f3f4f6' }}>
-                            <td style={{ padding: '8px' }}>
-                              <strong>Extension Charges</strong>
-                              <br />
-                              <span style={{ fontSize: '12px', color: '#6b7280' }}>
-                                {billDetails.breakdown.extensionCharges.description}
-                              </span>
-                            </td>
-                            <td style={{ textAlign: 'right', padding: '8px' }}>
-                              {prettyAmt(billDetails.breakdown.extensionCharges.subtotal)}
-                            </td>
-                          </tr>
+
 
                           {/* Total */}
                           <tr style={{ borderTop: '2px solid #e5e7eb', backgroundColor: '#f9fafb' }}>
