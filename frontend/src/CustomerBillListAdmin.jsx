@@ -549,7 +549,7 @@ const CustomerBillList = () => {
         <div className="modal-overlay" onClick={() => setShowBillModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>Bills for Room {getRoomDisplay(activeBill)}</h3>
+              <h3 style={{ textAlign: 'center', flex: 1, margin: 0 }}>Bills for Room {getRoomDisplay(activeBill)}</h3>
               <button onClick={() => setShowBillModal(false)}>✕</button>
             </div>
             <div className="modal-body">

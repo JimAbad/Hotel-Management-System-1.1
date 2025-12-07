@@ -25,6 +25,7 @@
   justify-content: left;
   align-items: left;
 }
+
 .billing-container {
   padding: 50px;
   max-width: 1200px;
@@ -33,7 +34,6 @@
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   color: black;
-  
 }
 
 .billing-card {
@@ -171,6 +171,7 @@
   font-size: 16px;
   margin-bottom: 10px;
 }
+
 .view-bill-button {
   display: block;
   margin: 20px auto;
@@ -183,4 +184,52 @@
   font-size: 16px;
 }
 
+/* Print Styles - Hide navbar, buttons, and links when printing */
+@media print {
 
+  /* Hide navbar and header */
+  nav,
+  header,
+  .navbar,
+  .nav-links,
+  .auth-controls,
+  .notif-bell,
+  .logout-btn,
+  .logout-button {
+    display: none !important;
+  }
+
+  /* Hide back button and print button */
+  .back-link,
+  .back-btn,
+  .print-btn,
+  .view-bill-button,
+  button {
+    display: none !important;
+  }
+
+  /* Hide footer if any */
+  footer,
+  .footer {
+    display: none !important;
+  }
+
+  /* Make billing container full width for print */
+  .billing-container {
+    box-shadow: none !important;
+    margin: 0 !important;
+    padding: 20px !important;
+    max-width: 100% !important;
+  }
+
+  /* Ensure good contrast for printing */
+  body {
+    background: white !important;
+    color: black !important;
+  }
+
+  .room-bill-group {
+    border: 1px solid #000 !important;
+    page-break-inside: avoid;
+  }
+}
