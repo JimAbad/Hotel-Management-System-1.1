@@ -7,7 +7,8 @@
   color: var(--golden-accent);
   margin-bottom: 30px;
 }
-.no-bookings{
+
+.no-bookings {
   text-align: center;
   padding: 40px;
   background-color: #f9f9f9;
@@ -92,7 +93,8 @@
 
 .booking-actions button {
   display: block;
-  margin: 0 auto; /* centers horizontally */
+  margin: 0 auto;
+  /* centers horizontally */
   background-color: #B8860B;
   color: white;
   border: none;
@@ -254,12 +256,12 @@
   flex-shrink: 0;
 }
 
-.reason-checkbox input[type="checkbox"]:checked + .checkmark {
+.reason-checkbox input[type="checkbox"]:checked+.checkmark {
   background-color: var(--golden-accent);
   border-color: var(--golden-accent);
 }
 
-.reason-checkbox input[type="checkbox"]:checked + .checkmark::after {
+.reason-checkbox input[type="checkbox"]:checked+.checkmark::after {
   content: '✓';
   position: absolute;
   top: 50%;
@@ -405,13 +407,16 @@
 /* Success Modal Styles */
 .success-modal {
   max-width: 450px;
-  background-color: white;
-  margin: 0; /* let overlay flex fully control centering */
-  position: static; /* remove fixed positioning */
-  transform: none; /* reset transform */
-  border: none; /* remove any borders */
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25); /* subtle elevation */
+  background-color: white !important;
+  margin: 0;
+  position: static;
+  transform: none;
+  border: none !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  border-radius: 12px;
+  overflow: hidden;
 }
+
 /* Scoped overrides so My Bookings success modal always centers */
 .my-bookings-container .modal-overlay {
   display: flex;
@@ -427,6 +432,8 @@
   transform: none !important;
   margin: 0 !important;
   max-width: 450px;
+  border: none !important;
+  background-color: white !important;
 }
 
 .my-bookings-container .modal-content.success-modal {
@@ -434,7 +441,7 @@
   background-color: white !important;
   width: auto !important;
   max-width: 420px !important;
-  overflow: visible !important;
+  overflow: hidden !important;
 }
 
 .success-content {
@@ -498,33 +505,34 @@
 
 /* Responsive design for smaller screens */
 @media (max-width: 768px) {
+
   .warning-modal,
   .success-modal {
     max-width: 90%;
     margin: 0 auto;
   }
-  
+
   .warning-content,
   .success-content {
     padding: 15px 0;
   }
-  
+
   .warning-icon,
   .success-icon {
     font-size: 36px;
     margin-bottom: 15px;
   }
-  
+
   .warning-text,
   .success-text {
     font-size: 14px;
   }
-  
+
   .modal-footer {
     flex-direction: column;
     gap: 10px;
   }
-  
+
   .modal-footer button {
     width: 100%;
   }
