@@ -12,8 +12,16 @@ function ReviewsRatings() {
   const [error, setError] = useState(null);
   const [filterRoomType, setFilterRoomType] = useState('');
   const [searchReference, setSearchReference] = useState('');
-  const [searchCustomer, setSearchCustomer] = useState('');
   const [filterStar, setFilterStar] = useState(0);
+
+  // Mask customer name for privacy (e.g., "Red Bercasio" -> "R** B*******")
+  const maskName = (name) => {
+    if (!name || name === 'Anonymous') return 'Anonymous';
+    return name.split(' ').map(word => {
+      if (word.length <= 1) return word;
+      return word[0] + '*'.repeat(word.length - 1);
+    }).join(' ');
+  };
   const [activeTab, setActiveTab] = useState('toReview');
 
   // Review modal state
@@ -162,16 +170,14 @@ function ReviewsRatings() {
   const filteredReviews = (myReviews || []).filter((review) => {
     const matchesRoomType = filterRoomType ? String(review?.roomNumber || review?.booking?.roomNumber || '').toLowerCase().includes(filterRoomType.toLowerCase()) : true;
     const matchesReference = searchReference ? String(review?.booking?.referenceNumber || '').toLowerCase().includes(searchReference.toLowerCase()) : true;
-    const matchesStar = filterStar ? Number(review?.overallRating || 0) >= filterStar : true;
+    const matchesStar = filterStar ? Number(review?.overallRating || 0) === filterStar : true;
     return matchesRoomType && matchesReference && matchesStar;
   });
 
   const filteredPublic = (publicReviews || []).filter((r) => {
     const overall = Number(r?.overallRating ?? r?.rating ?? 0);
-    const name = String(r?.customerName || r?.customername || r?.customer?.fullName || r?.customer?.name || '').toLowerCase();
-    const matchesStar = filterStar ? overall >= filterStar : true;
-    const matchesCustomer = searchCustomer ? name.includes(searchCustomer.toLowerCase()) : true;
-    return matchesStar && matchesCustomer;
+    const matchesStar = filterStar ? overall === filterStar : true;
+    return matchesStar;
   });
 
   const toReviewCount = pendingBookings.length;
@@ -201,12 +207,7 @@ function ReviewsRatings() {
                   <input type="text" id="searchReference" value={searchReference} onChange={(e) => setSearchReference(e.target.value)} placeholder="Search by Reference" />
                 </div>
               </>
-            ) : (
-              <div className="filter-group">
-                <label htmlFor="searchCustomer">Search by Customer</label>
-                <input type="text" id="searchCustomer" value={searchCustomer} onChange={(e) => setSearchCustomer(e.target.value)} placeholder="Search by Customer" />
-              </div>
-            )}
+            ) : null}
             <div className="filter-group">
               <label>Filter by Star</label>
               <div className="star-filter-options">
@@ -282,7 +283,7 @@ function ReviewsRatings() {
                 {filteredPublic.length > 0 ? (
                   filteredPublic.map((r) => (
                     <div key={r._id || `${r.customername}-${r.createdAt}`} className="review-card">
-                      <h2>{r.customerName || r.customername || r?.customer?.fullName || r?.customer?.name || 'Anonymous'}</h2>
+                      <h2>{maskName(r.customerName || r.customername || r?.customer?.fullName || r?.customer?.name || 'Anonymous')}</h2>
                       <p>Date: {r.createdAt ? new Date(r.createdAt).toLocaleDateString() : '-'}</p>
                       <p>Overall Rating: {(r.overallRating ?? r.rating ?? '-') + (r.overallRating || r.rating ? ' / 5' : '')}</p>
                       <p>Service Rating: {r.serviceQuality ?? '-'}{typeof r.serviceQuality === 'number' ? ' / 5' : ''}</p>

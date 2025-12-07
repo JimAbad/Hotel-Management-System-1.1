@@ -489,6 +489,8 @@
 
 .success-modal .modal-header h3 {
   color: black;
+  text-align: center;
+  width: 100%;
 }
 
 .warning-modal .modal-body,
