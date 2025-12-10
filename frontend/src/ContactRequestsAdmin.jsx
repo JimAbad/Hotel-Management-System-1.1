@@ -156,14 +156,13 @@ const ContactRequestsAdmin = () => {
               <th>Room</th>
               <th>Message</th>
               <th>Priority</th>
-              <th>Status</th>
               <th>Created</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
-              <tr><td colSpan="7" style={{ textAlign: 'center' }}>No messages</td></tr>
+              <tr><td colSpan="6" style={{ textAlign: 'center' }}>No messages</td></tr>
             ) : (
               filtered.map((x) => (
                 <tr key={x._id}>

@@ -92,7 +92,7 @@ function MyBookings() {
     return hoursDifference <= 48;
   };
 
-  const fetchMyBookings = async (isAutoRefresh = false) => {
+  const fetchMyBookings = async () => {
     if (!user || !token) {
       setLoading(false);
       setError({ message: 'Please log in to view your bookings.' });
@@ -100,10 +100,7 @@ function MyBookings() {
     }
 
     try {
-      // Only show loading state on initial load, not during auto-refresh
-      if (!isAutoRefresh) {
-        setLoading(true);
-      }
+      setLoading(true);
       const response = await axios.get(`${API_URL}/api/bookings/my-bookings`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -121,9 +118,7 @@ function MyBookings() {
     } catch (err) {
       setError(err);
     } finally {
-      if (!isAutoRefresh) {
-        setLoading(false);
-      }
+      setLoading(false);
     }
   };
 
@@ -142,21 +137,6 @@ function MyBookings() {
       document.removeEventListener('visibilitychange', handler);
     };
   }, [user, token]);
-
-  // Auto-refresh every 5 seconds
-  useEffect(() => {
-    if (!user || !token) return;
-
-    const intervalId = setInterval(() => {
-      // Only refresh if page is visible
-      if (document.visibilityState === 'visible') {
-        fetchMyBookings(true); // Pass true to indicate auto-refresh
-      }
-    }, 5000); // 5 seconds
-
-    return () => clearInterval(intervalId);
-  }, [user, token]);
-
 
   const handleCancelClick = (booking) => {
     if (!token) {
@@ -370,6 +350,7 @@ function MyBookings() {
     <div className="my-bookings-container">
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
         <h1>My Bookings</h1>
+
       </div>
 
       {/* Removed the "Delete All Cancelled Bookings" button */}

@@ -284,6 +284,7 @@ const updateBookingStatus = asyncHandler(async (req, res) => {
     console.warn('Room/billing sync or activity log failed:', e?.message);
   }
 
+
   const updatedBooking = await booking.save();
 
   // If booking status changed to 'completed', update room status
@@ -306,6 +307,23 @@ const updateBookingStatus = asyncHandler(async (req, res) => {
       }
     }
   }
+
+  // Create booking activity
+  let activityText = `Booking ${booking.status}`;
+  if (roomNumber != null && roomNumber !== '') {
+    activityText = prevRoomNumber && prevRoomNumber !== roomNumber
+      ? `Room reassigned: ${prevRoomNumber} → ${roomNumber}`
+      : `Room assigned: ${roomNumber}`;
+  }
+  const allowedStatuses = ['pending', 'confirmed', 'cancelled', 'completed'];
+  const normalizedStatus = allowedStatuses.includes(String(booking.status || '').toLowerCase())
+    ? String(booking.status).toLowerCase()
+    : 'pending';
+  await BookingActivity.create({
+    booking: booking._id,
+    activity: activityText,
+    status: normalizedStatus
+  });
 
   res.json(updatedBooking);
 });
