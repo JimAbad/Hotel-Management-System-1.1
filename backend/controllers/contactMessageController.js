@@ -6,25 +6,24 @@ const getContactMessagesAdmin = async (req, res) => {
   try {
     const list = await ContactMessage.find({}).sort({ createdAt: -1 }).lean();
 
-    // Lookup task status and priority for each contact message by matching room numbers
+    // Lookup request status and priority for each contact message by contactMessage reference
     const enrichedList = await Promise.all(
       list.map(async (msg) => {
-        if (msg.roomNumber) {
-          // Find the most recent task matching this room number
-          const task = await Task.findOne({ room: msg.roomNumber })
-            .sort({ createdAt: -1 })
+        if (msg.taskId) {
+          // Find the request associated with this contact message
+          const request = await Request.findOne({ contactMessage: msg._id })
             .select('status priority')
             .lean();
 
-          if (task) {
+          if (request) {
             return {
               ...msg,
-              taskStatus: task.status || null,
-              taskPriority: task.priority || null
+              requestStatus: request.status || null,
+              requestPriority: request.priority || null
             };
           }
         }
-        return { ...msg, taskStatus: null, taskPriority: null };
+        return { ...msg, requestStatus: null, requestPriority: null };
       })
     );
 
@@ -43,17 +42,22 @@ const createTaskFromContactMessage = async (req, res) => {
     const when = new Date(scheduledAt || Date.now());
     if (isNaN(when.getTime())) return res.status(400).json({ message: 'Invalid scheduledAt' });
 
+    // Validate priority is provided
+    if (!priority || !['low', 'medium', 'high'].includes(String(priority))) {
+      return res.status(400).json({ message: 'Priority is required and must be low, medium, or high' });
+    }
+
     // Determine request type based on category
     const requestCategory = category || 'cleaning';
     const requestType = requestCategory === 'misc' ? 'miscellaneous' : requestCategory;
-    const requestPriority = priority && ['low', 'medium', 'high'].includes(String(priority)) ? String(priority) : 'low';
 
     // Create a request that matches the existing collection structure
     const request = await Request.create({
       roomNumber: msg.roomNumber || null,
       jobType: requestCategory, // This will be 'cleaning', 'maintenance', or 'misc'
       date: when,
-      priority: requestPriority,
+      priority: String(priority),
+      status: 'assigned',
       description: `Contact request (${requestType}): ${msg.message || ''}`,
       contactMessage: msg._id
     });

@@ -26,8 +26,36 @@ const createReview = asyncHandler(async (req, res) => {
 // @route   GET /api/reviews
 // @access  Private
 const getReviews = asyncHandler(async (req, res) => {
-  const reviews = await Review.find({}).populate('booking').populate('customer');
-  res.json(reviews);
+  const reviews = await Review.find({})
+    .populate('booking')
+    .populate('customer');
+
+  // Map reviews to include fallback for customer name from booking.user if customer is null
+  const mapped = await Promise.all(reviews.map(async (r) => {
+    let customerName = '-';
+
+    // Try to get customer name from the review's customer field
+    if (r.customer && (r.customer.fullName || r.customer.name)) {
+      customerName = r.customer.fullName || r.customer.name;
+    }
+    // Fallback: try to get from booking's user
+    else if (r.booking && r.booking.user) {
+      const booking = await Booking.findById(r.booking._id).populate('user');
+      if (booking && booking.user) {
+        customerName = booking.user.fullName || booking.user.name || booking.customerName || '-';
+      } else if (r.booking.customerName) {
+        customerName = r.booking.customerName;
+      }
+    }
+
+    return {
+      ...r.toObject(),
+      customerName,
+      referenceNumber: r.booking?.referenceNumber || '-'
+    };
+  }));
+
+  res.json(mapped);
 });
 
 // @desc    Get all reviews (public view)

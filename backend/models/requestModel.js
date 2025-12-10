@@ -5,15 +5,15 @@ const requestSchema = new mongoose.Schema({
   roomNumber: { type: String, default: null },
   jobType: { type: String, enum: ['cleaning', 'maintenance', 'misc'], default: 'cleaning' },
   date: { type: Date, required: true },
-  priority: { type: String, enum: ['low', 'medium', 'high'], default: 'low' },
+  priority: { type: String, enum: ['low', 'medium', 'high'], required: true },
   assignedTo: { type: String, default: '' },
-  status: { type: String, enum: ['pending', 'in_progress', 'completed', 'cancelled'], default: 'pending' },
+  status: { type: String, enum: ['new', 'assigned', 'started', 'completed', 'cancelled'], default: 'assigned' },
   description: { type: String, default: '' },
   contactMessage: { type: mongoose.Schema.Types.ObjectId, ref: 'ContactMessage', default: null }
 }, { timestamps: true });
 
 // Generate taskId before saving
-requestSchema.pre('save', async function(next) {
+requestSchema.pre('save', async function (next) {
   if (!this.taskId || this.taskId === '') {
     this.taskId = 'T' + Date.now() + Math.floor(Math.random() * 1000);
   }

@@ -39,7 +39,21 @@ function Billings() {
     };
   }, [user, token]);
 
-  const fetchBillings = async () => {
+  // Auto-refresh every 5 seconds
+  useEffect(() => {
+    if (!user || !token) return;
+
+    const intervalId = setInterval(() => {
+      // Only refresh if page is visible
+      if (document.visibilityState === 'visible') {
+        fetchBillings(true); // Pass true to indicate auto-refresh
+      }
+    }, 5000); // 5 seconds
+
+    return () => clearInterval(intervalId);
+  }, [user, token]);
+
+  const fetchBillings = async (isAutoRefresh = false) => {
     const token = localStorage.getItem('token');
 
     if (!token) {
@@ -49,7 +63,10 @@ function Billings() {
     }
 
     try {
-      setLoading(true);
+      // Only show loading state on initial load, not during auto-refresh
+      if (!isAutoRefresh) {
+        setLoading(true);
+      }
       const config = {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -112,10 +129,14 @@ function Billings() {
 
       setBillsByRoom(grouped);
 
-      setLoading(false);
+      if (!isAutoRefresh) {
+        setLoading(false);
+      }
     } catch (err) {
       setError('Failed to fetch billing data. Please try again later.');
-      setLoading(false);
+      if (!isAutoRefresh) {
+        setLoading(false);
+      }
       console.error('Error fetching billings:', err);
     }
   };

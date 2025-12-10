@@ -13,7 +13,7 @@ const ContactRequestsAdmin = () => {
   const [active, setActive] = useState(null);
   const [category, setCategory] = useState('Cleaning');
   const [miscOption, setMiscOption] = useState('Submit');
-  const [priority, setPriority] = useState('low');
+  const [priority, setPriority] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
 
@@ -62,7 +62,7 @@ const ContactRequestsAdmin = () => {
     setActive(item);
     setCategory('Cleaning');
     setMiscOption('Submit');
-    setPriority('low');
+    setPriority(''); // No default priority - admin must select
   };
 
   const handleComplete = async (item) => {
@@ -80,6 +80,15 @@ const ContactRequestsAdmin = () => {
 
   const submitTask = async () => {
     if (!active) return;
+
+    // Validate priority is selected (unless complying)
+    if (!(category === 'Miscellaneous' && miscOption === 'Comply')) {
+      if (!priority || !['low', 'medium', 'high'].includes(priority)) {
+        alert('Please select a priority level');
+        return;
+      }
+    }
+
     try {
       setSubmitting(true);
       const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
@@ -161,8 +170,8 @@ const ContactRequestsAdmin = () => {
                   <td>{x.name || '-'}</td>
                   <td>{x.roomNumber || '-'}</td>
                   <td>{x.message || '-'}</td>
-                  <td>{x.taskPriority ? x.taskPriority.toUpperCase() : (x.priority || 'low').toUpperCase()}</td>
-                  <td>{x.taskStatus ? x.taskStatus.toUpperCase() : (x.status === 'handled' ? 'ASSIGNED' : (x.status === 'complied' ? 'COMPLIED' : (x.status || 'NEW').toUpperCase()))}</td>
+                  <td>{x.requestPriority ? x.requestPriority.toUpperCase() : (x.priority ? x.priority.toUpperCase() : 'NOT SET')}</td>
+                  <td>{x.requestStatus ? x.requestStatus.toUpperCase() : (x.status === 'handled' ? 'ASSIGNED' : (x.status === 'complied' ? 'COMPLIED' : (x.status || 'NEW').toUpperCase()))}</td>
                   <td>{formatDateTime(x.createdAt)}</td>
                   <td style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                     {x.status === 'assigned' || x.status === 'handled' ? (
@@ -194,8 +203,9 @@ const ContactRequestsAdmin = () => {
               </select>
             </div>
             <div style={{ marginBottom: 8 }}>
-              <label>Priority</label>
+              <label>Priority *</label>
               <select value={priority} onChange={(e) => setPriority(e.target.value)} style={{ marginLeft: 10 }}>
+                <option value="">-- Select Priority --</option>
                 <option value="low">Low</option>
                 <option value="medium">Medium</option>
                 <option value="high">High</option>

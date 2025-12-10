@@ -459,11 +459,20 @@ const ManageBookingAdmin = () => {
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
       // Build the booking data with cash payment (admin bookings are paid in cash)
+      // Create proper timezone-aware datetime strings
+      const [ciYear, ciMonth, ciDay] = newBooking.checkInDate.split('-').map(Number);
+      const [ciHour, ciMin] = (newBooking.checkInTime || '12:00').split(':').map(Number);
+      const checkInDateTime = new Date(ciYear, ciMonth - 1, ciDay, ciHour, ciMin);
+
+      const [coYear, coMonth, coDay] = newBooking.checkOutDate.split('-').map(Number);
+      const [coHour, coMin] = (newBooking.checkOutTime || '12:00').split(':').map(Number);
+      const checkOutDateTime = new Date(coYear, coMonth - 1, coDay, coHour, coMin);
+
       const bookingData = {
         ...newBooking,
-        // Combine date and time for checkIn/checkOut
-        checkIn: `${newBooking.checkInDate}T${newBooking.checkInTime || '12:00'}`,
-        checkOut: `${newBooking.checkOutDate}T${newBooking.checkOutTime || '12:00'}`,
+        // Send ISO strings with timezone
+        checkIn: checkInDateTime.toISOString(),
+        checkOut: checkOutDateTime.toISOString(),
         paymentMethod: 'cash',
         paymentStatus: 'paid',
         customerName: newBooking.guestName,
@@ -1157,8 +1166,7 @@ const ManageBookingAdmin = () => {
                 className="ok-btn"
                 style={{ background: '#0A1A45', color: 'white' }}
                 onClick={confirmExtend}
-                disabled={!extendDate || !extendTime}
-              >
+                disabled={!extendDate || !extendTime}>
                 Extend
               </button>
             </div>

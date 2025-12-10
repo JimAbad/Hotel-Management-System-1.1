@@ -87,8 +87,14 @@ const createBooking = asyncHandler(async (req, res) => {
   // SKIP ROOM lookup, and instead use requested type
 
   // Calculate number of hours
+  // Parse dates while preserving local timezone
   const checkInDate = new Date(checkIn);
   const checkOutDate = new Date(checkOut);
+
+  // Store the dates as they are (MongoDB will handle timezone conversion)
+  // But we need to ensure we're working with the correct local interpretation
+  const checkInLocal = checkIn;
+  const checkOutLocal = checkOut;
   const diffTime = Math.abs(checkOutDate - checkInDate);
   const numberOfHours = Math.ceil(diffTime / (1000 * 60 * 60));
   const numberOfGuests = adults + children;
@@ -278,7 +284,6 @@ const updateBookingStatus = asyncHandler(async (req, res) => {
     console.warn('Room/billing sync or activity log failed:', e?.message);
   }
 
-
   const updatedBooking = await booking.save();
 
   // If booking status changed to 'completed', update room status
@@ -301,23 +306,6 @@ const updateBookingStatus = asyncHandler(async (req, res) => {
       }
     }
   }
-
-  // Create booking activity
-  let activityText = `Booking ${booking.status}`;
-  if (roomNumber != null && roomNumber !== '') {
-    activityText = prevRoomNumber && prevRoomNumber !== roomNumber
-      ? `Room reassigned: ${prevRoomNumber} → ${roomNumber}`
-      : `Room assigned: ${roomNumber}`;
-  }
-  const allowedStatuses = ['pending', 'confirmed', 'cancelled', 'completed'];
-  const normalizedStatus = allowedStatuses.includes(String(booking.status || '').toLowerCase())
-    ? String(booking.status).toLowerCase()
-    : 'pending';
-  await BookingActivity.create({
-    booking: booking._id,
-    activity: activityText,
-    status: normalizedStatus
-  });
 
   res.json(updatedBooking);
 });
