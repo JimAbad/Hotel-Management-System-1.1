@@ -13,8 +13,9 @@ const ContactRequestsAdmin = () => {
   const [active, setActive] = useState(null);
   const [category, setCategory] = useState('Cleaning');
   const [miscOption, setMiscOption] = useState('Submit');
-  const [priority, setPriority] = useState('low');
+  const [priority, setPriority] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
 
 
 
@@ -61,7 +62,7 @@ const ContactRequestsAdmin = () => {
     setActive(item);
     setCategory('Cleaning');
     setMiscOption('Submit');
-    setPriority('low');
+    setPriority(''); // No default priority - admin must select
   };
 
   const handleComplete = async (item) => {
@@ -79,10 +80,19 @@ const ContactRequestsAdmin = () => {
 
   const submitTask = async () => {
     if (!active) return;
+
+    // Validate priority is selected (unless complying)
+    if (!(category === 'Miscellaneous' && miscOption === 'Comply')) {
+      if (!priority || !['low', 'medium', 'high'].includes(priority)) {
+        alert('Please select a priority level');
+        return;
+      }
+    }
+
     try {
       setSubmitting(true);
       const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
-      
+
       // Handle different categories
       if (category === 'Miscellaneous' && miscOption === 'Comply') {
         // Keep in contact requests with complied status
@@ -95,7 +105,7 @@ const ContactRequestsAdmin = () => {
         const payload = { scheduledAt, category: requestCategory, priority };
         await axios.post(`${API_URL}/api/contact-messages/${active._id}/create-task`, payload, { headers });
       }
-      
+
       setActive(null);
       const headers2 = { Authorization: `Bearer ${token}` };
       const { data } = await axios.get(`${API_URL}/api/contact-messages`, { headers: headers2 });
@@ -105,6 +115,20 @@ const ContactRequestsAdmin = () => {
       alert(e?.response?.data?.message || e.message || 'Failed to process request');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (item) => {
+    try {
+      const headers = { Authorization: `Bearer ${token}` };
+      await axios.delete(`${API_URL}/api/contact-messages/${item._id}`, { headers });
+      // Refresh the list
+      const { data } = await axios.get(`${API_URL}/api/contact-messages`, { headers });
+      const arr = Array.isArray(data) ? data : data?.data || [];
+      setItems(arr);
+      setDeleteConfirm(null);
+    } catch (e) {
+      alert(e?.response?.data?.message || e.message || 'Failed to delete contact request');
     }
   };
 
@@ -132,24 +156,23 @@ const ContactRequestsAdmin = () => {
               <th>Room</th>
               <th>Message</th>
               <th>Priority</th>
-              <th>Status</th>
               <th>Created</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
-              <tr><td colSpan="7" style={{ textAlign: 'center' }}>No messages</td></tr>
+              <tr><td colSpan="6" style={{ textAlign: 'center' }}>No messages</td></tr>
             ) : (
               filtered.map((x) => (
                 <tr key={x._id}>
                   <td>{x.name || '-'}</td>
                   <td>{x.roomNumber || '-'}</td>
                   <td>{x.message || '-'}</td>
-                  <td>{x.priority || 'low'}</td>
-                  <td>{x.status === 'handled' ? 'assigned' : (x.status === 'complied' ? 'complied' : (x.status || 'new'))}</td>
+                  <td>{x.requestPriority ? x.requestPriority.toUpperCase() : (x.priority ? x.priority.toUpperCase() : 'NOT SET')}</td>
+                  <td>{x.requestStatus ? x.requestStatus.toUpperCase() : (x.status === 'handled' ? 'ASSIGNED' : (x.status === 'complied' ? 'COMPLIED' : (x.status || 'NEW').toUpperCase()))}</td>
                   <td>{formatDateTime(x.createdAt)}</td>
-                  <td>
+                  <td style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                     {x.status === 'assigned' || x.status === 'handled' ? (
                       <button disabled style={{ background: '#ddd', color: '#333', borderRadius: 8, padding: '8px 12px', cursor: 'not-allowed' }}>Assigned</button>
                     ) : x.status === 'complied' ? (
@@ -157,6 +180,7 @@ const ContactRequestsAdmin = () => {
                     ) : (
                       <button onClick={() => openSchedule(x)} style={{ background: '#B8860B', color: 'white', borderRadius: 8, padding: '8px 12px' }}>Create Task</button>
                     )}
+                    <button onClick={() => setDeleteConfirm(x)} style={{ background: '#dc3545', color: 'white', borderRadius: 8, padding: '8px 12px' }}>Delete</button>
                   </td>
                 </tr>
               ))
@@ -178,8 +202,9 @@ const ContactRequestsAdmin = () => {
               </select>
             </div>
             <div style={{ marginBottom: 8 }}>
-              <label>Priority</label>
+              <label>Priority *</label>
               <select value={priority} onChange={(e) => setPriority(e.target.value)} style={{ marginLeft: 10 }}>
+                <option value="">-- Select Priority --</option>
                 <option value="low">Low</option>
                 <option value="medium">Medium</option>
                 <option value="high">High</option>
@@ -203,6 +228,25 @@ const ContactRequestsAdmin = () => {
             <div className="confirm-actions">
               <button className="btn-yes" onClick={submitTask} disabled={submitting}>Confirm</button>
               <button className="btn-cancel" onClick={() => setActive(null)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirm && (
+        <div className="confirm-overlay">
+          <div className="confirm-modal">
+            <h3 style={{ color: 'black' }}>Delete Contact Request</h3>
+            <p style={{ color: 'black', marginBottom: 12 }}>
+              Are you sure you want to delete this contact request from <strong>{deleteConfirm.name}</strong>?
+            </p>
+            <p style={{ color: '#666', fontSize: 14, marginBottom: 16 }}>
+              This action cannot be undone.
+            </p>
+            <div className="confirm-actions">
+              <button className="btn-yes" style={{ background: '#dc3545' }} onClick={() => handleDelete(deleteConfirm)}>Delete</button>
+              <button className="btn-cancel" style={{ background: '#6c757d', color: 'white' }} onClick={() => setDeleteConfirm(null)}>Cancel</button>
             </div>
           </div>
         </div>

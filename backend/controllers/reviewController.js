@@ -1,5 +1,6 @@
 const asyncHandler = require('express-async-handler');
 const Review = require('../models/Review');
+const Booking = require('../models/bookingModel');
 
 // @desc    Create a new review
 // @route   POST /api/reviews
@@ -109,12 +110,47 @@ const deleteReview = asyncHandler(async (req, res) => {
   }
 });
 
+// @desc    Get checked-out bookings that haven't been reviewed yet
+// @route   GET /api/reviews/pending
+// @access  Private
+const getBookingsToReview = asyncHandler(async (req, res) => {
+  // 1. Find all completed bookings for this user
+  const completedBookings = await Booking.find({
+    user: req.user._id,
+    status: 'completed'
+  }).populate('room');
+
+  // 2. Find all reviews by this user to know which bookings were already reviewed
+  const existingReviews = await Review.find({ customer: req.user._id });
+  const reviewedBookingIds = existingReviews.map(r => String(r.booking));
+
+  // 3. Filter out bookings that already have reviews
+  const pendingBookings = completedBookings.filter(
+    b => !reviewedBookingIds.includes(String(b._id))
+  );
+
+  // 4. Return bookings with relevant info for the review form
+  const result = pendingBookings.map(b => ({
+    _id: b._id,
+    referenceNumber: b.referenceNumber,
+    roomNumber: b.roomNumber,
+    roomType: b.roomType || b.room?.roomType || '-',
+    checkIn: b.checkIn,
+    checkOut: b.checkOut,
+    customerName: b.customerName,
+    createdAt: b.createdAt
+  }));
+
+  res.json(result);
+});
+
 module.exports = {
   createReview,
   getReviews,
   getReviewById,
   updateReview,
   deleteReview,
-  getMyReviews, // Export the new function
+  getMyReviews,
   getPublicReviews,
+  getBookingsToReview,
 };

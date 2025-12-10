@@ -18,8 +18,13 @@ const CustomerBillList = () => {
   const [billDetails, setBillDetails] = useState(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [detailsError, setDetailsError] = useState(null);
+<<<<<<< HEAD
   const [confirmBill, setConfirmBill] = useState(null);
   const [confirmLoading, setConfirmLoading] = useState(false);
+=======
+  const [showMarkPaidModal, setShowMarkPaidModal] = useState(false);
+  const [markPaidBill, setMarkPaidBill] = useState(null);
+>>>>>>> f4475ffc6c3dc8453c75c7038637751f549ceeee
 
   const API_BASE = (() => {
     const fallback = 'https://hotel-management-system-1-1-backend.onrender.com';
@@ -400,8 +405,20 @@ const CustomerBillList = () => {
   const badgeClass = (s) => {
     const v = (s || "").toLowerCase();
     if (v.includes("partial")) return "partial";
+<<<<<<< HEAD
     if (v.includes("paid") || v.includes("completed")) return "paid";
+=======
+    if (v.includes("paid") || v.includes("fully")) return "paid";
+>>>>>>> f4475ffc6c3dc8453c75c7038637751f549ceeee
     return "unpaid";
+  };
+
+  // Format payment status for display
+  const formatPaymentStatus = (status) => {
+    const v = (status || "").toLowerCase();
+    if (v.includes("partial")) return "Paid Partially";
+    if (v.includes("paid") || v.includes("fully")) return "Fully Paid";
+    return "Unpaid";
   };
 
   // View Bill (modal) — fetch detailed breakdown
@@ -457,6 +474,7 @@ const CustomerBillList = () => {
       setDetailsLoading(false);
     }
   };
+<<<<<<< HEAD
   const markAsPaid = async () => {
     if (!confirmBill) return;
     setConfirmLoading(true);
@@ -471,6 +489,37 @@ const CustomerBillList = () => {
       setConfirmBill(null);
     } finally {
       setConfirmLoading(false);
+=======
+  const handleMarkAsPaidClick = (bill) => {
+    if (!bill) return;
+    setMarkPaidBill(bill);
+    setShowMarkPaidModal(true);
+  };
+
+  const confirmMarkAsPaid = async () => {
+    if (!markPaidBill) return;
+    const bill = markPaidBill;
+    try {
+      // Get the bookingId to update both booking and billing
+      const bookingId = bill.bookingId || bill.raw?.bookingId || bill.raw?.booking?._id || bill._id;
+
+      // Call the backend to update both booking paymentStatus and billing status
+      await axios.put(
+        `${API_BASE}/api/bookings/${bookingId}/mark-fully-paid`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      // Optimistic update
+      setBills((prev) =>
+        prev.map((b) => (b._id === bill._id ? { ...b, paymentStatus: "paid" } : b))
+      );
+
+      setShowMarkPaidModal(false);
+      setMarkPaidBill(null);
+    } catch (e) {
+      alert(`Failed to mark as paid: ${e?.response?.data?.message || e.message}`);
+>>>>>>> f4475ffc6c3dc8453c75c7038637751f549ceeee
     }
   };
 
@@ -506,7 +555,7 @@ const CustomerBillList = () => {
                 <option value="all">All</option>
                 <option value="paid">Paid</option>
                 <option value="partially paid">Partially paid</option>
-                <option value="unpaid">Unpaid</option>
+
               </select>
             </div>
           </div>
@@ -547,9 +596,13 @@ const CustomerBillList = () => {
                       <td>{b.customerName || "-"}</td>
                       <td>{prettyAmt(b.totalAmount)}</td>
                       <td>
+<<<<<<< HEAD
                         <span className={`status-badge ${rowBadge}`}>
                           {b.paymentStatus}
                         </span>
+=======
+                        <span className={`status-badge ${badge}`}>{formatPaymentStatus(b.paymentStatus)}</span>
+>>>>>>> f4475ffc6c3dc8453c75c7038637751f549ceeee
                       </td>
                       <td>{prettyDate(pickCheckout(b))}</td>
                       <td className="actions">
@@ -560,6 +613,7 @@ const CustomerBillList = () => {
                         >
                           View Bill
                         </button>
+<<<<<<< HEAD
 
                         {rowBadge === "paid" ? (
                           <button
@@ -578,6 +632,16 @@ const CustomerBillList = () => {
                             Mark as Paid
                           </button>
                         )}
+=======
+                        <button
+                          type="button"
+                          className="btn btn-ghost"
+                          disabled={badge === "paid"}
+                          onClick={() => handleMarkAsPaidClick(b)}
+                        >
+                          Mark as Paid
+                        </button>
+>>>>>>> f4475ffc6c3dc8453c75c7038637751f549ceeee
                       </td>
                     </tr>
                   );
@@ -593,7 +657,7 @@ const CustomerBillList = () => {
         <div className="modal-overlay" onClick={() => setShowBillModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>Bills for Room {getRoomDisplay(activeBill)}</h3>
+              <h3 style={{ textAlign: 'center', flex: 1, margin: 0 }}>Bills for Room {getRoomDisplay(activeBill)}</h3>
               <button onClick={() => setShowBillModal(false)}>✕</button>
             </div>
             <div className="modal-body">
@@ -610,7 +674,7 @@ const CustomerBillList = () => {
                   <div className="booking-details" style={{ color: '#1f2937' }}>
                     <p><strong>Reference Number:</strong> {billDetails?.referenceNumber || activeBill?.referenceNumber}</p>
                     <p><strong>Customer Name:</strong> {billDetails?.customerName || billDetails?.name || activeBill?.customerName || "-"}</p>
-                    <p><strong>Payment Status:</strong> {billDetails?.paymentStatus || billDetails?.status || activeBill?.paymentStatus || "-"}</p>
+                    <p><strong>Payment Status:</strong> {formatPaymentStatus(billDetails?.paymentStatus || billDetails?.status || activeBill?.paymentStatus)}</p>
                     {billDetails?.checkIn && <p><strong>Check-In:</strong> {prettyDate(billDetails.checkIn)}</p>}
                     {billDetails?.checkOut && <p><strong>Check-Out:</strong> {prettyDate(billDetails.checkOut)}</p>}
                   </div>
@@ -646,7 +710,7 @@ const CustomerBillList = () => {
                             <>
                               <tr style={{ borderBottom: '1px solid #f4f4f6' }}>
                                 <td colSpan="2" style={{ padding: '8px' }}>
-                                  <strong>Food Charges</strong>
+                                  <strong>Other Charges (Foods/Services)</strong>
                                 </td>
                               </tr>
                               {billDetails.breakdown.foodCharges.items.map((item, idx) => (
@@ -681,19 +745,7 @@ const CustomerBillList = () => {
                             </tr>
                           )}
 
-                          {/* Extension Charges */}
-                          <tr style={{ borderBottom: '1px solid #f3f4f6' }}>
-                            <td style={{ padding: '8px' }}>
-                              <strong>Extension Charges</strong>
-                              <br />
-                              <span style={{ fontSize: '12px', color: '#6b7280' }}>
-                                {billDetails.breakdown.extensionCharges.description}
-                              </span>
-                            </td>
-                            <td style={{ textAlign: 'right', padding: '8px' }}>
-                              {prettyAmt(billDetails.breakdown.extensionCharges.subtotal)}
-                            </td>
-                          </tr>
+
 
                           {/* Total */}
                           <tr style={{ borderTop: '2px solid #e5e7eb', backgroundColor: '#f9fafb' }}>
@@ -727,6 +779,7 @@ const CustomerBillList = () => {
         </div>
       )}
 
+<<<<<<< HEAD
       {/* Confirm Mark as Paid Modal */}
       {confirmBill && (
         <div className="modal-overlay" onClick={() => !confirmLoading && setConfirmBill(null)}>
@@ -768,6 +821,30 @@ const CustomerBillList = () => {
               >
                 {confirmLoading ? "Saving..." : "Confirm"}
               </button>
+=======
+      {/* Mark as Paid Confirmation Modal */}
+      {showMarkPaidModal && (
+        <div className="modal-overlay" onClick={() => { setShowMarkPaidModal(false); setMarkPaidBill(null); }}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 style={{ color: 'black' }}>Confirm Payment</h3>
+              <button onClick={() => { setShowMarkPaidModal(false); setMarkPaidBill(null); }}>✕</button>
+            </div>
+            <div className="modal-body" style={{ color: 'black' }}>
+              <p>Mark this bill as fully paid?</p>
+              <p style={{ fontSize: '14px', color: '#6b7280', marginTop: '8px' }}>
+                This will update the booking payment status from "partially paid" to "Fully Paid".
+              </p>
+            </div>
+            <div className="form-actions" style={{ justifyContent: 'flex-end', gap: '10px' }}>
+              <button
+                className="btn btn-ghost"
+                onClick={() => { setShowMarkPaidModal(false); setMarkPaidBill(null); }}
+              >
+                Cancel
+              </button>
+              <button className="btn btn-light" onClick={confirmMarkAsPaid}>Confirm</button>
+>>>>>>> f4475ffc6c3dc8453c75c7038637751f549ceeee
             </div>
           </div>
         </div>

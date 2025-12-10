@@ -26,6 +26,7 @@ const ManageBookingAdmin = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [rooms, setRooms] = useState([]);
+  const [holidays, setHolidays] = useState([]);
   const [assignableRooms, setAssignableRooms] = useState([]);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState(null);
@@ -41,7 +42,9 @@ const ManageBookingAdmin = () => {
     contactNumber: '',
     email: '',
     checkInDate: '',
+    checkInTime: '',
     checkOutDate: '',
+    checkOutTime: '',
     adults: '1',
     children: '0',
     specialRequest: ''
@@ -49,6 +52,13 @@ const ManageBookingAdmin = () => {
   const [reservationSummary, setReservationSummary] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteBookingId, setDeleteBookingId] = useState(null);
+  const [showCheckoutModal, setShowCheckoutModal] = useState(false);
+  const [checkoutBookingId, setCheckoutBookingId] = useState(null);
+  const [showExtendModal, setShowExtendModal] = useState(false);
+  const [extendBooking, setExtendBooking] = useState(null);
+  const [extendDate, setExtendDate] = useState('');
+  const [extendTime, setExtendTime] = useState('');
+  const [extendResult, setExtendResult] = useState(null); // { success: bool, message: string, amount: number }
 
  
   const [showExtendModal, setShowExtendModal] = useState(false);
@@ -61,8 +71,22 @@ const ManageBookingAdmin = () => {
     if (token) {
       fetchBookings();
       fetchRooms();
+      fetchHolidays();
     }
   }, [statusFilter, searchQuery, token]);
+
+  const fetchHolidays = async () => {
+    try {
+      const res = await axios.get(`${API_BASE}/api/holidays`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const list = Array.isArray(res.data) ? res.data : res?.data?.holidays || res?.data?.data || [];
+      setHolidays(Array.isArray(list) ? list : []);
+    } catch (e) {
+      console.error('Failed to load holidays', e);
+      setHolidays([]);
+    }
+  };
 
 
 
@@ -72,7 +96,16 @@ const ManageBookingAdmin = () => {
   const formatDate = (val) => {
     if (!val) return "-";
     const d = new Date(val);
-    return isNaN(d) ? String(val) : d.toLocaleDateString();
+    if (isNaN(d)) return String(val);
+    // Include both date and time
+    return d.toLocaleString('en-US', {
+      month: 'numeric',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
   };
 
   // Map backend variations → unified values for the row
@@ -164,6 +197,7 @@ const ManageBookingAdmin = () => {
     if (["occupied"].includes(s)) return "confirmed";
     if (["cancelled", "canceled"].includes(s)) return "cancelled";
     if (["completed", "checked-out", "finished"].includes(s)) return "completed";
+    if (["time to check-out"].includes(s)) return "checkout-pending";
     return "";
   };
 
@@ -270,11 +304,13 @@ const ManageBookingAdmin = () => {
 
   const fetchRooms = async () => {
     try {
-      const res = await axios.get(`${API_BASE}/api/rooms`, {
+      // Fetch all rooms (no pagination limit) for accurate availability checking
+      const res = await axios.get(`${API_BASE}/api/rooms?limit=100`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const list = Array.isArray(res.data) ? res.data : res?.data?.rooms || res?.data?.data || [];
       const normalized = Array.isArray(list) ? list : [];
+      console.log('Fetched rooms:', normalized.length, 'rooms');
       setRooms(normalized);
       return normalized;
     } catch (e) {
@@ -308,6 +344,7 @@ const ManageBookingAdmin = () => {
     return `${hh}:${mi}`;
   };
 
+<<<<<<< HEAD
   // NEW: build final checkout datetime based on chosen date + hour
   const buildNewCheckout = (booking, dateOverride, timeOverride) => {
     const currentDate = toDateSafe(getCheckOut(booking)) || new Date();
@@ -372,6 +409,92 @@ const ManageBookingAdmin = () => {
 
     return opts;
   };
+=======
+  // Generate 30-minute interval time options
+  const generateTimeOptions = () => {
+    const options = [];
+    for (let h = 0; h < 24; h++) {
+      for (let m = 0; m < 60; m += 30) {
+        const hh = String(h).padStart(2, '0');
+        const mm = String(m).padStart(2, '0');
+        const time24 = `${hh}:${mm}`;
+        const hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+        const ampm = h < 12 ? 'AM' : 'PM';
+        const label = `${hour12}:${mm} ${ampm}`;
+        options.push({ value: time24, label });
+      }
+    }
+    return options;
+  };
+
+  const timeOptions = generateTimeOptions();
+
+  // Filter time options based on current date/time
+  const getFilteredTimeOptions = (isCheckIn = true, selectedDate = '') => {
+    const today = getTodayStr();
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMin = now.getMinutes();
+
+    return timeOptions.filter(opt => {
+      const [h, m] = opt.value.split(':').map(Number);
+      // If selected date is today, disable past times
+      if (selectedDate === today) {
+        if (h < currentHour) return false;
+        if (h === currentHour && m <= currentMin) return false;
+      }
+      // If check-out, must be MINIMUM 3 HOURS after check-in time
+      if (!isCheckIn && newBooking.checkInTime) {
+        const [ciH, ciM] = newBooking.checkInTime.split(':').map(Number);
+        // Calculate minimum checkout time (check-in + 3 hours)
+        let minCheckoutH = ciH + 3;
+        let minCheckoutM = ciM;
+
+        // Handle day overflow - if same date as check-in
+        if (newBooking.checkInDate === newBooking.checkOutDate) {
+          // Check-out must be at least 3 hours after check-in
+          if (h < minCheckoutH) return false;
+          if (h === minCheckoutH && m < minCheckoutM) return false;
+        }
+      }
+      return true;
+    });
+  };
+
+  // Check room availability by type
+  const getRoomAvailability = () => {
+    const availability = { Economy: false, Deluxe: false, Suite: false };
+
+    console.log('Checking room availability, rooms:', rooms);
+
+    (rooms || []).forEach(room => {
+      const rt = String(room.roomType || room.type || '').toLowerCase().trim();
+      const roomStatus = String(room.status || '').toLowerCase().trim();
+      const isAvailable = roomStatus === 'available';
+
+      console.log(`Room ${room.roomNumber}: type="${rt}", status="${roomStatus}", isAvailable=${isAvailable}`);
+
+      if (isAvailable) {
+        if (rt.includes('economy') || rt.includes('standard') || rt.includes('solo') || rt.includes('basic')) {
+          availability.Economy = true;
+        }
+        if (rt.includes('deluxe')) {
+          availability.Deluxe = true;
+        }
+        if (rt.includes('suite') || rt.includes('family')) {
+          availability.Suite = true;
+        }
+      }
+    });
+
+    console.log('Room availability result:', availability);
+
+    return availability;
+  };
+
+  const roomAvailability = getRoomAvailability();
+
+>>>>>>> f4475ffc6c3dc8453c75c7038637751f549ceeee
 
 
 
@@ -491,17 +614,37 @@ const ManageBookingAdmin = () => {
   const handleAddBooking = () => setShowAddModal(true);
 
   const calculateReservationSummary = () => {
-    const rateByType = { standard: 100, deluxe: 150, suite: 250 };
+    const rateByType = { economy: 100, deluxe: 150, suite: 250 };
     const baseRate = rateByType[String(newBooking.roomType || '').toLowerCase()] ?? 100;
+
+    // Combine date and time for accurate calculation
+    const checkInDateTime = new Date(`${newBooking.checkInDate}T${newBooking.checkInTime || '00:00'}`);
+    const checkOutDateTime = new Date(`${newBooking.checkOutDate}T${newBooking.checkOutTime || '00:00'}`);
+
     const hours = Math.ceil(
-      (new Date(newBooking.checkOutDate) - new Date(newBooking.checkInDate)) / (1000 * 60 * 60)
+      (checkOutDateTime - checkInDateTime) / (1000 * 60 * 60)
     );
-    const total = baseRate * Math.max(hours, 1);
+    let subtotal = baseRate * Math.max(hours, 1);
+
+    // Check if check-in date is a holiday
+    const checkInDateOnly = newBooking.checkInDate;
+    const holiday = holidays.find(h => {
+      const hDate = new Date(h.date).toISOString().split('T')[0];
+      return hDate === checkInDateOnly && h.isActive;
+    });
+
+    let holidayInfo = '';
+    if (holiday) {
+      const multiplier = holiday.priceMultiplier || 1.05;
+      subtotal = subtotal * multiplier;
+      holidayInfo = ` (includes ${Math.round((multiplier - 1) * 100)}% holiday surcharge)`;
+    }
+
     return {
-      dates: `${new Date(newBooking.checkInDate).toLocaleDateString()} - ${new Date(newBooking.checkOutDate).toLocaleDateString()}`,
+      dates: `${checkInDateTime.toLocaleString()} - ${checkOutDateTime.toLocaleString()}`,
       guests: `${newBooking.adults} Adult${Number(newBooking.adults) > 1 ? 's' : ''}, ${newBooking.children} Child${Number(newBooking.children) > 1 ? 'ren' : ''}`,
-      rate: `₱${baseRate.toLocaleString()} per hour`,
-      total: `₱${total.toLocaleString()}`
+      rate: `₱${baseRate.toLocaleString()} per hour${holidayInfo}`,
+      total: `₱${subtotal.toLocaleString()}`
     };
   };
 
@@ -519,6 +662,7 @@ const ManageBookingAdmin = () => {
     try {
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
+<<<<<<< HEAD
       // map form → backend payload
       const payload = {
         customerName: newBooking.guestName,
@@ -536,6 +680,30 @@ const ManageBookingAdmin = () => {
       const res = await axios.post(`${API_BASE}/api/bookings`, payload, config);
       console.log('Booking created:', res.data);
 
+=======
+      // Build the booking data with cash payment (admin bookings are paid in cash)
+      // Create proper timezone-aware datetime strings
+      const [ciYear, ciMonth, ciDay] = newBooking.checkInDate.split('-').map(Number);
+      const [ciHour, ciMin] = (newBooking.checkInTime || '12:00').split(':').map(Number);
+      const checkInDateTime = new Date(ciYear, ciMonth - 1, ciDay, ciHour, ciMin);
+
+      const [coYear, coMonth, coDay] = newBooking.checkOutDate.split('-').map(Number);
+      const [coHour, coMin] = (newBooking.checkOutTime || '12:00').split(':').map(Number);
+      const checkOutDateTime = new Date(coYear, coMonth - 1, coDay, coHour, coMin);
+
+      const bookingData = {
+        ...newBooking,
+        // Send ISO strings with timezone
+        checkIn: checkInDateTime.toISOString(),
+        checkOut: checkOutDateTime.toISOString(),
+        paymentMethod: 'cash',
+        paymentStatus: 'paid',
+        customerName: newBooking.guestName,
+        customerEmail: newBooking.email
+      };
+
+      await axios.post(`${API_BASE}/api/bookings`, bookingData, config);
+>>>>>>> f4475ffc6c3dc8453c75c7038637751f549ceeee
       setShowConfirmModal(true);
       setTimeout(() => {
         setShowConfirmModal(false);
@@ -547,7 +715,9 @@ const ManageBookingAdmin = () => {
           contactNumber: '',
           email: '',
           checkInDate: '',
+          checkInTime: '',
           checkOutDate: '',
+          checkOutTime: '',
           adults: '1',
           children: '0',
           specialRequest: ''
@@ -590,6 +760,103 @@ const ManageBookingAdmin = () => {
     }
   };
 
+  const handleCheckoutClick = (booking) => {
+    if (!booking || !booking._id) return;
+    setCheckoutBookingId(booking._id);
+    setShowCheckoutModal(true);
+  };
+
+  const confirmCheckout = async () => {
+    if (!checkoutBookingId) return;
+    try {
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+      await axios.put(`${API_BASE}/api/bookings/${checkoutBookingId}/checkout`, {}, config);
+      setShowCheckoutModal(false);
+      setCheckoutBookingId(null);
+      fetchBookings();
+    } catch (err) {
+      console.error('Error checking out booking:', err);
+      alert(err?.response?.data?.message || err.message || 'Failed to check out booking');
+    }
+  };
+
+  // Extend booking handlers
+  const openExtendModal = (booking) => {
+    setExtendBooking(booking);
+    const currentCheckout = new Date(getCheckOut(booking));
+    // Set minimum to 3 hours after current checkout
+    const minDate = new Date(currentCheckout.getTime() + (3 * 60 * 60 * 1000));
+    const yyyy = minDate.getFullYear();
+    const mm = String(minDate.getMonth() + 1).padStart(2, '0');
+    const dd = String(minDate.getDate()).padStart(2, '0');
+    setExtendDate(`${yyyy}-${mm}-${dd}`);
+    setExtendTime('');
+    setShowExtendModal(true);
+  };
+
+  const getMinExtendDateTime = () => {
+    if (!extendBooking) return { minDate: getTodayStr(), minTime: '00:00' };
+    const currentCheckout = new Date(getCheckOut(extendBooking));
+    const minDateTime = new Date(currentCheckout.getTime() + (3 * 60 * 60 * 1000));
+    const yyyy = minDateTime.getFullYear();
+    const mm = String(minDateTime.getMonth() + 1).padStart(2, '0');
+    const dd = String(minDateTime.getDate()).padStart(2, '0');
+    return {
+      minDate: `${yyyy}-${mm}-${dd}`,
+      minDateTime: minDateTime
+    };
+  };
+
+  const getExtendTimeOptions = () => {
+    if (!extendBooking) return timeOptions;
+    const { minDateTime, minDate } = getMinExtendDateTime();
+
+    return timeOptions.filter(opt => {
+      const [h, m] = opt.value.split(':').map(Number);
+      // If selected date is the minimum date, filter out times before minimum
+      if (extendDate === minDate) {
+        const minHour = minDateTime.getHours();
+        const minMin = minDateTime.getMinutes();
+        if (h < minHour) return false;
+        if (h === minHour && m < minMin) return false;
+      }
+      return true;
+    });
+  };
+
+  const confirmExtend = async () => {
+    if (!extendBooking || !extendDate || !extendTime) {
+      setExtendResult({ success: false, message: 'Please select both date and time for extension' });
+      return;
+    }
+    try {
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+      // Create Date object from local date and time to preserve the user's intended time
+      const [year, month, day] = extendDate.split('-').map(Number);
+      const [hour, minute] = extendTime.split(':').map(Number);
+      const localDate = new Date(year, month - 1, day, hour, minute);
+      const newCheckOut = localDate.toISOString();
+      const response = await axios.put(`${API_BASE}/api/bookings/${extendBooking._id}/extend`, { newCheckOut }, config);
+      setShowExtendModal(false);
+      setExtendBooking(null);
+      setExtendDate('');
+      setExtendTime('');
+      setExtendResult({
+        success: true,
+        message: 'Booking extended successfully!',
+        amount: response.data.extensionAmount,
+        hours: response.data.extensionHours
+      });
+      fetchBookings();
+    } catch (err) {
+      console.error('Error extending booking:', err);
+      setExtendResult({
+        success: false,
+        message: err?.response?.data?.message || err.message || 'Failed to extend booking'
+      });
+    }
+  };
+
   // ADD: compute filtered rows based on search + status
   const filtered = React.useMemo(() => {
     const q = (searchQuery || "").toLowerCase();
@@ -623,9 +890,8 @@ const ManageBookingAdmin = () => {
           >
             <option value="">Filter by Booking Status</option>
             <option value="pending">Pending</option>
-            <option value="confirmed">Confirmed</option>
-            <option value="cancelled">Cancelled</option>
-            <option value="completed">Completed</option>
+            <option value="occupied">Occupied</option>
+
           </select>
           <button onClick={handleAddBooking} className="add-booking-btn">
             Add Booking +
@@ -687,11 +953,12 @@ const ManageBookingAdmin = () => {
                     <div className="action-buttons">
                       <button
                         className="assign-btn"
-                        disabled={["cancelled", "completed"].includes(String(getBookingStatus(b) || '').toLowerCase())}
+                        disabled={["cancelled", "completed", "time to check-out"].includes(String(getBookingStatus(b) || '').toLowerCase())}
                         onClick={() => handleAssignRoom(b)}
                       >
                         Assign Room
                       </button>
+<<<<<<< HEAD
 
                       {/* NEW: Extend button */}
                       <button
@@ -705,6 +972,26 @@ const ManageBookingAdmin = () => {
                       <button className="delete-btn" onClick={() => handleDelete(b._id)}>
                         Delete
                       </button>
+=======
+                      {['occupied', 'time to check-out'].includes(String(getBookingStatus(b) || '').toLowerCase()) && (
+                        <button
+                          className="checkout-btn"
+                          onClick={() => handleCheckoutClick(b)}
+                        >
+                          Check-Out
+                        </button>
+                      )}
+                      {['occupied', 'time to check-out'].includes(String(getBookingStatus(b) || '').toLowerCase()) && (
+                        <button
+                          className="extend-btn"
+                          style={{ backgroundColor: '#0A1A45', color: 'white' }}
+                          onClick={() => openExtendModal(b)}
+                        >
+                          Extend
+                        </button>
+                      )}
+
+>>>>>>> f4475ffc6c3dc8453c75c7038637751f549ceeee
                     </div>
                   </td>
                 </tr>
@@ -719,17 +1006,19 @@ const ManageBookingAdmin = () => {
         <div className="modal-overlay">
           <div className="modal-content">
             <div className="modal-header">
-              <h3>Booking Activities</h3>
+              <h3 style={{ textAlign: 'center', flexGrow: 1 }}>Customer Details</h3>
               <button onClick={() => setShowActivityModal(false)}>&times;</button>
             </div>
             <div className="modal-body">
               <div className="booking-details">
-                <p><strong>Guest:</strong> {selectedBooking?.guestName}</p>
+                <p><strong>Guest:</strong> {selectedBooking?.guestName || selectedBooking?.customerName}</p>
+                <p><strong>Email:</strong> {selectedBooking?.customerEmail || selectedBooking?.email || 'N/A'}</p>
+                <p><strong>Contact Number:</strong> {selectedBooking?.contactNumber || 'N/A'}</p>
                 <p><strong>Reference:</strong> {selectedBooking?.referenceNumber}</p>
-                <p><strong>Status:</strong> {selectedBooking?.bookingStatus}</p>
+                <p><strong>Booking Status:</strong> <span className={`status ${getStatusClass(getBookingStatus(selectedBooking))}`}>{getBookingStatus(selectedBooking) || 'N/A'}</span></p>
               </div>
               <div className="activity-list">
-                {activities.map((activity, index) => (
+                {activities.filter(activity => activity.timestamp && !isNaN(new Date(activity.timestamp))).map((activity, index) => (
                   <div key={index} className="activity-item">
                     <span className="activity-date">{formatDate(activity.timestamp)} {new Date(activity.timestamp).toLocaleTimeString()}</span>
                     <span className="activity-description">{activity.description}</span>
@@ -809,7 +1098,7 @@ const ManageBookingAdmin = () => {
               {!reservationSummary ? (
                 <form onSubmit={handleNewBookingSubmit}>
                   <div className="form-group">
-                    <label>Room Type:</label>
+                    <label style={{ color: '#000', fontWeight: '500' }}>Room Type:</label>
                     <select
                       name="roomType"
                       value={newBooking.roomType}
@@ -817,13 +1106,19 @@ const ManageBookingAdmin = () => {
                       required
                     >
                       <option value="">Select Room Type</option>
-                      <option value="standard">Standard</option>
-                      <option value="deluxe">Deluxe</option>
-                      <option value="suite">Suite</option>
+                      <option value="Economy" disabled={!roomAvailability.Economy}>
+                        Economy {!roomAvailability.Economy ? '(Unavailable)' : ''}
+                      </option>
+                      <option value="Deluxe" disabled={!roomAvailability.Deluxe}>
+                        Deluxe {!roomAvailability.Deluxe ? '(Unavailable)' : ''}
+                      </option>
+                      <option value="Suite" disabled={!roomAvailability.Suite}>
+                        Suite {!roomAvailability.Suite ? '(Unavailable)' : ''}
+                      </option>
                     </select>
                   </div>
                   <div className="form-group">
-                    <label>Guest Name:</label>
+                    <label style={{ color: '#000', fontWeight: '500' }}>Guest Name:</label>
                     <input
                       type="text"
                       name="guestName"
@@ -833,7 +1128,7 @@ const ManageBookingAdmin = () => {
                     />
                   </div>
                   <div className="form-group">
-                    <label>Contact Number:</label>
+                    <label style={{ color: '#000', fontWeight: '500' }}>Contact Number:</label>
                     <input
                       type="tel"
                       name="contactNumber"
@@ -843,7 +1138,7 @@ const ManageBookingAdmin = () => {
                     />
                   </div>
                   <div className="form-group">
-                    <label>Email:</label>
+                    <label style={{ color: '#000', fontWeight: '500' }}>Email:</label>
                     <input
                       type="email"
                       name="email"
@@ -852,28 +1147,62 @@ const ManageBookingAdmin = () => {
                       required
                     />
                   </div>
-                  <div className="form-group">
-                    <label>Check-in Date:</label>
-                    <input
-                      type="date"
-                      name="checkInDate"
-                      value={newBooking.checkInDate}
-                      onChange={handleNewBookingChange}
-                      required
-                    />
+                  <div style={{ display: 'flex', gap: '16px' }}>
+                    <div className="form-group" style={{ flex: 1 }}>
+                      <label style={{ color: '#000', fontWeight: '500' }}>Check-in Date:</label>
+                      <input
+                        type="date"
+                        name="checkInDate"
+                        value={newBooking.checkInDate}
+                        onChange={handleNewBookingChange}
+                        min={getTodayStr()}
+                        required
+                      />
+                    </div>
+                    <div className="form-group" style={{ flex: 1 }}>
+                      <label style={{ color: '#000', fontWeight: '500' }}>Check-in Time:</label>
+                      <select
+                        name="checkInTime"
+                        value={newBooking.checkInTime}
+                        onChange={handleNewBookingChange}
+                        required
+                      >
+                        <option value="">Select Time</option>
+                        {getFilteredTimeOptions(true, newBooking.checkInDate).map(opt => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '16px' }}>
+                    <div className="form-group" style={{ flex: 1 }}>
+                      <label style={{ color: '#000', fontWeight: '500' }}>Check-out Date:</label>
+                      <input
+                        type="date"
+                        name="checkOutDate"
+                        value={newBooking.checkOutDate}
+                        onChange={handleNewBookingChange}
+                        min={newBooking.checkInDate || getTodayStr()}
+                        required
+                      />
+                    </div>
+                    <div className="form-group" style={{ flex: 1 }}>
+                      <label style={{ color: '#000', fontWeight: '500' }}>Check-out Time:</label>
+                      <select
+                        name="checkOutTime"
+                        value={newBooking.checkOutTime}
+                        onChange={handleNewBookingChange}
+                        required
+                      >
+                        <option value="">Select Time</option>
+                        {getFilteredTimeOptions(false, newBooking.checkOutDate).map(opt => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                   <div className="form-group">
-                    <label>Check-out Date:</label>
-                    <input
-                      type="date"
-                      name="checkOutDate"
-                      value={newBooking.checkOutDate}
-                      onChange={handleNewBookingChange}
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Number of Adults:</label>
+                    <label style={{ color: '#000', fontWeight: '500' }}>Number of Adults:</label>
                     <input
                       type="number"
                       name="adults"
@@ -884,7 +1213,7 @@ const ManageBookingAdmin = () => {
                     />
                   </div>
                   <div className="form-group">
-                    <label>Number of Children:</label>
+                    <label style={{ color: '#000', fontWeight: '500' }}>Number of Children:</label>
                     <input
                       type="number"
                       name="children"
@@ -894,7 +1223,7 @@ const ManageBookingAdmin = () => {
                     />
                   </div>
                   <div className="form-group">
-                    <label>Special Requests:</label>
+                    <label style={{ color: '#000', fontWeight: '500' }}>Special Requests:</label>
                     <textarea
                       name="specialRequest"
                       value={newBooking.specialRequest}
@@ -1098,6 +1427,7 @@ const ManageBookingAdmin = () => {
           </div>
         </div>
       )}
+<<<<<<< HEAD
 
       {showInfoModal && selectedBooking && (
         <div className="modal-overlay">
@@ -1166,6 +1496,135 @@ const ManageBookingAdmin = () => {
             <div className="modal-footer" style={{ padding: '8px 16px', textAlign: 'right' }}>
               <button className="ok-btn" onClick={() => setShowInfoModal(false)}>
                 Done
+=======
+      {showCheckoutModal && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h3 style={{ color: 'black' }}>Confirm Check-Out</h3>
+            </div>
+            <div className="modal-body" style={{ color: 'black' }}>
+              Proceed to check-out?
+            </div>
+            <div className="form-actions" style={{ justifyContent: 'flex-end' }}>
+              <button className="cancel-btn cancel-danger" onClick={() => { setShowCheckoutModal(false); setCheckoutBookingId(null); }}>Cancel</button>
+              <button className="ok-btn" onClick={confirmCheckout}>Confirm</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Extend Booking Modal */}
+      {showExtendModal && extendBooking && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '450px' }}>
+            <div className="modal-header">
+              <h3 style={{ color: 'black' }}>Extend Booking</h3>
+              <button onClick={() => { setShowExtendModal(false); setExtendBooking(null); }}>&times;</button>
+            </div>
+            <div className="modal-body" style={{ color: 'black' }}>
+              <p style={{ marginBottom: '12px' }}>
+                <strong>Guest:</strong> {extendBooking.guestName || extendBooking.customerName}
+              </p>
+              <p style={{ marginBottom: '12px' }}>
+                <strong>Room:</strong> {getRoomDisplay(extendBooking)}
+              </p>
+              <p style={{ marginBottom: '16px' }}>
+                <strong>Current Check-out:</strong> {formatDate(getCheckOut(extendBooking))}
+              </p>
+              <hr style={{ marginBottom: '16px', border: 'none', borderTop: '1px solid #ddd' }} />
+              <p style={{ marginBottom: '8px', fontWeight: '600' }}>New Check-out Date & Time:</p>
+              <p style={{ marginBottom: '12px', fontSize: '13px', color: '#666' }}>
+                Minimum 3 hours extension from current checkout time.
+              </p>
+              <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500' }}>Date</label>
+                  <input
+                    type="date"
+                    value={extendDate}
+                    min={getMinExtendDateTime().minDate}
+                    onChange={(e) => { setExtendDate(e.target.value); setExtendTime(''); }}
+                    style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500' }}>Time</label>
+                  <select
+                    value={extendTime}
+                    onChange={(e) => setExtendTime(e.target.value)}
+                    style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
+                  >
+                    <option value="">Select time</option>
+                    {getExtendTimeOptions().map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div className="form-actions" style={{ justifyContent: 'flex-end', gap: '10px' }}>
+              <button
+                className="cancel-btn"
+                style={{ background: '#6c757d', color: 'white' }}
+                onClick={() => { setShowExtendModal(false); setExtendBooking(null); }}
+              >
+                Cancel
+              </button>
+              <button
+                className="ok-btn"
+                style={{ background: '#0A1A45', color: 'white' }}
+                onClick={confirmExtend}
+                disabled={!extendDate || !extendTime}>
+                Extend
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Extend Result Modal (Success/Error) */}
+      {extendResult && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '400px' }}>
+            <div className="modal-header" style={{ justifyContent: 'center' }}>
+              <h3 style={{ color: extendResult.success ? '#28a745' : '#dc3545', margin: 0, paddingRight: '15px' }}>
+                {extendResult.success ? 'Success' : '✕ Error'}
+              </h3>
+            </div>
+            <div className="modal-body" style={{ color: 'black', textAlign: 'center' }}>
+              <p style={{ marginBottom: '12px', fontSize: '16px' }}>{extendResult.message}</p>
+              {extendResult.success && extendResult.amount && (
+                <div style={{
+                  background: '#f8f9fa',
+                  padding: '16px',
+                  borderRadius: '8px',
+                  marginTop: '12px'
+                }}>
+                  <p style={{ margin: 0, fontSize: '14px', color: '#666' }}>Additional Charge</p>
+                  <p style={{ margin: '8px 0 0', fontSize: '24px', fontWeight: 'bold', color: '#28a745' }}>
+                    ₱{extendResult.amount?.toLocaleString()}
+                  </p>
+                  {extendResult.hours && (
+                    <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#666' }}>
+                      ({extendResult.hours} hours extension)
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="form-actions" style={{ justifyContent: 'center' }}>
+              <button
+                className="ok-btn"
+                style={{
+                  background: extendResult.success ? '#28a745' : '#dc3545',
+                  color: 'white',
+                  minWidth: '100px'
+                }}
+                onClick={() => setExtendResult(null)}
+              >
+                OK
+>>>>>>> f4475ffc6c3dc8453c75c7038637751f549ceeee
               </button>
             </div>
           </div>

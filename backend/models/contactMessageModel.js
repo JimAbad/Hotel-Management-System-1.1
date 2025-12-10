@@ -7,7 +7,7 @@ const contactMessageSchema = new mongoose.Schema({
   roomNumber: { type: String, default: null },
   message: { type: String, required: true },
   status: { type: String, enum: ['new', 'assigned', 'handled', 'complied'], default: 'new' },
-  priority: { type: String, enum: ['low', 'medium', 'high'], default: 'low' },
+  priority: { type: String, enum: ['low', 'medium', 'high'], default: null },
   taskId: { type: mongoose.Schema.Types.ObjectId, ref: 'CleaningRequest', default: null }
 }, { timestamps: true });
 

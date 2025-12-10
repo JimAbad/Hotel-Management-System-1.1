@@ -52,12 +52,6 @@ const ReviewsManagementAdmin = () => {
     }
   };
 
-  const resetControls = () => {
-    setSearch('');
-    setFilterRating('');
-    setSortDate('newest');
-    setSortRating('high');
-  };
 
   const normalized = (reviews || []).map((r) => ({
     _id: r._id,
@@ -79,13 +73,13 @@ const ReviewsManagementAdmin = () => {
     return okSearch && okRating;
   });
 
-  const sortedByDate = [...filtered].sort((a, b) => {
+  // Sort by date as primary, rating as secondary tie-breaker
+  const displayed = [...filtered].sort((a, b) => {
     const da = new Date(a.createdAt || 0).getTime();
     const db = new Date(b.createdAt || 0).getTime();
-    return sortDate === 'newest' ? db - da : da - db;
-  });
-
-  const displayed = [...sortedByDate].sort((a, b) => {
+    const dateCompare = sortDate === 'newest' ? db - da : da - db;
+    if (dateCompare !== 0) return dateCompare;
+    // Tie-breaker by rating
     const ra = Number(a.overallRating || 0);
     const rb = Number(b.overallRating || 0);
     return sortRating === 'high' ? rb - ra : ra - rb;
@@ -167,7 +161,6 @@ const ReviewsManagementAdmin = () => {
             <option value="high">Sort By Rating: High to Low</option>
             <option value="low">Sort By Rating: Low to High</option>
           </select>
-          <button className="reset-pill" onClick={resetControls}>Reset</button>
         </div>
 
         <table className="bill-table">
@@ -184,45 +177,45 @@ const ReviewsManagementAdmin = () => {
             </tr>
           </thead>
           <tbody>
-          {displayed.length === 0 ? (
-            <tr>
-              <td colSpan="8" style={{ color: 'black' }}>No reviews found.</td>
-            </tr>
-          ) : (
-            displayed.map((r) => (
-              <tr key={r._id}>
-                <td style={{ color: 'black' }}>{formatRef(r.referenceNumber)}</td>
-                <td style={{ color: 'black' }}>{r.customerName || '-'}</td>
-                <td style={{ color: 'black' }}>{r.createdAt ? new Date(r.createdAt).toLocaleDateString() : '-'}</td>
-                <td style={{ color: 'black' }}>{r.overallRating ? `${r.overallRating} / 5` : '-'}</td>
-                <td style={{ color: 'black' }}>{renderStars(r.serviceQuality)}</td>
-                <td style={{ color: 'black' }}>{renderStars(r.roomQuality)}</td>
-                <td style={{ color: 'black' }}>
-                  {(() => {
-                    const full = r.detailedFeedback || '-';
-                    const isLong = full.length > 80;
-                    const showFull = !!expanded[r._id];
-                    const text = isLong && !showFull ? `${full.slice(0, 80)}…` : full;
-                    return (
-                      <span>
-                        {text} {isLong && (
-                          <button type="button" className="read-more" onClick={() => toggleExpand(r._id)}>
-                            {showFull ? 'Read less' : 'Read more'}
-                          </button>
-                        )}
-                      </span>
-                    );
-                  })()}
-                </td>
-                <td>
-                  <button onClick={() => handleDelete(r._id)} className="delete-btn">
-                    <FaTrash />
-                  </button>
-                </td>
+            {displayed.length === 0 ? (
+              <tr>
+                <td colSpan="8" style={{ color: 'black' }}>No reviews found.</td>
               </tr>
-            ))
-          )}
-        </tbody>
+            ) : (
+              displayed.map((r) => (
+                <tr key={r._id}>
+                  <td style={{ color: 'black' }}>{formatRef(r.referenceNumber)}</td>
+                  <td style={{ color: 'black' }}>{r.customerName || '-'}</td>
+                  <td style={{ color: 'black' }}>{r.createdAt ? new Date(r.createdAt).toLocaleDateString() : '-'}</td>
+                  <td style={{ color: 'black' }}>{r.overallRating ? `${r.overallRating} / 5` : '-'}</td>
+                  <td style={{ color: 'black' }}>{renderStars(r.serviceQuality)}</td>
+                  <td style={{ color: 'black' }}>{renderStars(r.roomQuality)}</td>
+                  <td style={{ color: 'black' }}>
+                    {(() => {
+                      const full = r.detailedFeedback || '-';
+                      const isLong = full.length > 80;
+                      const showFull = !!expanded[r._id];
+                      const text = isLong && !showFull ? `${full.slice(0, 80)}…` : full;
+                      return (
+                        <span>
+                          {text} {isLong && (
+                            <button type="button" className="read-more" onClick={() => toggleExpand(r._id)}>
+                              {showFull ? 'Read less' : 'Read more'}
+                            </button>
+                          )}
+                        </span>
+                      );
+                    })()}
+                  </td>
+                  <td>
+                    <button onClick={() => handleDelete(r._id)} className="delete-btn">
+                      <FaTrash />
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
         </table>
       </div>
 

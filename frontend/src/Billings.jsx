@@ -13,7 +13,7 @@ function Billings() {
     const originNorm = typeof window !== 'undefined' ? window.location.origin.replace(/\/+$/, '') : '';
     return envNorm && envNorm !== originNorm ? envNorm : fallback;
   })();
-  
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedRoom, setSelectedRoom] = useState(null);
@@ -77,7 +77,7 @@ function Billings() {
         // Only include items tied to an active booking
         const checkOut = b?.booking?.checkOut ? new Date(b.booking.checkOut) : null;
         const status = b?.booking?.status || '';
-        const active = checkOut ? (checkOut >= today && !['cancelled','completed'].includes(String(status).toLowerCase())) : true;
+        const active = checkOut ? (checkOut >= today && !['cancelled', 'completed'].includes(String(status).toLowerCase())) : true;
         if (!active) return;
 
         grouped[rn] = grouped[rn] || { items: [], summary: {}, roomType: roomNumberToType[rn] || null };
@@ -111,7 +111,7 @@ function Billings() {
       });
 
       setBillsByRoom(grouped);
-      
+
       setLoading(false);
     } catch (err) {
       setError('Failed to fetch billing data. Please try again later.');
@@ -170,7 +170,7 @@ function Billings() {
   return (
     <div className="billing-container">
       <div className="billing-header" style={{ display: 'flex', justifyContent: 'flex-end' }}>
-       
+
       </div>
 
       {/* Bills Grouped by Room */}
@@ -185,7 +185,7 @@ function Billings() {
               <div key={roomNumber} className="room-bill-group">
                 <div className="room-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <h3>{roomData.roomType ? `Room: ${roomData.roomType}` : `Room ${roomNumber}`}</h3>
-                  <button 
+                  <button
                     className="view-bill-btn" style={{ backgroundColor: '#B8860B', color: 'white' }}
                     onClick={() => handleViewRoom(roomNumber)}
                   >
@@ -249,170 +249,170 @@ function Billings() {
           ))}
         </div>
       )}
-      
+
 
       {/* Bill Detail Modal */}
       {showBillModal && selectedRoom && (
         <div className="modal-overlay">
           <div className="modal-content bill-modal">
-<div
-  style={{
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-  }}
->
-  <button
-    onClick={() => setShowBillModal(false)}
-    style={{
-      color: 'white',
-      position: 'absolute',
-      left: 0,
-      background: '#B8860B',
-      border: 'none',
-      fontSize: '18px',
-      cursor: 'pointer',
-    }}
-  >
-Back
-  </button>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                position: 'relative',
+              }}
+            >
+              <button
+                onClick={() => setShowBillModal(false)}
+                style={{
+                  color: 'white',
+                  position: 'absolute',
+                  left: 0,
+                  background: '#B8860B',
+                  border: 'none',
+                  fontSize: '18px',
+                  cursor: 'pointer',
+                }}
+              >
+                Back
+              </button>
 
-  <h3 style={{ margin: 0 }}>
-    <FaReceipt /> Room {selectedRoom} Bills
-  </h3>
-</div>
+              <h3 style={{ margin: 0, textAlign: 'center', flexGrow: 1 }}>
+                <FaReceipt /> Bills for Room {selectedRoom}
+              </h3>
+            </div>
 
 
             <div className="modal-body">
-  <div className="bill-details">
-    {/* Header section */}
-    <div
-      className="bill-header"
-      style={{ textAlign: 'center', marginBottom: '20px' }}
-    >
-     
-      <p style={{ margin: 0 }}></p>
-      <p style={{ margin: 0 }}></p>
-    </div>
-    {/* Bill info section */}
-    <div
-      className="bill-info"
-      style={{ textAlign: 'left', marginLeft: '10px' }}
-    >
-      <div className="bill-row">
-        
-      </div>
+              <div className="bill-details">
+                {/* Header section */}
+                <div
+                  className="bill-header"
+                  style={{ textAlign: 'center', marginBottom: '20px' }}
+                >
 
-      {selectedRoomSummary.checkedOutAt && (
-        <div className="bill-row">
-          <span>Checked-out:</span>
-          <span>{formatDate(selectedRoomSummary.checkedOutAt)}</span>
-        </div>
-      )}
-      {selectedRoomSummary.deliveredAt && (
-        <div className="bill-row">
-          <span>Delivered:</span>
-          <span>{formatDate(selectedRoomSummary.deliveredAt)}</span>
-        </div>
-      )}
-      {selectedRoomSummary.checkIn && (
-        <div className="bill-row">
-          <span>Check-in:</span>
-          <span>{formatDate(selectedRoomSummary.checkIn)}</span>
-        </div>
-      )}
-      {selectedRoomSummary.checkOut && (
-        <div className="bill-row">
-          <span>Check-out:</span>
-          <span>{formatDate(selectedRoomSummary.checkOut)}</span>
-        </div>
-      )}
-    </div>
-  </div>
-</div>
-
-                
-                <div className="bill-items">
-                  <h5>Bill Items</h5>
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Description</th>
-                        <th>Amount</th>
-                        <th>Status</th>
-                        <th>Date</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {selectedRoomItems.map((item, idx) => (
-                        <tr key={item._id || idx}>
-                          <td>{item.description || '—'}</td>
-                          <td>{formatCurrency(item.amount ?? item.price ?? item.totalPrice ?? 0)}</td>
-                          <td><span className={getStatusClass(item.status)}>{item.status || 'pending'}</span></td>
-                          <td>{formatDate(item.date || item.createdAt || selectedRoomSummary.deliveredAt || selectedRoomSummary.checkedOutAt || new Date())}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                    <tfoot>
-                      <tr>
-                        <td><strong>Total</strong></td>
-                        <td colSpan="3">
-                          <strong>
-                            {formatCurrency(
-                              typeof selectedRoomSummary.totalPrice === 'number'
-                                ? selectedRoomSummary.totalPrice
-                                : selectedRoomItems.reduce((sum, it) => sum + Number(it.amount ?? it.price ?? it.totalPrice ?? 0), 0)
-                            )}
-                          </strong>
-                        </td>
-                      </tr>
-                    </tfoot>
-                  </table>
+                  <p style={{ margin: 0 }}></p>
+                  <p style={{ margin: 0 }}></p>
                 </div>
-                
-           {/* Aggregated view: item statuses are shown in the table; no single payment status */}
+                {/* Bill info section */}
+                <div
+                  className="bill-info"
+                  style={{ textAlign: 'left', marginLeft: '10px' }}
+                >
+                  <div className="bill-row">
 
-<div
-  className="bill-footer"
-  style={{
-    textAlign: 'left',
-    marginLeft: '10px',
-    marginTop: '20px',
-    position: 'relative',
-  }}
->
-  <p>Thank you for choosing Lumine Hotel!</p>
-  
+                  </div>
 
- 
-   <p> {/* for inquiries, please contact us at support@luminehotel.com */}</p>
- 
-
-  <div style={{ display: 'flex', justifyContent: 'center', marginTop: '20px' }}>
-  <button
-    style={{
-      backgroundColor: '#B8860B',
-      color: 'white',
-      border: 'none',
-      padding: '10px 20px',
-      borderRadius: '6px',
-      cursor: 'pointer',
-      fontSize: '16px',
-    }}
-    onClick={() => window.print()}
-  >
-    <FaPrint /> Print Bill
-  </button>
-</div>
-
-</div>
-
+                  {selectedRoomSummary.checkedOutAt && (
+                    <div className="bill-row">
+                      <span>Checked-out:</span>
+                      <span>{formatDate(selectedRoomSummary.checkedOutAt)}</span>
+                    </div>
+                  )}
+                  {selectedRoomSummary.deliveredAt && (
+                    <div className="bill-row">
+                      <span>Delivered:</span>
+                      <span>{formatDate(selectedRoomSummary.deliveredAt)}</span>
+                    </div>
+                  )}
+                  {selectedRoomSummary.checkIn && (
+                    <div className="bill-row">
+                      <span>Check-in:</span>
+                      <span>{formatDate(selectedRoomSummary.checkIn)}</span>
+                    </div>
+                  )}
+                  {selectedRoomSummary.checkOut && (
+                    <div className="bill-row">
+                      <span>Check-out:</span>
+                      <span>{formatDate(selectedRoomSummary.checkOut)}</span>
+                    </div>
+                  )}
+                </div>
               </div>
-              
             </div>
-        
-     
+
+
+            <div className="bill-items">
+              <h5>Bill Items</h5>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Description</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th>Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {selectedRoomItems.map((item, idx) => (
+                    <tr key={item._id || idx}>
+                      <td>{item.description || '—'}</td>
+                      <td>{formatCurrency(item.amount ?? item.price ?? item.totalPrice ?? 0)}</td>
+                      <td><span className={getStatusClass(item.status)}>{item.status || 'pending'}</span></td>
+                      <td>{formatDate(item.date || item.createdAt || selectedRoomSummary.deliveredAt || selectedRoomSummary.checkedOutAt || new Date())}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td><strong>Total</strong></td>
+                    <td colSpan="3">
+                      <strong>
+                        {formatCurrency(
+                          typeof selectedRoomSummary.totalPrice === 'number'
+                            ? selectedRoomSummary.totalPrice
+                            : selectedRoomItems.reduce((sum, it) => sum + Number(it.amount ?? it.price ?? it.totalPrice ?? 0), 0)
+                        )}
+                      </strong>
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+
+            {/* Aggregated view: item statuses are shown in the table; no single payment status */}
+
+            <div
+              className="bill-footer"
+              style={{
+                textAlign: 'left',
+                marginLeft: '10px',
+                marginTop: '20px',
+                position: 'relative',
+              }}
+            >
+              <p>Thank you for choosing Lumine Hotel!</p>
+
+
+
+              <p> {/* for inquiries, please contact us at support@luminehotel.com */}</p>
+
+
+              <div style={{ display: 'flex', justifyContent: 'center', marginTop: '20px' }}>
+                <button
+                  style={{
+                    backgroundColor: '#B8860B',
+                    color: 'white',
+                    border: 'none',
+                    padding: '10px 20px',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '16px',
+                  }}
+                  onClick={() => window.print()}
+                >
+                  <FaPrint /> Print Bill
+                </button>
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+
       )}
     </div>
   );

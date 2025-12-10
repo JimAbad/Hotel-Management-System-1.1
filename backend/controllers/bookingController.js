@@ -31,9 +31,9 @@ const getAllBookings = asyncHandler(async (req, res) => {
   }
 
   // For admin view, show all bookings regardless of payment status
-  // This ensures admins can see all bookings including unpaid pending ones
+  // This ensures admins can see all bookings including 'time to check-out' ones
   if (!includePendingPayment || String(includePendingPayment).toLowerCase() !== 'true') {
-    // Show all bookings except cancelled/completed ones
+    // Show all bookings except cancelled/completed ones (includes 'time to check-out')
     query.status = { $nin: ['cancelled', 'completed'] };
   } else {
     // When including pending payments, show all bookings
@@ -75,31 +75,11 @@ const createBooking = asyncHandler(async (req, res) => {
     adults,
     children,
     guestName,
-    specialRequests
+    specialRequests,
+    paymentMethod,
+    paymentStatus
   } = req.body;
 
-  // Check booking limit (3 bookings per user) - exclude pending bookings
-  const userActiveBookings = await Booking.countDocuments({
-    $and: [
-      {
-        $or: [
-          { customerEmail: customerEmail },
-          { user: req.user.id }
-        ]
-      },
-      {
-        status: { $nin: ['pending', 'cancelled', 'completed'] }
-      },
-      {
-        checkOut: { $gte: new Date() }
-      }
-    ]
-  });
-
-  if (userActiveBookings >= 3) {
-    res.status(400);
-    throw new Error('Booking limit reached. You can only have a maximum of 3 active bookings at a time.');
-  }
 
   // Generate reference number
   const referenceNumber = 'BK' + Date.now().toString().slice(-8);
@@ -107,20 +87,26 @@ const createBooking = asyncHandler(async (req, res) => {
   // SKIP ROOM lookup, and instead use requested type
 
   // Calculate number of hours
+  // Parse dates while preserving local timezone
   const checkInDate = new Date(checkIn);
   const checkOutDate = new Date(checkOut);
+
+  // Store the dates as they are (MongoDB will handle timezone conversion)
+  // But we need to ensure we're working with the correct local interpretation
+  const checkInLocal = checkIn;
+  const checkOutLocal = checkOut;
   const diffTime = Math.abs(checkOutDate - checkInDate);
   const numberOfHours = Math.ceil(diffTime / (1000 * 60 * 60));
   const numberOfGuests = adults + children;
 
   // Calculate total amount based on room price (per hour)
-  // Economy: 3 hours = ₱200 total (₱59.523/hour) for ₱20 downpayment (10%)
+  // Updated rates: Economy ₱100/hr, Deluxe ₱150/hr, Suite ₱250/hr
   let basePrice;
-  if (roomType === 'Economy') basePrice = 59.523;
-  else if (roomType === 'Deluxe') basePrice = 100.00; // set correct price
-  else if (roomType === 'Suite') basePrice = 150.00; // etc
-  // ...set up price table or fetch from Room model defaults if needed
-  // Then calculate total as before
+  if (roomType === 'Economy') basePrice = 100;
+  else if (roomType === 'Deluxe') basePrice = 150;
+  else if (roomType === 'Suite') basePrice = 250;
+  else basePrice = 100; // default fallback
+
   let subtotal = numberOfHours * basePrice;
 
   // Check if check-in date is a holiday and apply holiday pricing
@@ -138,10 +124,11 @@ const createBooking = asyncHandler(async (req, res) => {
     console.log(`Holiday pricing applied: ${holiday.name} - ${holiday.priceMultiplier * 100}% of regular price`);
   }
 
-  const taxesAndFees = subtotal * 0.12; // Assuming 12% tax
-  const totalAmount = subtotal + taxesAndFees;
+  // Total amount is the subtotal (no additional tax)
+  const totalAmount = subtotal;
 
   // Rest of the logic – Do not assign room or roomNumber! Always set to null at booking creation.
+  // Use paymentStatus and paymentMethod from request if provided (for admin cash bookings)
   const bookingData = {
     room: null,
     user: req.user.id,
@@ -159,8 +146,8 @@ const createBooking = asyncHandler(async (req, res) => {
     roomType: roomType || null,
     numberOfGuests,
     totalAmount,
-    status: 'pending',
-    paymentStatus: 'pending'
+    status: paymentStatus === 'paid' ? 'pending' : 'pending',
+    paymentStatus: paymentStatus || 'pending'
   };
 
   console.log('Booking data before creation:', bookingData);
@@ -183,8 +170,8 @@ const createBooking = asyncHandler(async (req, res) => {
       roomNumber: null, // Billing roomNumber is also null
       amount: totalAmount,
       description: `Room booking charge for ${null} (${numberOfHours} hours)`, // Description uses null
-      status: 'pending',
-      paymentMethod: 'online payment'
+      status: paymentStatus === 'paid' ? 'paid' : 'pending',
+      paymentMethod: paymentMethod || 'online payment'
     });
 
     console.log('Created room billing record:', roomBilling);
@@ -202,6 +189,7 @@ const createBooking = asyncHandler(async (req, res) => {
 const updateBookingStatus = asyncHandler(async (req, res) => {
   const { status, bookingStatus, checkOutDate, roomNumber } = req.body;
   const booking = await Booking.findById(req.params.id);
+  const prevRoomNumber = booking.roomNumber;
 
   if (!booking) {
     res.status(404);
@@ -214,55 +202,89 @@ const updateBookingStatus = asyncHandler(async (req, res) => {
   if (checkOutDate != null) {
     const d = new Date(checkOutDate);
     if (!isNaN(d)) booking.checkOut = d;
+  } else if ((bookingStatus || status) && (bookingStatus === 'pending' || status === 'pending')) {
+    // If trying to set to pending but room is assigned, override to occupied
+    booking.status = 'occupied';
   }
 
-  const prevRoomNumber = booking.roomNumber;
+  // CRITICAL: Actually assign roomNumber to the booking!
   if (roomNumber != null && roomNumber !== '') {
     booking.roomNumber = roomNumber;
-    const room = await Room.findOne({ roomNumber });
-    if (room) booking.room = room._id;
-
-    // Always set status to 'occupied' when a room is assigned
-    // unless explicitly setting to another status
-    if (!bookingStatus && !status) {
-      booking.status = 'occupied';
-    } else if ((bookingStatus || status) && (bookingStatus === 'pending' || status === 'pending')) {
-      // If trying to set to pending but room is assigned, override to occupied
-      booking.status = 'occupied';
+    // Also look up and assign the Room ObjectId
+    const room = await Room.findOne({ roomNumber: String(roomNumber) });
+    if (room) {
+      booking.room = room._id;
+      // Update room status to occupied
+      room.status = 'occupied';
+      await room.save();
     }
-
-    try {
-      const Billing = require('../models/Billing');
-      const BookingActivity = require('../models/bookingActivityModel');
-      const billings = await Billing.find({ booking: booking._id });
-      for (const b of billings) {
-        const needsUpdate = String(b.roomNumber || '') === String(prevRoomNumber || '') || (b.description || '').includes('Room booking charge');
-        if (needsUpdate) {
-          b.roomNumber = roomNumber;
-          if ((b.description || '').includes('Room booking charge')) {
-            const hours = booking.checkIn && booking.checkOut
-              ? Math.ceil((new Date(booking.checkOut) - new Date(booking.checkIn)) / (1000 * 60 * 60))
-              : null;
-            b.description = hours != null
-              ? `Room booking charge for ${roomNumber} (${hours} hours)`
-              : `Room booking charge for ${roomNumber}`;
-          }
-          await b.save();
-        }
-      }
-
-      // Log activity for notifications
-      const prevRn = prevRoomNumber ? String(prevRoomNumber) : '';
-      const newRn = String(roomNumber);
-      const isReassign = prevRn && prevRn !== newRn;
-      const activityText = isReassign
-        ? `Room reassigned: ${prevRn} → ${newRn}`
-        : `Room assigned: ${newRn}`;
-      await BookingActivity.create({ booking: booking._id, activity: activityText, status: 'pending' });
-    } catch (e) {
-      console.warn('Room/billing sync or activity log failed:', e?.message);
+    // If room is being assigned, set status to occupied
+    if (booking.status === 'pending') {
+      booking.status = 'occupied';
     }
   }
+
+  try {
+    const Billing = require('../models/Billing');
+    const BookingActivity = require('../models/bookingActivityModel');
+
+    // Update ALL billing records for this booking OR the old room number to the new roomNumber
+    // This includes food orders that are linked by roomNumber only
+    console.log(`[BILLING UPDATE] Booking ID: ${booking._id}, prevRoomNumber: "${prevRoomNumber}", newRoomNumber: "${roomNumber}"`);
+
+    const billingQuery = {
+      $or: [
+        { booking: booking._id },
+        ...(prevRoomNumber ? [{ roomNumber: String(prevRoomNumber) }] : [])
+      ]
+    };
+    console.log(`[BILLING UPDATE] Query: ${JSON.stringify(billingQuery)}`);
+
+    const billings = await Billing.find(billingQuery);
+    console.log(`[BILLING UPDATE] Found ${billings.length} billing records to update`);
+
+    for (const b of billings) {
+      console.log(`[BILLING UPDATE] Updating billing ${b._id} from room "${b.roomNumber}" to "${roomNumber}"`);
+
+      // Build update object
+      const updateFields = { roomNumber: roomNumber };
+
+      // Link billing to booking if not already linked
+      if (!b.booking) {
+        updateFields.booking = booking._id;
+      }
+
+      // Update description for room booking charges
+      if ((b.description || '').includes('Room booking charge')) {
+        const hours = booking.checkIn && booking.checkOut
+          ? Math.ceil((new Date(booking.checkOut) - new Date(booking.checkIn)) / (1000 * 60 * 60))
+          : null;
+        updateFields.description = hours != null
+          ? `Room booking charge for ${roomNumber} (${hours} hours)`
+          : `Room booking charge for ${roomNumber}`;
+      }
+
+      // Use updateOne with runValidators: false to bypass schema validation
+      // This is needed because food orders have different fields than room billings
+      await Billing.updateOne({ _id: b._id }, { $set: updateFields });
+    }
+
+    console.log(`[BILLING UPDATE] Updated ${billings.length} billing records to room ${roomNumber} (from room ${prevRoomNumber || 'none'})`);
+
+
+    // Log activity for notifications
+    const prevRn = prevRoomNumber ? String(prevRoomNumber) : '';
+    const newRn = String(roomNumber);
+    const isReassign = prevRn && prevRn !== newRn;
+    const activityText = isReassign
+      ? `Room reassigned: ${prevRn} → ${newRn}`
+      : `Room assigned: ${newRn}`;
+    await BookingActivity.create({ booking: booking._id, activity: activityText, status: 'pending' });
+  } catch (e) {
+    console.warn('Room/billing sync or activity log failed:', e?.message);
+  }
+
+
   const updatedBooking = await booking.save();
 
   // If booking status changed to 'completed', update room status
@@ -574,6 +596,163 @@ const checkExpiredBookings = asyncHandler(async (req, res) => {
   }
 });
 
+// @desc    Manually checkout a booking (admin action)
+// @route   PUT /api/bookings/:id/checkout
+// @access  Admin
+const checkoutBooking = asyncHandler(async (req, res) => {
+  const booking = await Booking.findById(req.params.id).populate('room');
+
+  if (!booking) {
+    res.status(404);
+    throw new Error('Booking not found');
+  }
+
+  // Check if booking is already completed
+  if (booking.status === 'completed') {
+    res.status(400);
+    throw new Error('Booking is already checked out');
+  }
+
+  const oldStatus = booking.status;
+
+  // Update booking status to completed
+  booking.status = 'completed';
+  await booking.save();
+
+  // Create booking activity record
+  await BookingActivity.create({
+    booking: booking._id,
+    activity: `Guest checked out by admin (was: ${oldStatus})`,
+    status: 'completed'
+  });
+
+  // Update room status to available if no other active bookings exist
+  if (booking.room) {
+    const otherActiveBooking = await Booking.findOne({
+      room: booking.room._id,
+      _id: { $ne: booking._id },
+      status: { $nin: ['cancelled', 'completed'] },
+      checkOut: { $gte: new Date() },
+      paymentStatus: { $in: ['paid', 'partial'] }
+    });
+
+    if (!otherActiveBooking) {
+      const room = await Room.findById(booking.room._id);
+      if (room) {
+        room.status = 'checked-out';
+        await room.save();
+        console.log(`Room ${room.roomNumber} status updated to checked-out after checkout`);
+      }
+    }
+  }
+
+  // Delete ALL billing records for this booking OR roomNumber (room charges, food orders, etc.)
+  const billingDeleteQuery = {
+    $or: [
+      { booking: booking._id },
+      ...(booking.roomNumber ? [{ roomNumber: String(booking.roomNumber) }] : [])
+    ]
+  };
+  const deleteResult = await Billing.deleteMany(billingDeleteQuery);
+  console.log(`Deleted ${deleteResult.deletedCount} billing records for booking ${booking._id} / room ${booking.roomNumber}`);
+
+  res.json({
+    message: 'Booking checked out successfully',
+    booking: booking,
+    previousStatus: oldStatus
+  });
+});
+
+// Mark booking as fully paid (updates both booking and billing)
+const markFullyPaid = asyncHandler(async (req, res) => {
+  const booking = await Booking.findById(req.params.id);
+  if (!booking) {
+    return res.status(404).json({ message: 'Booking not found' });
+  }
+
+  // Update booking paymentStatus to 'paid'
+  booking.paymentStatus = 'paid';
+  await booking.save();
+
+  // Update all billing records for this booking to 'paid'
+  await Billing.updateMany(
+    { booking: booking._id },
+    { status: 'paid' }
+  );
+
+  res.json({
+    message: 'Booking marked as fully paid',
+    booking: booking
+  });
+});
+
+// @desc    Extend booking checkout time and create billing for extension
+// @route   PUT /api/bookings/:id/extend
+// @access  Admin
+const extendBooking = asyncHandler(async (req, res) => {
+  const { newCheckOut } = req.body;
+
+  if (!newCheckOut) {
+    return res.status(400).json({ message: 'New checkout date/time is required' });
+  }
+
+  const booking = await Booking.findById(req.params.id);
+  if (!booking) {
+    return res.status(404).json({ message: 'Booking not found' });
+  }
+
+  const oldCheckOut = new Date(booking.checkOut);
+  const newCheckOutDate = new Date(newCheckOut);
+
+  // Validate minimum 3 hours extension
+  const minExtension = new Date(oldCheckOut.getTime() + (3 * 60 * 60 * 1000));
+  if (newCheckOutDate < minExtension) {
+    return res.status(400).json({ message: 'Minimum extension is 3 hours from current checkout time' });
+  }
+
+  // Calculate extension hours
+  const extensionMs = newCheckOutDate - oldCheckOut;
+  const extensionHours = Math.ceil(extensionMs / (1000 * 60 * 60));
+
+  // Determine hourly rate based on room type
+  const roomType = booking.roomType || 'Economy';
+  let hourlyRate = 100; // Default Economy
+  if (roomType === 'Deluxe') hourlyRate = 150;
+  else if (roomType === 'Suite') hourlyRate = 250;
+
+  const extensionAmount = extensionHours * hourlyRate;
+
+  // Update booking checkout time
+  booking.checkOut = newCheckOutDate;
+  await booking.save();
+
+  // Create billing record for extension
+  const extensionBilling = await Billing.create({
+    booking: booking._id,
+    user: booking.user,
+    roomNumber: booking.roomNumber,
+    amount: extensionAmount,
+    description: `Booking extension (${extensionHours} hours) for room ${booking.roomNumber || 'N/A'}`,
+    status: 'pending',
+    paymentMethod: 'cash'
+  });
+
+  // Create booking activity
+  await BookingActivity.create({
+    booking: booking._id,
+    activity: `Checkout extended by ${extensionHours} hours. New checkout: ${newCheckOutDate.toLocaleString()}. Additional charge: ₱${extensionAmount.toLocaleString()}`,
+    status: 'completed'
+  });
+
+  res.json({
+    message: 'Booking extended successfully',
+    booking,
+    extensionBilling,
+    extensionHours,
+    extensionAmount
+  });
+});
+
 module.exports = {
   createBooking,
   getAllBookings,
@@ -586,4 +765,8 @@ module.exports = {
   deleteCancelledBookings,
   updateRoomStatus,
   checkExpiredBookings,
+  checkoutBooking,
+  markFullyPaid,
+  extendBooking,
 };
+

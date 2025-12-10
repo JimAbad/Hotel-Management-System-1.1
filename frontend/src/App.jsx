@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Routes, Route, Link, useNavigate, useLocation } from 'react-router-dom';
- 
+
 import RoomDetails from './RoomDetails';
 import Home from './Home';
 import Rooms from './Rooms';
@@ -30,7 +30,7 @@ function AppContent() {
   const API_URL = import.meta.env.VITE_API_URL || 'https://hotel-management-system-1-1-backend.onrender.com';
   const navigate = useNavigate();
   const location = useLocation();
-  
+
   const { user, token, logout } = useAuth();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   console.log('User state in App.jsx:', user);
@@ -63,7 +63,7 @@ function AppContent() {
           });
         } catch (e) { console.error(e); }
       }
-      setNotifications(msgs.sort((x,y)=> new Date(y.ts) - new Date(x.ts)));
+      setNotifications(msgs.sort((x, y) => new Date(y.ts) - new Date(x.ts)));
     } catch (e) {
       console.error('Failed to load notifications', e);
     }
@@ -71,7 +71,7 @@ function AppContent() {
 
   useEffect(() => { fetchUserNotifications(); }, [user, token]);
   useEffect(() => {
-    try { fetch(`${API_URL}/healthz`).catch(() => {}); } catch {}
+    try { fetch(`${API_URL}/healthz`).catch(() => { }); } catch { }
   }, [API_URL]);
   useEffect(() => {
     if (!user || !token) return;
@@ -154,7 +154,7 @@ function AppContent() {
                   {notifications.filter(n => !(readIds || []).includes(n.id)).length === 0 ? (
                     <div className="notif-empty">No notifications</div>
                   ) : (
-                    notifications.filter(n => !(readIds || []).includes(n.id)).slice(0,20).map(n => (
+                    notifications.filter(n => !(readIds || []).includes(n.id)).slice(0, 20).map(n => (
                       <div key={n.id} className="notif-item">
                         <span>{n.text}</span>
                         <button className="notif-close" onClick={() => markOneAsRead(n.id)}>×</button>
@@ -176,9 +176,8 @@ function AppContent() {
       {showLogoutConfirm && (
         <div className="logout-modal-overlay">
           <div className="logout-confirmation-modal">
-            <div className="logout-modal-header">
-              <h3 className="logout-modal-title">Confirm Logout</h3>
-              <button className="logout-modal-close" onClick={() => setShowLogoutConfirm(false)}>×</button>
+            <div className="logout-modal-header" style={{ justifyContent: 'center' }}>
+              <h3 className="logout-modal-title" style={{ margin: 0 }}>Confirm Logout</h3>
             </div>
             <div className="logout-modal-body">
               Are you sure you want to logout?

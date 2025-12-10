@@ -16,7 +16,7 @@ function MyBookings() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [cancelingId, setCancelingId] = useState(null);
-  
+
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showWarningModal, setShowWarningModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -67,20 +67,20 @@ function MyBookings() {
   // Utility function to format date and time
   const formatDateTime = (dateString) => {
     const date = new Date(dateString);
-    const dateOptions = { 
-      year: 'numeric', 
-      month: 'short', 
-      day: 'numeric' 
+    const dateOptions = {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
     };
-    const timeOptions = { 
-      hour: '2-digit', 
+    const timeOptions = {
+      hour: '2-digit',
       minute: '2-digit',
-      hour12: true 
+      hour12: true
     };
-    
+
     const formattedDate = date.toLocaleDateString('en-US', dateOptions);
     const formattedTime = date.toLocaleTimeString('en-US', timeOptions);
-    
+
     return `${formattedDate} at ${formattedTime}`;
   };
 
@@ -148,9 +148,9 @@ function MyBookings() {
       alert('Only pending or upcoming bookings can be canceled.');
       return;
     }
-    
+
     setSelectedBooking(booking);
-    
+
     // Check if booking is past 48 hours
     if (!isWithin48Hours(booking)) {
       setShowWarningModal(true);
@@ -191,13 +191,13 @@ function MyBookings() {
 
     try {
       setCancelingId(selectedBooking._id);
-      
+
       const cancellationData = {
         cancellationReasons: cancellationReasons,
         cancellationElaboration: cancellationText.trim() || null
       };
 
-      await axios.post(`${API_URL}/api/bookings/user-cancel/${selectedBooking._id}`, 
+      await axios.post(`${API_URL}/api/bookings/user-cancel/${selectedBooking._id}`,
         cancellationData,
         {
           headers: { Authorization: `Bearer ${token}` }
@@ -247,8 +247,8 @@ function MyBookings() {
   const getTodayStr = () => {
     const d = new Date();
     const yyyy = d.getFullYear();
-    const mm = String(d.getMonth()+1).padStart(2,'0');
-    const dd = String(d.getDate()).padStart(2,'0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
     return `${yyyy}-${mm}-${dd}`;
   };
   const getNextHalfHour = () => {
@@ -261,8 +261,8 @@ function MyBookings() {
       d.setHours(d.getHours() + 1);
       d.setMinutes(0);
     }
-    const hh = String(d.getHours()).padStart(2,'0');
-    const mi = String(d.getMinutes()).padStart(2,'0');
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mi = String(d.getMinutes()).padStart(2, '0');
     return `${hh}:${mi}`;
   };
   const formatDisplayTime = (hhmm) => {
@@ -281,8 +281,8 @@ function MyBookings() {
     for (let h = startH; h <= 23; h++) {
       for (let m of [0, 30]) {
         if (h === startH && m < startM) continue;
-        const hh = String(h).padStart(2,'0');
-        const mm = String(m).padStart(2,'0');
+        const hh = String(h).padStart(2, '0');
+        const mm = String(m).padStart(2, '0');
         const val = `${hh}:${mm}`;
         opts.push(val);
       }
@@ -326,8 +326,8 @@ function MyBookings() {
       setCleanSubmitting(false);
     }
   };
-  
-  
+
+
 
   if (loading) {
     return <div className="my-bookings-container">Loading bookings...</div>;
@@ -344,17 +344,17 @@ function MyBookings() {
       </div>
     );
   }
-  
+
 
   return (
     <div className="my-bookings-container">
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
         <h1>My Bookings</h1>
-        
+
       </div>
-      
+
       {/* Removed the "Delete All Cancelled Bookings" button */}
-      
+
       {/* Redundant toast notifications removed — rely on bell dropdown in navbar */}
       <div className="bookings-list">
         {bookings.map(booking => {
@@ -399,7 +399,7 @@ function MyBookings() {
           <div className="modal-content warning-modal">
             <div className="modal-header">
               <h3>Cancellation Notice</h3>
-              <button 
+              <button
                 className="modal-close"
                 onClick={handleWarningCancel}
               >
@@ -415,13 +415,13 @@ function MyBookings() {
               </div>
             </div>
             <div className="modal-footer">
-              <button 
+              <button
                 className="cancel-btn"
                 onClick={handleWarningCancel}
               >
                 Cancel
               </button>
-              <button 
+              <button
                 className="proceed-btn"
                 onClick={handleWarningProceed}
               >
@@ -448,7 +448,7 @@ function MyBookings() {
               </div>
             </div>
             <div className="modal-footer">
-              <button 
+              <button
                 className="ok-btn"
                 onClick={handleSuccessClose}
               >
@@ -483,7 +483,7 @@ function MyBookings() {
           <div className="modal-content">
             <div className="modal-header">
               <h3 style={{ textAlign: 'center' }}>Request Cleaning</h3>
-              <button 
+              <button
                 className="modal-close"
                 onClick={() => setShowCleaningModal(false)}
               >
@@ -498,11 +498,11 @@ function MyBookings() {
               </div>
               <div className="form-group">
                 <label>Date</label>
-                <input type="date" value={cleaningDate} onChange={(e)=>setCleaningDate(e.target.value)} min={getTodayStr()} />
+                <input type="date" value={cleaningDate} onChange={(e) => setCleaningDate(e.target.value)} min={getTodayStr()} />
               </div>
               <div className="form-group">
                 <label>Time</label>
-                <select value={cleaningTime} onChange={(e)=>setCleaningTime(e.target.value)}>
+                <select value={cleaningTime} onChange={(e) => setCleaningTime(e.target.value)}>
                   <option value="">Select time</option>
                   {timeOptions.map(t => (
                     <option key={t} value={t}>{formatDisplayTime(t)}</option>
@@ -511,17 +511,17 @@ function MyBookings() {
               </div>
               <div className="form-group">
                 <label>Description</label>
-                <textarea value={cleaningDesc} onChange={(e)=>setCleaningDesc(e.target.value)} rows="3" placeholder="Optional"></textarea>
+                <textarea value={cleaningDesc} onChange={(e) => setCleaningDesc(e.target.value)} rows="3" placeholder="Optional"></textarea>
               </div>
             </div>
             <div className="modal-footer">
-              <button 
+              <button
                 className="cancel-btn"
                 onClick={() => setShowCleaningModal(false)}
               >
                 Close
               </button>
-              <button 
+              <button
                 className="confirm-cancel-btn"
                 onClick={submitCleaning}
                 disabled={!isValidSelection() || cleanSubmitting}
@@ -539,7 +539,7 @@ function MyBookings() {
           <div className="modal-content">
             <div className="modal-header">
               <h3 style={{ textAlign: 'center' }}>Cancel Booking</h3>
-              <button 
+              <button
                 className="modal-close"
                 onClick={() => setShowCancelModal(false)}
               >
@@ -553,7 +553,7 @@ function MyBookings() {
                 <p><strong>Check-out:</strong> {selectedBooking && formatDateTime(selectedBooking.checkOut)}</p>
                 <p><strong>Total Price:</strong> ₱{selectedBooking && formatPrice(selectedBooking.totalAmount)}</p>
               </div>
-              
+
               <div className="cancellation-reasons">
                 <h4>Please select reason(s) for cancellation: <span className="required"></span></h4>
                 <div className="reasons-list">
@@ -591,17 +591,17 @@ function MyBookings() {
                 />
               </div>
 
-              
+
             </div>
-            
+
             <div className="modal-footer">
-              <button 
+              <button
                 className="cancel-btn"
                 onClick={() => setShowCancelModal(false)}
               >
                 Keep Booking
               </button>
-              <button 
+              <button
                 className="confirm-cancel-btn"
                 onClick={handleCancelConfirm}
                 disabled={cancellationReasons.length === 0 || cancelingId === selectedBooking?._id}

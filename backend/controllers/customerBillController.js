@@ -3,61 +3,83 @@ const Billing = require('../models/Billing');
 const Booking = require('../models/bookingModel');
 const Room = require('../models/roomModel');
 
-// Shared helper: build the same detailed breakdown used by the View Bill popup
+// Shared helper: build the detailed breakdown from BILLINGS COLLECTION ONLY
+// Fetches by BOTH booking ID AND roomNumber to include food orders
 const buildBookingBreakdown = async (bookingId) => {
   if (!bookingId) return null;
 
-  // Fetch booking with room details
+  // Fetch booking with room details (for display info only)
   const booking = await Booking.findById(bookingId).populate('room').lean();
   if (!booking) return null;
 
-  // Fetch all billing records for this booking
-  const billingRecords = await Billing.find({ booking: bookingId }).lean();
+  // Get the roomNumber from the booking
+  const roomNumber = booking.roomNumber || booking.room?.roomNumber;
 
-  // Calculate room charges
+  // Fetch ALL billing records by BOTH booking ID AND roomNumber
+  // This includes food orders that may not have a booking association
+  const billingRecords = await Billing.find({
+    $or: [
+      { booking: bookingId },
+      ...(roomNumber ? [{ roomNumber: String(roomNumber) }] : [])
+    ]
+  }).lean();
+
+  // If no billing records exist, return null (no bills to show)
+  if (!billingRecords || billingRecords.length === 0) {
+    return null;
+  }
+
+  // Separate room charges from food/other charges based on billing records
+  // Handle both 'amount' and 'totalPrice' fields
+  const roomChargeRecords = billingRecords.filter(
+    (b) => b.description && b.description.includes('Room booking charge')
+  );
+  const foodItems = billingRecords.filter(
+    (b) => !b.description || !b.description.includes('Room booking charge')
+  );
+
+  // Calculate subtotals from actual billing records (handle both amount and totalPrice)
+  const roomSubtotal = roomChargeRecords.reduce(
+    (sum, item) => sum + (item.amount ?? item.totalPrice ?? 0),
+    0
+  );
+  const foodSubtotal = foodItems.reduce(
+    (sum, item) => sum + (item.amount ?? item.totalPrice ?? 0),
+    0
+  );
+
+  // Get hours from booking for display purposes
   const checkIn = new Date(booking.checkIn);
   const checkOut = new Date(booking.checkOut);
   const diffMs = checkOut - checkIn;
   const hours = Math.ceil(diffMs / (1000 * 60 * 60));
 
-  // Get room price (handle Economy room special pricing)
-  const roomPrice =
-    booking.room?.roomType === 'Economy' ? 59.523 : (booking.room?.price || 0);
-  const roomSubtotal = hours * roomPrice;
-
-  // Separate food charges from billing records
-  const foodItems = billingRecords.filter(
-    (b) => b.description && !b.description.includes('Room booking charge')
-  );
-  const foodSubtotal = foodItems.reduce(
-    (sum, item) => sum + (item.amount || 0),
-    0
-  );
-
   // Extension charges (placeholder for future feature)
   const extensionSubtotal = 0;
 
-  // Calculate total
+  // Calculate total from actual billing records
   const totalAmount = roomSubtotal + foodSubtotal + extensionSubtotal;
 
   return {
     referenceNumber: booking.referenceNumber,
     customerName: booking.customerName,
-    roomNumber: booking.roomNumber || booking.room?.roomNumber || '',
+    roomNumber: roomNumber || '',
     checkIn: booking.checkIn,
     checkOut: booking.checkOut,
     paymentStatus: booking.paymentStatus || 'pending',
     breakdown: {
       roomCharges: {
         hours,
-        pricePerHour: roomPrice,
+        pricePerHour: roomSubtotal > 0 ? roomSubtotal / hours : 0,
         subtotal: roomSubtotal,
-        description: `Room booking charge for ${booking.roomNumber || booking.room?.roomNumber} (${hours} hours)`
+        description: roomChargeRecords.length > 0
+          ? roomChargeRecords[0].description
+          : `Room booking charge for ${roomNumber} (${hours} hours)`
       },
       foodCharges: {
         items: foodItems.map((item) => ({
-          description: item.description,
-          amount: item.amount,
+          description: item.description || (item.items?.length > 0 ? `Food order (${item.items.length} items)` : 'Food order'),
+          amount: item.amount ?? item.totalPrice ?? 0,
           createdAt: item.createdAt
         })),
         subtotal: foodSubtotal
@@ -85,13 +107,19 @@ exports.getAllCustomerBills = asyncHandler(async (req, res) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  // Collect unique active booking IDs
+  // Collect unique booking IDs (exclude completed/checked-out bookings)
   const activeBookingIds = new Set();
   (docs || []).forEach((d) => {
     const booking = d.booking;
     if (!booking) return;
+
+    // Exclude completed bookings (checked-out bookings)
+    if (booking.status === 'completed') return;
+
     const co = booking.checkOut ? new Date(booking.checkOut) : null;
-    if (!co || isNaN(co) || co < today) return;
+    // Only show bills if checkout date is in the future or today
+    if (co && !isNaN(co) && co < today) return;
+
     // Exclude unpaid pending bookings, but show paid pending bookings
     if (
       booking.status === 'pending' &&

@@ -35,7 +35,7 @@ const roomSchema = new mongoose.Schema({
   }],
   status: {
     type: String,
-    enum: ['available', 'occupied', 'maintenance'],
+    enum: ['available', 'occupied', 'maintenance', 'checked-out'],
     default: 'available'
   }
 }, {
@@ -51,7 +51,7 @@ const deriveFloorFromRoomNumber = (rn) => {
   return floor > 0 ? floor : null;
 };
 
-roomSchema.pre('save', function(next) {
+roomSchema.pre('save', function (next) {
   const derived = deriveFloorFromRoomNumber(this.roomNumber);
   if (derived != null) {
     this.floor = derived;
@@ -59,7 +59,7 @@ roomSchema.pre('save', function(next) {
   next();
 });
 
-roomSchema.pre('findOneAndUpdate', function(next) {
+roomSchema.pre('findOneAndUpdate', function (next) {
   const update = this.getUpdate();
   if (update && Object.prototype.hasOwnProperty.call(update, 'roomNumber')) {
     const derived = deriveFloorFromRoomNumber(update.roomNumber);
