@@ -59,13 +59,13 @@ const ManageBookingAdmin = () => {
   const [extendDate, setExtendDate] = useState('');
   const [extendTime, setExtendTime] = useState('');
   const [extendResult, setExtendResult] = useState(null); // { success: bool, message: string, amount: number }
-
- 
-  const [showExtendModal, setShowExtendModal] = useState(false);
-  const [extendDate, setExtendDate] = useState('');
-  const [extendTime, setExtendTime] = useState(''); 
-  const [extendHours, setExtendHours] = useState(3); // default minimum hours
-  const [showInfoModal, setShowInfoModal] = useState(false);
+  const [showBillModal, setShowBillModal] = useState(false);
+  const [activeBill, setActiveBill] = useState(null);
+  const [billDetails, setBillDetails] = useState(null);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+  const [detailsError, setDetailsError] = useState(null);
+  const [showMarkPaidModal, setShowMarkPaidModal] = useState(false);
+  const [markPaidBill, setMarkPaidBill] = useState(null);
 
   useEffect(() => {
     if (token) {
@@ -344,72 +344,6 @@ const ManageBookingAdmin = () => {
     return `${hh}:${mi}`;
   };
 
-<<<<<<< HEAD
-  // NEW: build final checkout datetime based on chosen date + hour
-  const buildNewCheckout = (booking, dateOverride, timeOverride) => {
-    const currentDate = toDateSafe(getCheckOut(booking)) || new Date();
-    const base = new Date(currentDate);
-
-    if (dateOverride) {
-      const [y, m, d] = dateOverride.split('-').map(Number);
-      if (y && m && d) {
-        base.setFullYear(y, m - 1, d);
-      }
-    }
-
-    if (timeOverride) {
-      const hour = Number(timeOverride); // we will pass plain hour like "1", "2", ...
-      if (!isNaN(hour)) {
-        base.setHours(hour, 0, 0, 0);
-      }
-    } else {
-      const coTime = getCheckOutTime(booking);
-      if (coTime instanceof Date && !isNaN(coTime)) {
-        base.setHours(coTime.getHours(), coTime.getMinutes(), 0, 0);
-      }
-    }
-
-    return base;
-  };
-
-  // NEW: compute allowed checkout hours (00–23) based on rules
-  const getAllowedHours = (booking, dateOverride) => {
-    const now = new Date();
-
-    // today (for comparison)
-    const todayY = now.getFullYear();
-    const todayM = now.getMonth();
-    const todayD = now.getDate();
-
-    // if user selected a date, compare with today
-    let isSameDayAsToday = true;
-    if (dateOverride) {
-      const [y, m, d] = dateOverride.split('-').map(Number);
-      if (y && m && d) {
-        isSameDayAsToday = (y === todayY && m - 1 === todayM && d === todayD);
-      }
-    }
-
-    const opts = [];
-
-    if (isSameDayAsToday) {
-      // Same day as NOW → only allow 3 hours or more after current hour
-      const curH = now.getHours();
-      const startHour = curH + 3;
-      for (let h = startHour; h <= 23; h++) {
-        if (h < 0 || h > 23) continue;
-        opts.push(h);
-      }
-    } else {
-      // Different day → extending by days, allow 1–23
-      for (let h = 1; h <= 23; h++) {
-        opts.push(h);
-      }
-    }
-
-    return opts;
-  };
-=======
   // Generate 30-minute interval time options
   const generateTimeOptions = () => {
     const options = [];
@@ -494,9 +428,10 @@ const ManageBookingAdmin = () => {
 
   const roomAvailability = getRoomAvailability();
 
->>>>>>> f4475ffc6c3dc8453c75c7038637751f549ceeee
 
+  // removed admin billing-derived notifications — centralized in LayoutAdmin bell dropdown
 
+  // Removed toast popups in favor of bell dropdown notifications
 
   const fetchBookingActivities = async (bookingId) => {
     try {
@@ -661,49 +596,7 @@ const ManageBookingAdmin = () => {
   const handleConfirmBooking = async () => {
     try {
       const config = { headers: { Authorization: `Bearer ${token}` } };
-
-<<<<<<< HEAD
-      // map form → backend payload
-      const payload = {
-        customerName: newBooking.guestName,
-        customerEmail: newBooking.email,
-        contactNumber: newBooking.contactNumber,
-        roomType: newBooking.roomType,
-        checkIn: newBooking.checkInDate,
-        checkOut: newBooking.checkOutDate,
-        adults: Number(newBooking.adults),
-        children: Number(newBooking.children),
-        guestName: newBooking.guestName,
-        specialRequests: newBooking.specialRequest,
-      };
-
-      const res = await axios.post(`${API_BASE}/api/bookings`, payload, config);
-      console.log('Booking created:', res.data);
-
-=======
-      // Build the booking data with cash payment (admin bookings are paid in cash)
-      // Create proper timezone-aware datetime strings
-      const [ciYear, ciMonth, ciDay] = newBooking.checkInDate.split('-').map(Number);
-      const [ciHour, ciMin] = (newBooking.checkInTime || '12:00').split(':').map(Number);
-      const checkInDateTime = new Date(ciYear, ciMonth - 1, ciDay, ciHour, ciMin);
-
-      const [coYear, coMonth, coDay] = newBooking.checkOutDate.split('-').map(Number);
-      const [coHour, coMin] = (newBooking.checkOutTime || '12:00').split(':').map(Number);
-      const checkOutDateTime = new Date(coYear, coMonth - 1, coDay, coHour, coMin);
-
-      const bookingData = {
-        ...newBooking,
-        // Send ISO strings with timezone
-        checkIn: checkInDateTime.toISOString(),
-        checkOut: checkOutDateTime.toISOString(),
-        paymentMethod: 'cash',
-        paymentStatus: 'paid',
-        customerName: newBooking.guestName,
-        customerEmail: newBooking.email
-      };
-
-      await axios.post(`${API_BASE}/api/bookings`, bookingData, config);
->>>>>>> f4475ffc6c3dc8453c75c7038637751f549ceeee
+      await axios.post(`${API_BASE}/api/bookings`, newBooking, config);
       setShowConfirmModal(true);
       setTimeout(() => {
         setShowConfirmModal(false);
@@ -958,40 +851,9 @@ const ManageBookingAdmin = () => {
                       >
                         Assign Room
                       </button>
-<<<<<<< HEAD
-
-                      {/* NEW: Extend button */}
-                      <button
-                        className="assign-btn"
-                        disabled={["cancelled","completed"].includes(String(getBookingStatus(b) || '').toLowerCase())}
-                        onClick={() => handleOpenExtend(b)}
-                      >
-                        Extend
-                      </button>
-
                       <button className="delete-btn" onClick={() => handleDelete(b._id)}>
                         Delete
                       </button>
-=======
-                      {['occupied', 'time to check-out'].includes(String(getBookingStatus(b) || '').toLowerCase()) && (
-                        <button
-                          className="checkout-btn"
-                          onClick={() => handleCheckoutClick(b)}
-                        >
-                          Check-Out
-                        </button>
-                      )}
-                      {['occupied', 'time to check-out'].includes(String(getBookingStatus(b) || '').toLowerCase()) && (
-                        <button
-                          className="extend-btn"
-                          style={{ backgroundColor: '#0A1A45', color: 'white' }}
-                          onClick={() => openExtendModal(b)}
-                        >
-                          Extend
-                        </button>
-                      )}
-
->>>>>>> f4475ffc6c3dc8453c75c7038637751f549ceeee
                     </div>
                   </td>
                 </tr>
@@ -1423,209 +1285,6 @@ const ManageBookingAdmin = () => {
             <div className="form-actions" style={{ justifyContent: 'flex-end' }}>
               <button className="cancel-btn cancel-danger" onClick={() => setShowDeleteModal(false)}>Cancel</button>
               <button className="ok-btn" onClick={confirmDeleteBooking}>Okay</button>
-            </div>
-          </div>
-        </div>
-      )}
-<<<<<<< HEAD
-
-      {showInfoModal && selectedBooking && (
-        <div className="modal-overlay">
-          <div className="modal-content info-modal">
-            <div className="modal-header">
-              <h3>More info</h3>
-              <button onClick={() => setShowInfoModal(false)}>×</button>
-            </div>
-
-            <div className="modal-body">
-              <div className="info-main">
-                <div className="info-row">
-                  <span className="label">Guest:</span>
-                  <span>{selectedBooking.customerName || selectedBooking.guestName || 'N/A'}</span>
-                </div>
-
-                <div className="info-row">
-                  <span className="label">Reference:</span>
-                  <span>{selectedBooking.referenceNumber || selectedBooking.reference || 'N/A'}</span>
-                </div>
-
-                <div className="info-row">
-                  <span className="label">Status:</span>
-                  <span>{selectedBooking.bookingStatus || selectedBooking.status || 'N/A'}</span>
-                </div>
-
-                <div className="info-row">
-                  <span className="label">Room type:</span>
-                  <span>{getRoomTypeFromBooking(selectedBooking) || 'N/A'}</span>
-                </div>
-
-                <div className="info-row">
-                  <span className="label">Number of guests:</span>
-                  <span>
-                    {Number(selectedBooking.adults || 0) +
-                      Number(selectedBooking.children || 0)}
-                  </span>
-                </div>
-                <div className="info-row">
-                  <span className="label">Adult:</span>
-                  <span>{selectedBooking.adults ?? '0'}</span>
-                </div>
-                <div className="info-row">
-                  <span className="label">Children:</span>
-                  <span>{selectedBooking.children ?? '0'}</span>
-                </div>
-                <div className="info-row">
-                  <span className="label">Total:</span>
-                  <span>
-                    {Number(selectedBooking.adults || 0) +
-                      Number(selectedBooking.children || 0)}
-                  </span>
-                </div>
-              </div>
-
-              <div className="info-special">
-                <div className="label">Special Request</div>
-                <div className="special-box">
-                  {selectedBooking.specialRequest ||
-                    selectedBooking.specialRequests ||
-                    'None'}
-                </div>
-              </div>
-            </div>
-
-            <div className="modal-footer" style={{ padding: '8px 16px', textAlign: 'right' }}>
-              <button className="ok-btn" onClick={() => setShowInfoModal(false)}>
-                Done
-=======
-      {showCheckoutModal && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <div className="modal-header">
-              <h3 style={{ color: 'black' }}>Confirm Check-Out</h3>
-            </div>
-            <div className="modal-body" style={{ color: 'black' }}>
-              Proceed to check-out?
-            </div>
-            <div className="form-actions" style={{ justifyContent: 'flex-end' }}>
-              <button className="cancel-btn cancel-danger" onClick={() => { setShowCheckoutModal(false); setCheckoutBookingId(null); }}>Cancel</button>
-              <button className="ok-btn" onClick={confirmCheckout}>Confirm</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Extend Booking Modal */}
-      {showExtendModal && extendBooking && (
-        <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: '450px' }}>
-            <div className="modal-header">
-              <h3 style={{ color: 'black' }}>Extend Booking</h3>
-              <button onClick={() => { setShowExtendModal(false); setExtendBooking(null); }}>&times;</button>
-            </div>
-            <div className="modal-body" style={{ color: 'black' }}>
-              <p style={{ marginBottom: '12px' }}>
-                <strong>Guest:</strong> {extendBooking.guestName || extendBooking.customerName}
-              </p>
-              <p style={{ marginBottom: '12px' }}>
-                <strong>Room:</strong> {getRoomDisplay(extendBooking)}
-              </p>
-              <p style={{ marginBottom: '16px' }}>
-                <strong>Current Check-out:</strong> {formatDate(getCheckOut(extendBooking))}
-              </p>
-              <hr style={{ marginBottom: '16px', border: 'none', borderTop: '1px solid #ddd' }} />
-              <p style={{ marginBottom: '8px', fontWeight: '600' }}>New Check-out Date & Time:</p>
-              <p style={{ marginBottom: '12px', fontSize: '13px', color: '#666' }}>
-                Minimum 3 hours extension from current checkout time.
-              </p>
-              <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500' }}>Date</label>
-                  <input
-                    type="date"
-                    value={extendDate}
-                    min={getMinExtendDateTime().minDate}
-                    onChange={(e) => { setExtendDate(e.target.value); setExtendTime(''); }}
-                    style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
-                  />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500' }}>Time</label>
-                  <select
-                    value={extendTime}
-                    onChange={(e) => setExtendTime(e.target.value)}
-                    style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
-                  >
-                    <option value="">Select time</option>
-                    {getExtendTimeOptions().map(opt => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </div>
-            <div className="form-actions" style={{ justifyContent: 'flex-end', gap: '10px' }}>
-              <button
-                className="cancel-btn"
-                style={{ background: '#6c757d', color: 'white' }}
-                onClick={() => { setShowExtendModal(false); setExtendBooking(null); }}
-              >
-                Cancel
-              </button>
-              <button
-                className="ok-btn"
-                style={{ background: '#0A1A45', color: 'white' }}
-                onClick={confirmExtend}
-                disabled={!extendDate || !extendTime}>
-                Extend
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Extend Result Modal (Success/Error) */}
-      {extendResult && (
-        <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: '400px' }}>
-            <div className="modal-header" style={{ justifyContent: 'center' }}>
-              <h3 style={{ color: extendResult.success ? '#28a745' : '#dc3545', margin: 0, paddingRight: '15px' }}>
-                {extendResult.success ? 'Success' : '✕ Error'}
-              </h3>
-            </div>
-            <div className="modal-body" style={{ color: 'black', textAlign: 'center' }}>
-              <p style={{ marginBottom: '12px', fontSize: '16px' }}>{extendResult.message}</p>
-              {extendResult.success && extendResult.amount && (
-                <div style={{
-                  background: '#f8f9fa',
-                  padding: '16px',
-                  borderRadius: '8px',
-                  marginTop: '12px'
-                }}>
-                  <p style={{ margin: 0, fontSize: '14px', color: '#666' }}>Additional Charge</p>
-                  <p style={{ margin: '8px 0 0', fontSize: '24px', fontWeight: 'bold', color: '#28a745' }}>
-                    ₱{extendResult.amount?.toLocaleString()}
-                  </p>
-                  {extendResult.hours && (
-                    <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#666' }}>
-                      ({extendResult.hours} hours extension)
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
-            <div className="form-actions" style={{ justifyContent: 'center' }}>
-              <button
-                className="ok-btn"
-                style={{
-                  background: extendResult.success ? '#28a745' : '#dc3545',
-                  color: 'white',
-                  minWidth: '100px'
-                }}
-                onClick={() => setExtendResult(null)}
-              >
-                OK
->>>>>>> f4475ffc6c3dc8453c75c7038637751f549ceeee
-              </button>
             </div>
           </div>
         </div>
