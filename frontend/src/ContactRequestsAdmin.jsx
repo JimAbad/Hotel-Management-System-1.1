@@ -157,6 +157,7 @@ const ContactRequestsAdmin = () => {
               <th>Message</th>
               <th>Priority</th>
               <th>Created</th>
+              
               <th>Actions</th>
             </tr>
           </thead>
@@ -170,7 +171,6 @@ const ContactRequestsAdmin = () => {
                   <td>{x.roomNumber || '-'}</td>
                   <td>{x.message || '-'}</td>
                   <td>{x.requestPriority ? x.requestPriority.toUpperCase() : (x.priority ? x.priority.toUpperCase() : 'NOT SET')}</td>
-                  <td>{x.requestStatus ? x.requestStatus.toUpperCase() : (x.status === 'handled' ? 'ASSIGNED' : (x.status === 'complied' ? 'COMPLIED' : (x.status || 'NEW').toUpperCase()))}</td>
                   <td>{formatDateTime(x.createdAt)}</td>
                   <td style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                     {x.status === 'assigned' || x.status === 'handled' ? (
